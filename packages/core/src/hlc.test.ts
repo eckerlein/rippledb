@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compareHlc, createHlcState, observeHlc, tickHlc } from './hlc';
 
 describe('hlc', () => {
-  it('compareHlc orders by wallMillis then counter then nodeId', () => {
+  it('compareHlc orders by wallMs then counter then nodeId', () => {
     expect(compareHlc('1:0:a', '2:0:a')).toBeLessThan(0);
     expect(compareHlc('2:0:a', '2:1:a')).toBeLessThan(0);
     expect(compareHlc('2:1:a', '2:1:b')).toBeLessThan(0);
