@@ -1,0 +1,31 @@
+---
+title: "ADR-0006: Row Queries Are Invalidated Precisely by ID"
+description: Row queries invalidate by primary key; list queries use broader invalidation.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Row queries fetch a single entity by ID. Their membership does not change unless the entity is deleted.
+
+## Decision
+
+Row queries are invalidated **precisely**:
+
+- update → invalidate `["entity", id]`
+- delete → invalidate and remove cached row
+
+## Alternatives Considered
+
+- Broad invalidation for all queries
+- Row dependency graphs
+
+## Consequences
+
+- Minimal re-fetching
+- High performance for detail views
+- Requires reliable DbEvent emission
+

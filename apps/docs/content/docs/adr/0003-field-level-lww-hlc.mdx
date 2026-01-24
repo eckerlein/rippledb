@@ -1,0 +1,39 @@
+---
+title: "ADR-0003: Field-Level LWW Using Hybrid Logical Clocks (HLC)"
+description: Resolve conflicts per-field using HLC tags rather than row-level LWW.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Concurrent updates to the same entity fields must resolve deterministically across replicas.
+
+Row-level “last write wins” causes unnecessary data loss and conflicts.
+
+## Decision
+
+Converge resolves conflicts using **field-level Last-Write-Wins**, ordered by **Hybrid Logical Clock (HLC) tags**.
+
+Each mutable field has its own tag:
+
+```
+wallMillis:counter:nodeId
+```
+
+## Alternatives Considered
+
+- Row-level LWW
+- Vector clocks
+- CRDTs for all data
+- Server-side conflict resolution
+
+## Consequences
+
+- Deterministic convergence
+- Reduced conflict scope
+- Increased schema verbosity (tags per field)
+- Requires careful delete modeling (tombstones)
+

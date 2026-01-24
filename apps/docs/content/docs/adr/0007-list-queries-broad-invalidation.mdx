@@ -1,0 +1,41 @@
+---
+title: "ADR-0007: List Queries Use Broad Invalidation and Rerun"
+description: List queries rerun broadly on dependent entity changes for correctness and simplicity.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+List queries may contain:
+
+- WHERE clauses
+- ORDER BY clauses
+- JOINs
+- aggregates
+- pagination
+
+Without parsing SQL or re-implementing query logic in JS, it is impossible to determine whether a change affects list membership or ordering.
+
+## Decision
+
+Converge **always invalidates and reruns list queries broadly** when dependent entities change.
+
+Precision is intentionally sacrificed for correctness and simplicity.
+
+## Alternatives Considered
+
+- SQL AST parsing
+- Query DSL with JS evaluation
+- Incremental view maintenance
+- In-memory reactive joins
+
+## Consequences
+
+- Lists are always correct
+- Some refetches are unnecessary but safe
+- Complexity is dramatically reduced
+- Performance relies on DB efficiency and batching
+

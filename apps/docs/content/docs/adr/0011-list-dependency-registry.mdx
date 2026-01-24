@@ -1,0 +1,36 @@
+---
+title: "ADR-0011: List Query Dependency Mapping Is Explicit (Registry-Based)"
+description: Use an optional registry to map list key prefixes to dependent entities for invalidation.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Broad invalidation still needs to be scoped to relevant list queries.
+
+Hardcoding invalidation logic across the app leads to duplication and errors.
+
+## Decision
+
+Converge supports an **optional list registry**:
+
+- maps list query key prefixes to dependent entities
+- used by UI adapters to invalidate queries
+
+This registry is declarative and non-magical.
+
+## Alternatives Considered
+
+- Implicit dependency inference
+- No abstraction (manual invalidation everywhere)
+
+## Consequences
+
+- Low boilerplate
+- Explicit policy
+- Still optional
+- No SQL awareness required
+

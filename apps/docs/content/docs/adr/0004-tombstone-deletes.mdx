@@ -1,0 +1,35 @@
+---
+title: "ADR-0004: Deletes Are Modeled as Tombstones"
+description: Deletes are conflict-resolvable fields (deleted + deleted_tag) rather than hard row removal.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Concurrent delete/update scenarios can cause “resurrection” if deletes are treated as row removal.
+
+## Decision
+
+Deletes are represented as **tombstones**:
+
+- `deleted = true`
+- `deleted_tag = <hlc>`
+
+Deletes participate in LWW like any other field.
+
+## Alternatives Considered
+
+- Hard deletes
+- Server-only deletes
+- Per-row delete markers without tags
+
+## Consequences
+
+- Deletes are conflict-resolvable
+- Resurrection is prevented
+- Queries must filter on `deleted`
+- Cleanup/compaction is a future concern
+

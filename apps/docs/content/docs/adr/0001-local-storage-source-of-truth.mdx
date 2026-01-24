@@ -1,0 +1,39 @@
+---
+title: "ADR-0001: Local Storage Is the Source of Truth"
+description: Durable local storage is canonical on the client; UI state is derived from it.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Converge is intended to support offline-first and multi-user applications. The system must remain correct when the network is unavailable and must converge deterministically across replicas.
+
+A decision is required on whether canonical state lives:
+
+- in memory
+- on the server
+- or in durable local storage
+
+## Decision
+
+Converge treats **durable local storage as the source of truth** on the client.
+
+All UI state is derived from local storage. In-memory caches (e.g. UI caches) are explicitly non-authoritative.
+
+## Alternatives Considered
+
+- In-memory truth with persistence layer (TinyBase-style)
+- Server-authoritative state with local cache
+- Hybrid memory + disk authority
+
+## Consequences
+
+- Offline correctness is guaranteed
+- Debugging and inspection are easier
+- Memory usage is predictable
+- UI reactivity must be explicitly wired
+- Persistence logic is unavoidable but centralized
+

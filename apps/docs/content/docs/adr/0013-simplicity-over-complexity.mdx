@@ -1,0 +1,42 @@
+---
+title: "ADR-0013: Complexity Is Rejected in Favor of Predictability"
+description: Prefer simple rerun-based correctness and defer optimizations until proven necessary.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Many potential optimizations introduce significant complexity and hidden failure modes.
+
+## Decision
+
+When choosing between:
+
+- complex incremental optimization
+- simple rerun-based correctness
+
+Converge **chooses simplicity and correctness**.
+
+Optimizations are deferred until proven necessary.
+
+## Alternatives Considered
+
+- Aggressive optimization
+- Smart diffing
+- Query introspection
+
+## Consequences
+
+- Easier reasoning
+- Fewer edge-case bugs
+- Acceptable performance for intended use cases
+
+## Final Note (Meta-ADR)
+
+> Any future change that contradicts one of these ADRs **must introduce a new ADR** explaining why the original decision no longer holds.
+>
+> This is how the architecture stays coherent.
+

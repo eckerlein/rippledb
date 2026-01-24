@@ -1,0 +1,36 @@
+---
+title: "ADR-0012: CRDTs Are Explicitly Out of Core Scope"
+description: CRDT semantics are not in core; integrate separately via optional modules if needed.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+CRDTs (e.g. Yjs) solve different problems than LWW-based relational sync.
+
+Mixing CRDT semantics into the core would complicate guarantees and APIs.
+
+## Decision
+
+Converge does **not** include CRDT logic in the core.
+
+CRDTs may be integrated later via:
+
+- separate controllers
+- separate persistence
+- separate transports
+
+## Alternatives Considered
+
+- CRDT-only system
+- Hybrid LWW/CRDT core
+
+## Consequences
+
+- Core remains simple and deterministic
+- Rich text and presence require additional modules
+- Future extensibility is preserved
+

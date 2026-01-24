@@ -1,0 +1,36 @@
+---
+title: "ADR-0005: Distinguish Row Queries from List Queries"
+description: Row queries and list queries have fundamentally different invalidation semantics.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Different query types have fundamentally different invalidation semantics.
+
+Treating all queries uniformly leads to either stale data or excessive invalidation complexity.
+
+## Decision
+
+Converge explicitly distinguishes:
+
+- **Row queries** (fetch by primary key)
+- **List queries** (WHERE, ORDER BY, JOIN, aggregates, pagination)
+
+Each category has its own invalidation strategy.
+
+## Alternatives Considered
+
+- Uniform query treatment
+- Automatic dependency graph inference
+- Reactive joins
+
+## Consequences
+
+- Invalidation logic becomes simpler
+- Developers must classify queries correctly
+- Enables predictable correctness guarantees
+

@@ -1,0 +1,34 @@
+---
+title: "ADR-0002: Replication Is Log-Based (Append-Only), Not State-Based"
+description: Replication uses an append-only change log (cursor pull + outbox push), not snapshot sync.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+To support offline usage, partial connectivity, and deterministic convergence, replicas must synchronize changes reliably.
+
+State-based sync (sending full snapshots) complicates conflict resolution and recovery.
+
+## Decision
+
+Converge uses an **append-only change log** as the replication primitive.
+
+Clients pull changes using a cursor and push local changes via an outbox.
+
+## Alternatives Considered
+
+- Snapshot-based sync
+- Periodic full-state reconciliation
+- Bidirectional state diffs
+
+## Consequences
+
+- Sync is resumable and replayable
+- Partial failures are recoverable
+- History can be inspected or compacted later
+- Storage grows unless compacted (explicitly deferred)
+

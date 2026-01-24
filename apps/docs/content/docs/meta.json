@@ -1,0 +1,12 @@
+{
+  "title": "Converge Docs",
+  "root": true,
+  "pages": [
+    "index",
+    "base",
+    "test",
+    "---Architecture---",
+    "...adr"
+  ]
+}
+

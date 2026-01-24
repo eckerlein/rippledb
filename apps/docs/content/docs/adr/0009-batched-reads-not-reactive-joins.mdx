@@ -1,0 +1,35 @@
+---
+title: "ADR-0009: Performance Is Achieved via Batched Reads, Not Join-Based Reactivity"
+description: Avoid client-side join reactivity; batch point reads into bulk queries per tick.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Normalized data access patterns cause many point reads (N+1 problem). Using client-side joins introduces invalidation complexity.
+
+## Decision
+
+Converge introduces a **batch loader** abstraction:
+
+- reads are collected per tick/RAF
+- executed as a single bulk query
+- results are split back to callers
+
+Batching is independent of UI frameworks or caches.
+
+## Alternatives Considered
+
+- Client-side joins
+- In-memory materialized views
+- Reactive data graphs
+
+## Consequences
+
+- Performance comparable to joins
+- Simple invalidation model
+- Works across all callers (UI, services, background tasks)
+

@@ -1,0 +1,32 @@
+---
+title: "ADR-0010: UI Cache Integration Is Optional and Decoupled"
+description: Core emits neutral DbEvents; UI cache integration is provided via optional adapters.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Different applications use different UI frameworks and caching strategies. The core library must not depend on a specific UI solution.
+
+## Decision
+
+Converge:
+
+- emits neutral `DbEvent`s from the write path
+- provides **optional UI integration helpers**
+- does not couple core logic to TanStack Query or any framework
+
+## Alternatives Considered
+
+- Built-in UI cache
+- Framework-specific core APIs
+
+## Consequences
+
+- Core remains portable
+- UI integration requires explicit wiring
+- Multiple UI adapters can coexist
+

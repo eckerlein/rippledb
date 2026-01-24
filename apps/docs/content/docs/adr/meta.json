@@ -1,0 +1,22 @@
+{
+  "title": "ADRs",
+  "icon": "ScrollText",
+  "defaultOpen": true,
+  "pages": [
+    "index",
+    "0001-local-storage-source-of-truth",
+    "0002-log-based-replication",
+    "0003-field-level-lww-hlc",
+    "0004-tombstone-deletes",
+    "0005-row-vs-list-queries",
+    "0006-row-invalidation-by-id",
+    "0007-list-queries-broad-invalidation",
+    "0008-sorting-invalidation-like-filtering",
+    "0009-batched-reads-not-reactive-joins",
+    "0010-ui-cache-integration-optional",
+    "0011-list-dependency-registry",
+    "0012-crdts-out-of-scope",
+    "0013-simplicity-over-complexity"
+  ]
+}
+

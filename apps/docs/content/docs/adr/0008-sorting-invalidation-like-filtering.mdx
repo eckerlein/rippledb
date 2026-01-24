@@ -1,0 +1,31 @@
+---
+title: "ADR-0008: Sorting Requires the Same Invalidation Strategy as Filtering"
+description: Any change to fields used for sorting invalidates and reruns list queries.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Sorting changes row ordering and pagination boundaries. A field change used in ORDER BY may reorder the entire list.
+
+## Decision
+
+Sorting is treated identically to filtering:
+
+- any change to dependent entities invalidates the list query
+- list queries are rerun entirely
+
+## Alternatives Considered
+
+- Incremental reorder logic
+- Partial re-sorting
+
+## Consequences
+
+- Consistent behavior across filters and sorts
+- Simplified mental model
+- Predictable pagination correctness
+

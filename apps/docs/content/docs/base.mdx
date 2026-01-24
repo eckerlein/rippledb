@@ -1,0 +1,732 @@
+---
+title: Base Doc
+description: Your first document
+---
+
+Alright — deep breath 😄
+I’m going to give you a **full, end-to-end, library-level architecture document**, rewritten **cleanly**, **very detailed**, and **explicit about every decision we made**.
+
+This is meant to be a **base document for a monorepo**, something you can keep in `/docs/architecture.md` and refer to while implementing.
+No app stack assumptions. No UI framework assumptions. No hand-wavy parts.
+
+This will be long. That’s intentional.
+
+---
+
+# Converge
+
+## A Local-First Replication & Data Access Library
+
+### Architecture, Design Decisions & Rationale
+
+---
+
+## 0. Purpose of This Document
+
+This document describes the **complete design** of the Converge library:
+
+* what problems it solves
+* what problems it explicitly does **not** solve
+* the mental model
+* the data flow
+* the invalidation strategy
+* the batching strategy
+* how complex filtering/sorting is handled
+* how UI frameworks integrate (without coupling)
+* why broad invalidation is intentional
+* how this compares to TinyBase-style systems
+
+This is a **library perspective**, not an application template.
+
+---
+
+## 1. What Converge Is
+
+Converge is a **local-first replication core** built around:
+
+* **durable local storage as the source of truth**
+* **append-only change logs**
+* **deterministic conflict resolution (LWW + HLC)**
+* **explicit invalidation**
+* **batched reads**
+* **framework-agnostic UI integration**
+
+It is designed for:
+
+* relational domain data
+* offline-first apps
+* multi-user sync
+* large, sortable/filterable tables
+* predictable performance and correctness
+
+---
+
+## 2. What Converge Is Not
+
+Converge is **not**:
+
+* a database
+* an ORM
+* a UI state manager
+* a CRDT engine
+* a hosted backend
+* a real-time transport guarantee
+
+Converge **does not**:
+
+* try to “understand SQL”
+* parse WHERE clauses
+* incrementally maintain arbitrary joins
+* auto-optimize list membership
+
+These are deliberate non-goals.
+
+---
+
+## 3. Core Philosophy (Non-Negotiable)
+
+### 3.1 Local Storage Is Truth
+
+* All canonical state lives in **durable local storage**
+* In-memory state is always **derived**
+* The UI never “owns” data
+
+Why:
+
+* correctness offline
+* debuggability
+* deterministic replay
+* no hidden state
+
+---
+
+### 3.2 Replication Is Log-Based, Not State-Based
+
+* We sync **changes**, not snapshots
+* Logs are append-only
+* Pull uses cursors
+
+Why:
+
+* robustness
+* easy recovery
+* multi-device consistency
+
+---
+
+### 3.3 Conflict Resolution Must Be Deterministic
+
+* No heuristics
+* No “best effort”
+* Same inputs → same outputs everywhere
+
+We use **field-level LWW with HLC tags**.
+
+---
+
+### 3.4 UI Reactivity Is Explicit
+
+* No implicit dependency graphs
+* No magic “join reactivity”
+* Invalidation rules are **declared**, not inferred
+
+Why:
+
+* predictability
+* testability
+* portability across frameworks
+
+---
+
+### 3.5 Performance Comes From Batching, Not Cleverness
+
+* We batch reads
+* We rerun queries
+* We avoid incremental complexity
+
+Why:
+
+* complexity kills correctness
+* SQLite is fast
+* rerunning queries is cheaper than guessing
+
+---
+
+## 4. Runtime Model (Capabilities, Not Tools)
+
+Converge depends on **capabilities**, not technologies.
+
+---
+
+### 4.1 Client Runtime Capabilities
+
+A client environment must provide:
+
+* **Durable storage**
+
+  * transactions
+  * indexed queries
+* **Monotonic clock**
+* **Stable replica ID**
+* **Task scheduling**
+
+  * microtask / RAF / timer
+* **Network transport**
+
+Examples (not requirements):
+
+* SQLite, IndexedDB
+* Browser, Desktop, Mobile
+
+---
+
+### 4.2 Server Runtime Capabilities
+
+A server environment must provide:
+
+* **Append-only change log**
+* **Cursor-based reads**
+* **Idempotent writes**
+* Optional **fanout / notify**
+
+Examples:
+
+* Postgres, SQLite
+* Redis, NATS (optional)
+
+---
+
+## 5. Core Data Model
+
+### 5.1 Change (Library Primitive)
+
+A change is the atomic unit of replication.
+
+```ts
+type Change = {
+  stream: string;                // opaque partition key
+  entity: string;                // domain entity name
+  entityId: string;              // primary key
+  kind: "upsert" | "delete";     // fixed semantics
+  patch: Record<string, any>;    // changed fields only
+  tags: Record<string, string>;  // field -> HLC tag
+  hlc: string;                   // change-level HLC
+};
+```
+
+#### Design decisions
+
+* `stream` is opaque (org, project, doc, etc.)
+* `kind` is **restricted** (not user-defined)
+* patches are **partial**
+* tags are **per field**, not per row
+
+---
+
+## 6. Conflict Resolution: LWW + HLC
+
+### 6.1 Hybrid Logical Clock (HLC)
+
+Format:
+
+```
+wallMillis:counter:nodeId
+```
+
+Properties:
+
+* monotonic per replica
+* globally comparable
+* deterministic tie-breaking
+
+---
+
+### 6.2 Field-Level LWW
+
+Each mutable field has:
+
+* a value
+* a tag
+
+Merge rule:
+
+```ts
+if (incomingTag > localTag) {
+  apply incomingValue
+}
+```
+
+That’s it.
+
+No row-level overwrites.
+No partial merges.
+No “last writer wins” at row granularity.
+
+---
+
+### 6.3 Deletes (Tombstones)
+
+Deletes are modeled as:
+
+```ts
+deleted = true
+deleted_tag = <hlc>
+```
+
+Why:
+
+* prevents resurrection
+* resolves delete/update conflicts cleanly
+
+---
+
+## 7. Sync Model
+
+### 7.1 Append-Only Change Log
+
+Conceptual schema:
+
+```sql
+changes (
+  id        BIGSERIAL,
+  stream    TEXT,
+  entity    TEXT,
+  entity_id TEXT,
+  kind      TEXT,
+  patch     JSON,
+  tags      JSON,
+  hlc       TEXT
+)
+```
+
+Properties:
+
+* immutable
+* ordered
+* cursor-addressable
+
+---
+
+### 7.2 Client Outbox
+
+Clients maintain an outbox of local changes:
+
+* append-only
+* retried until acknowledged
+* idempotent
+
+---
+
+### 7.3 Cursor-Based Pull
+
+```ts
+pull(stream, cursor) -> { changes[], nextCursor }
+```
+
+This is the **only correctness mechanism**.
+Realtime is optional.
+
+---
+
+### 7.4 Canonical Sync Order
+
+**Pull → Apply → Push**
+
+Why:
+
+* incorporate remote truth first
+* reapply local intent
+* resolve conflicts deterministically
+
+---
+
+## 8. Storage & Access Layers (Separation of Concerns)
+
+We deliberately separate:
+
+1. **Storage & sync**
+2. **Read access**
+3. **UI caching**
+
+---
+
+### 8.1 Client Store Adapter (Library-Level)
+
+Responsibilities:
+
+* apply changes transactionally
+* read rows by ID
+* run list queries
+* emit DB events after commit
+
+Conceptual interface:
+
+```ts
+interface ClientStore {
+  applyChanges(changes: Change[]): Promise<void>;
+  getRow(entity: string, id: string): Promise<any | null>;
+  listRows(query: any): Promise<any[]>;
+}
+```
+
+No UI coupling.
+
+---
+
+## 9. DB Event Bus (Explicit Reactivity)
+
+### 9.1 Why This Exists
+
+SQLite (and most stores) do **not** emit change events suitable for UI reactivity.
+
+So **we emit events ourselves**, from the write path.
+
+---
+
+### 9.2 DbEvent Shape
+
+```ts
+type DbEvent = {
+  entity: string;
+  kind: "insert" | "update" | "delete";
+  id?: string;
+};
+```
+
+Events describe **what changed**, not **what to refetch**.
+
+---
+
+## 10. Query Model (Critical Section)
+
+This is where most systems fall apart.
+This is also where we made very explicit choices.
+
+---
+
+### 10.1 Two Classes of Queries
+
+We distinguish **two fundamentally different kinds of queries**:
+
+#### A) Row Queries
+
+* Fetch a single entity by ID
+* Example:
+
+  ```sql
+  SELECT * FROM inquiries WHERE id = ?
+  ```
+
+#### B) List Queries
+
+* Any query with:
+
+  * WHERE
+  * ORDER BY
+  * JOIN
+  * aggregates
+  * pagination
+
+Examples:
+
+```sql
+SELECT id FROM inquiries WHERE status = 'open'
+SELECT i.*, c.name FROM inquiries i JOIN customers c ...
+```
+
+---
+
+### 10.2 Why This Distinction Matters
+
+Row queries:
+
+* membership is fixed
+* can be invalidated precisely
+
+List queries:
+
+* membership & ordering are dynamic
+* **cannot be safely incrementally updated without understanding SQL**
+* must be rerun
+
+This is not a limitation of our system — it’s a property of SQL.
+
+---
+
+## 11. Broad Invalidation Is Intentional
+
+### 11.1 The Core Insight
+
+Without parsing SQL or re-implementing it in JS:
+
+> You **cannot know** whether a list query’s result changed.
+
+This applies to:
+
+* filtering
+* sorting
+* joins
+* pagination
+
+Therefore:
+
+> **All list queries must be invalidated broadly.**
+
+---
+
+### 11.2 Example (Why Precision Is Impossible)
+
+```sql
+SELECT id FROM inquiries WHERE date > '2002-01-11'
+```
+
+If a row changes `date`, you cannot know in JS whether it:
+
+* entered the list
+* left the list
+* moved pages
+
+Unless you run the query again.
+
+So we do.
+
+---
+
+### 11.3 Policy Summary
+
+| Query Type | Invalidation Strategy     |
+| ---------- | ------------------------- |
+| Row query  | Precise (by ID)           |
+| List query | Broad (rerun whole query) |
+
+This is a **design choice**, not a shortcut.
+
+---
+
+## 12. Sorting & Filtering
+
+Sorting is **the same problem class** as filtering.
+
+If a field used in `ORDER BY` changes:
+
+* row position may change
+* page boundaries may change
+
+Therefore:
+
+* sorting **also requires** broad invalidation
+* there is no special case
+
+---
+
+## 13. Batching (Performance Without Magic)
+
+### 13.1 The Problem
+
+Normalized access patterns cause many reads:
+
+```ts
+getInquiry(id)
+getCustomer(customerId)
+getAssignee(assigneeId)
+```
+
+Naively, this is N+1 DB queries.
+
+---
+
+### 13.2 The Solution: Batch Loader
+
+We batch **reads**, not invalidations.
+
+---
+
+### 13.3 Batch Loader Contract
+
+```ts
+interface BatchLoader<K, V> {
+  load(key: K): Promise<V | null>;
+}
+```
+
+Behavior:
+
+* collects keys during a tick / RAF
+* deduplicates
+* executes one `WHERE id IN (...)`
+* splits results back to callers
+
+---
+
+### 13.4 Critical Property
+
+The batch loader:
+
+* does **not** know about TanStack Query
+* does **not** know about UI
+* lives in the data access layer
+
+Any caller benefits.
+
+---
+
+## 14. UI Cache Integration (Optional)
+
+Converge does **not** require TanStack Query.
+
+But it supports it well.
+
+---
+
+### 14.1 Why We Need a Helper
+
+We need to map:
+
+* DbEvents → cache invalidation
+
+But:
+
+* this is UI-specific
+* not core logic
+
+---
+
+### 14.2 List Registry (Tiny Helper)
+
+The list registry is **just a mapping**:
+
+> “Which list query families depend on which entities?”
+
+Example:
+
+```ts
+const lists = defineListRegistry()
+  .list(["inquiryList"], { deps: ["inquiries", "customers", "inquiry_tags"] })
+  .list(["customerList"], { deps: ["customers"] });
+```
+
+This is equivalent to a plain array of rules.
+
+---
+
+### 14.3 Wiring Invalidations
+
+```ts
+wireTanstackInvalidation({
+  queryClient,
+  onDbEvent,
+  registry: lists,
+});
+```
+
+Behavior:
+
+* listen to DbEvents
+* for each event:
+
+  * invalidate all list query prefixes whose deps include `event.entity`
+* coalesce bursts
+
+That’s all.
+
+No SQL knowledge.
+No magic.
+
+---
+
+## 15. Why This Is Decoupled From CRUD
+
+CRUD / sync:
+
+* emits DbEvents
+* applies changes
+* knows nothing about UI
+
+UI integration:
+
+* listens to DbEvents
+* decides what to refetch
+
+This keeps the core portable.
+
+---
+
+## 16. Relationship to TinyBase
+
+### TinyBase Strengths
+
+* in-memory truth
+* reactive joins
+* fine-grained updates
+
+### Converge Strengths
+
+* durable local truth
+* SQL-grade filtering/sorting
+* predictable performance
+* simpler mental model
+* scalable datasets
+
+Converge trades:
+
+* automatic reactive joins
+  for:
+* explicit invalidation + rerun
+
+This is intentional.
+
+---
+
+## 17. CRDT / Rich Text (Out of Core)
+
+CRDT (e.g. Yjs) is:
+
+* different conflict model
+* different persistence model
+* different UI needs
+
+Therefore:
+
+* not part of core
+* integrated via separate controller later
+
+---
+
+## 18. Canonical Mental Model (Final)
+
+> Local storage is truth
+> Replication is log-based
+> Conflicts resolve per field
+> Row queries are precise
+> List queries are rerun
+> Sorting requires rerun
+> Performance comes from batching
+> Reactivity is explicit
+> Magic is avoided
+
+---
+
+## 19. What This Enables
+
+* offline-first apps
+* multi-user sync
+* large sortable/filterable tables
+* predictable correctness
+* framework-agnostic usage
+* future CRDT integration without rewrite
+
+---
+
+## 20. Final Note
+
+The moment you accepted:
+
+> “SQL decides membership”
+
+You *had* to accept:
+
+> “We rerun list queries”
+
+Everything else follows cleanly from that.
+
+And that’s why this design is solid.
