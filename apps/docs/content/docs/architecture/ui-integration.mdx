@@ -1,0 +1,92 @@
+---
+title: UI Integration (Optional)
+description: Emit DbEvents from the write path; map them to cache invalidation via optional adapters.
+---
+
+## 9. DB event bus (explicit reactivity)
+
+### 9.1 Why this exists
+
+SQLite (and most stores) do **not** emit change events suitable for UI reactivity.
+
+So **we emit events ourselves**, from the write path.
+
+### 9.2 DbEvent shape
+
+```ts
+type DbEvent = {
+  entity: string;
+  kind: "insert" | "update" | "delete";
+  id?: string;
+};
+```
+
+Events describe **what changed**, not **what to refetch**.
+
+## 14. UI cache integration (optional)
+
+Converge does **not** require TanStack Query. But it supports it well.
+
+### 14.1 Why we need a helper
+
+We need to map:
+
+- DbEvents → cache invalidation
+
+But:
+
+- this is UI-specific
+- not core logic
+
+### 14.2 List registry (tiny helper)
+
+The list registry is **just a mapping**:
+
+> “Which list query families depend on which entities?”
+
+Example:
+
+```ts
+const lists = defineListRegistry()
+  .list(["inquiryList"], { deps: ["inquiries", "customers", "inquiry_tags"] })
+  .list(["customerList"], { deps: ["customers"] });
+```
+
+This is equivalent to a plain array of rules.
+
+### 14.3 Wiring invalidations
+
+```ts
+wireTanstackInvalidation({
+  queryClient,
+  onDbEvent,
+  registry: lists,
+});
+```
+
+Behavior:
+
+- listen to DbEvents
+- for each event:
+  - invalidate all list query prefixes whose deps include `event.entity`
+- coalesce bursts
+
+That’s all.
+
+No SQL knowledge. No magic.
+
+## 15. Why this is decoupled from CRUD
+
+CRUD / sync:
+
+- emits DbEvents
+- applies changes
+- knows nothing about UI
+
+UI integration:
+
+- listens to DbEvents
+- decides what to refetch
+
+This keeps the core portable.
+

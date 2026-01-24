@@ -1,0 +1,61 @@
+---
+title: Purpose & Scope
+description: What Converge is, what it is not, and the deliberate non-goals.
+---
+
+## 0. Purpose of this document
+
+This document describes the **complete design** of the Converge library:
+
+- what problems it solves
+- what problems it explicitly does **not** solve
+- the mental model
+- the data flow
+- the invalidation strategy
+- the batching strategy
+- how complex filtering/sorting is handled
+- how UI frameworks integrate (without coupling)
+- why broad invalidation is intentional
+- how this compares to TinyBase-style systems
+
+This is a **library perspective**, not an application template.
+
+## 1. What Converge is
+
+Converge is a **local-first replication core** built around:
+
+- **durable local storage as the source of truth**
+- **append-only change logs**
+- **deterministic conflict resolution (LWW + HLC)**
+- **explicit invalidation**
+- **batched reads**
+- **framework-agnostic UI integration**
+
+It is designed for:
+
+- relational domain data
+- offline-first apps
+- multi-user sync
+- large, sortable/filterable tables
+- predictable performance and correctness
+
+## 2. What Converge is not
+
+Converge is **not**:
+
+- a database
+- an ORM
+- a UI state manager
+- a CRDT engine
+- a hosted backend
+- a real-time transport guarantee
+
+Converge **does not**:
+
+- try to “understand SQL”
+- parse WHERE clauses
+- incrementally maintain arbitrary joins
+- auto-optimize list membership
+
+These are deliberate non-goals.
+

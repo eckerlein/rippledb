@@ -1,0 +1,48 @@
+---
+title: Performance via Batching
+description: Solve N+1 by batching reads per tick/RAF without coupling to UI frameworks.
+---
+
+## 13. Batching (performance without magic)
+
+### 13.1 The problem
+
+Normalized access patterns cause many reads:
+
+```ts
+getInquiry(id)
+getCustomer(customerId)
+getAssignee(assigneeId)
+```
+
+Naively, this is N+1 DB queries.
+
+### 13.2 The solution: batch loader
+
+We batch **reads**, not invalidations.
+
+### 13.3 Batch loader contract
+
+```ts
+interface BatchLoader<K, V> {
+  load(key: K): Promise<V | null>;
+}
+```
+
+Behavior:
+
+- collects keys during a tick / RAF
+- deduplicates
+- executes one `WHERE id IN (...)`
+- splits results back to callers
+
+### 13.4 Critical property
+
+The batch loader:
+
+- does **not** know about TanStack Query
+- does **not** know about UI
+- lives in the data access layer
+
+Any caller benefits.
+

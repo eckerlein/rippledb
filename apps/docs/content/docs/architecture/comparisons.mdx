@@ -1,0 +1,44 @@
+---
+title: Comparisons & Out-of-Scope
+description: Relationship to TinyBase, and why CRDT/rich-text is intentionally outside core.
+---
+
+## 16. Relationship to TinyBase
+
+### TinyBase strengths
+
+- in-memory truth
+- reactive joins
+- fine-grained updates
+
+### Converge strengths
+
+- durable local truth
+- SQL-grade filtering/sorting
+- predictable performance
+- simpler mental model
+- scalable datasets
+
+Converge trades:
+
+- automatic reactive joins
+
+for:
+
+- explicit invalidation + rerun
+
+This is intentional.
+
+## 17. CRDT / rich text (out of core)
+
+CRDT (e.g. Yjs) is:
+
+- different conflict model
+- different persistence model
+- different UI needs
+
+Therefore:
+
+- not part of core
+- integrated via separate controller later
+

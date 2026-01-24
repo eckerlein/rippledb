@@ -1,0 +1,64 @@
+---
+title: Core Principles
+description: "The non-negotiable philosophy: local truth, log-based replication, deterministic conflict resolution, and explicit reactivity."
+---
+
+## 3. Core philosophy (non-negotiable)
+
+### 3.1 Local storage is truth
+
+- All canonical state lives in **durable local storage**
+- In-memory state is always **derived**
+- The UI never “owns” data
+
+Why:
+
+- correctness offline
+- debuggability
+- deterministic replay
+- no hidden state
+
+### 3.2 Replication is log-based, not state-based
+
+- We sync **changes**, not snapshots
+- Logs are append-only
+- Pull uses cursors
+
+Why:
+
+- robustness
+- easy recovery
+- multi-device consistency
+
+### 3.3 Conflict resolution must be deterministic
+
+- No heuristics
+- No “best effort”
+- Same inputs → same outputs everywhere
+
+We use **field-level LWW with HLC tags**.
+
+### 3.4 UI reactivity is explicit
+
+- No implicit dependency graphs
+- No magic “join reactivity”
+- Invalidation rules are **declared**, not inferred
+
+Why:
+
+- predictability
+- testability
+- portability across frameworks
+
+### 3.5 Performance comes from batching, not cleverness
+
+- We batch reads
+- We rerun queries
+- We avoid incremental complexity
+
+Why:
+
+- complexity kills correctness
+- SQLite is fast
+- rerunning queries is cheaper than guessing
+

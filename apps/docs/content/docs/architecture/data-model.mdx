@@ -1,0 +1,79 @@
+---
+title: Core Data Model
+description: Change as the replication primitive, HLC format, field-level LWW, and tombstones.
+---
+
+## 5. Core data model
+
+### 5.1 Change (library primitive)
+
+A change is the atomic unit of replication.
+
+```ts
+type Change = {
+  stream: string;                // opaque partition key
+  entity: string;                // domain entity name
+  entityId: string;              // primary key
+  kind: "upsert" | "delete";     // fixed semantics
+  patch: Record<string, any>;    // changed fields only
+  tags: Record<string, string>;  // field -> HLC tag
+  hlc: string;                   // change-level HLC
+};
+```
+
+#### Design decisions
+
+- `stream` is opaque (org, project, doc, etc.)
+- `kind` is **restricted** (not user-defined)
+- patches are **partial**
+- tags are **per field**, not per row
+
+## 6. Conflict resolution: LWW + HLC
+
+### 6.1 Hybrid logical clock (HLC)
+
+Format:
+
+```
+wallMillis:counter:nodeId
+```
+
+Properties:
+
+- monotonic per replica
+- globally comparable
+- deterministic tie-breaking
+
+### 6.2 Field-level LWW
+
+Each mutable field has:
+
+- a value
+- a tag
+
+Merge rule:
+
+```ts
+if (incomingTag > localTag) {
+  apply incomingValue
+}
+```
+
+That’s it.
+
+No row-level overwrites. No partial merges. No “last writer wins” at row granularity.
+
+### 6.3 Deletes (tombstones)
+
+Deletes are modeled as:
+
+```ts
+deleted = true
+deleted_tag = <hlc>
+```
+
+Why:
+
+- prevents resurrection
+- resolves delete/update conflicts cleanly
+

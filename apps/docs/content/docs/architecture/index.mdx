@@ -1,0 +1,21 @@
+---
+title: Converge Architecture
+description: The end-to-end mental model for the Converge library (local-first replication + deterministic reads).
+---
+
+This section is the “base doc”, split into focused pages so it’s easier to read and keep up to date.
+
+If you want the **canonical decision log**, see the [ADRs](/docs/adr).
+
+## Canonical mental model
+
+> Local storage is truth  
+> Replication is log-based  
+> Conflicts resolve per field  
+> Row queries are precise  
+> List queries are rerun  
+> Sorting requires rerun  
+> Performance comes from batching  
+> Reactivity is explicit  
+> Magic is avoided
+

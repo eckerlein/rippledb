@@ -1,0 +1,56 @@
+---
+title: Sync Model
+description: Append-only change log, client outbox, cursor-based pull, and canonical pull→apply→push order.
+---
+
+## 7. Sync model
+
+### 7.1 Append-only change log
+
+Conceptual schema:
+
+```sql
+changes (
+  id        BIGSERIAL,
+  stream    TEXT,
+  entity    TEXT,
+  entity_id TEXT,
+  kind      TEXT,
+  patch     JSON,
+  tags      JSON,
+  hlc       TEXT
+)
+```
+
+Properties:
+
+- immutable
+- ordered
+- cursor-addressable
+
+### 7.2 Client outbox
+
+Clients maintain an outbox of local changes:
+
+- append-only
+- retried until acknowledged
+- idempotent
+
+### 7.3 Cursor-based pull
+
+```ts
+pull(stream, cursor) -> { changes[], nextCursor }
+```
+
+This is the **only correctness mechanism**. Realtime is optional.
+
+### 7.4 Canonical sync order
+
+**Pull → Apply → Push**
+
+Why:
+
+- incorporate remote truth first
+- reapply local intent
+- resolve conflicts deterministically
+

@@ -1,0 +1,109 @@
+---
+title: Query Model & Invalidation
+description: Why row queries can be precise, list queries must be rerun, and sorting is the same class as filtering.
+---
+
+## 10. Query model (critical section)
+
+This is where most systems fall apart. This is also where we made very explicit choices.
+
+### 10.1 Two classes of queries
+
+We distinguish **two fundamentally different kinds of queries**:
+
+#### A) Row queries
+
+- Fetch a single entity by ID
+- Example:
+
+```sql
+SELECT * FROM inquiries WHERE id = ?
+```
+
+#### B) List queries
+
+- Any query with:
+  - WHERE
+  - ORDER BY
+  - JOIN
+  - aggregates
+  - pagination
+
+Examples:
+
+```sql
+SELECT id FROM inquiries WHERE status = 'open'
+SELECT i.*, c.name FROM inquiries i JOIN customers c ...
+```
+
+### 10.2 Why this distinction matters
+
+Row queries:
+
+- membership is fixed
+- can be invalidated precisely
+
+List queries:
+
+- membership & ordering are dynamic
+- **cannot be safely incrementally updated without understanding SQL**
+- must be rerun
+
+This is not a limitation of our system — it’s a property of SQL.
+
+## 11. Broad invalidation is intentional
+
+### 11.1 The core insight
+
+Without parsing SQL or re-implementing it in JS:
+
+> You **cannot know** whether a list query’s result changed.
+
+This applies to:
+
+- filtering
+- sorting
+- joins
+- pagination
+
+Therefore:
+
+> **All list queries must be invalidated broadly.**
+
+### 11.2 Example (why precision is impossible)
+
+```sql
+SELECT id FROM inquiries WHERE date > '2002-01-11'
+```
+
+If a row changes `date`, you cannot know in JS whether it:
+
+- entered the list
+- left the list
+- moved pages
+
+Unless you run the query again. So we do.
+
+### 11.3 Policy summary
+
+| Query Type | Invalidation Strategy     |
+| ---------- | ------------------------- |
+| Row query  | Precise (by ID)           |
+| List query | Broad (rerun whole query) |
+
+This is a **design choice**, not a shortcut.
+
+## 12. Sorting & filtering
+
+Sorting is **the same problem class** as filtering.
+
+If a field used in `ORDER BY` changes:
+
+- row position may change
+- page boundaries may change
+
+Therefore:
+
+- sorting **also requires** broad invalidation
+- there is no special case
+

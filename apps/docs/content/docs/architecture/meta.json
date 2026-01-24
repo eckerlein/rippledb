@@ -1,0 +1,17 @@
+{
+  "title": "Architecture",
+  "icon": "Blocks",
+  "defaultOpen": true,
+  "pages": [
+    "index",
+    "purpose-scope",
+    "principles",
+    "data-model",
+    "sync",
+    "queries",
+    "performance",
+    "ui-integration",
+    "comparisons"
+  ]
+}
+
