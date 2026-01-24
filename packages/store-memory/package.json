@@ -22,7 +22,7 @@
     "vitest": "^3.2.4"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && tsc -p tsconfig.build.json",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
     "lint": "eslint ."
@@ -30,7 +30,7 @@
   "tsup": {
     "entry": ["src/index.ts"],
     "format": ["esm"],
-    "dts": true,
+    "dts": false,
     "sourcemap": true,
     "clean": true
   }

@@ -18,7 +18,7 @@
     "vitest": "^3.2.4"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && tsc -p tsconfig.build.json",
     "test": "vitest run --pool=threads",
     "test:watch": "vitest --pool=threads",
     "lint": "eslint ."
@@ -26,7 +26,7 @@
   "tsup": {
     "entry": ["src/index.ts"],
     "format": ["esm"],
-    "dts": true,
+    "dts": false,
     "sourcemap": true,
     "clean": true
   }
