@@ -6,7 +6,7 @@ pnpm + Turborepo monorepo.
 
 - `apps/`: deployable apps
 - `packages/`: shared packages
-- `example/`: examples / scratch projects
+- `examples/`: examples / scratch projects
 
 ## Commands
 
