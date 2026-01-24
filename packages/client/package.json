@@ -23,6 +23,7 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
     "lint": "eslint ."
   },
   "tsup": {

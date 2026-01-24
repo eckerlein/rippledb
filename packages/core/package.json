@@ -19,7 +19,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "test": "vitest run",
+    "test": "vitest run --pool=threads",
+    "test:watch": "vitest --pool=threads",
     "lint": "eslint ."
   },
   "tsup": {

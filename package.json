@@ -11,7 +11,8 @@
     "lint": "turbo lint",
     "clean": "turbo clean",
     "format": "prettier -w .",
-    "test": "turbo test"
+    "test": "turbo test",
+    "test:watch": "turbo test:watch"
   },
   "devDependencies": {
     "create-fumadocs-app": "^16.0.42",
