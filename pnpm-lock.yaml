@@ -88,27 +88,6 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  example/basic:
-    devDependencies:
-      '@converge/client':
-        specifier: workspace:*
-        version: link:../../packages/client
-      '@converge/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@converge/db-memory':
-        specifier: workspace:*
-        version: link:../../packages/db-memory
-      '@converge/store-memory':
-        specifier: workspace:*
-        version: link:../../packages/store-memory
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)
-
   packages/client:
     dependencies:
       '@converge/core':
@@ -199,6 +178,27 @@ importers:
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)
+
+  tests/e2e-basic:
+    devDependencies:
+      '@converge/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@converge/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@converge/db-memory':
+        specifier: workspace:*
+        version: link:../../packages/db-memory
+      '@converge/store-memory':
+        specifier: workspace:*
+        version: link:../../packages/store-memory
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

@@ -1,5 +1,5 @@
 {
-  "name": "@converge/example-basic",
+  "name": "@converge/test-e2e-basic",
   "private": true,
   "type": "module",
   "devDependencies": {
