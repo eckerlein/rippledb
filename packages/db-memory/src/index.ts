@@ -1,14 +1,14 @@
-import type { Change } from '@converge/core';
+import type { Change, ConvergeSchema } from '@converge/core';
 import type { AppendRequest, AppendResult, Cursor, Db, PullRequest, PullResponse } from '@converge/server';
 
-type Entry = {
+type Entry<S extends ConvergeSchema> = {
   seq: number;
-  change: Change;
+  change: Change<S>;
 };
 
-type StreamState = {
+type StreamState<S extends ConvergeSchema> = {
   nextSeq: number;
-  entries: Entry[];
+  entries: Entry<S>[];
   idempotency: Map<string, number>; // key -> last accepted seq
 };
 
@@ -23,10 +23,10 @@ function decodeCursor(cursor: Cursor | null): number {
   return Math.floor(n);
 }
 
-export class MemoryDb implements Db {
-  private streams = new Map<string, StreamState>();
+export class MemoryDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S> {
+  private streams = new Map<string, StreamState<S>>();
 
-  async append(req: AppendRequest): Promise<AppendResult> {
+  async append(req: AppendRequest<S>): Promise<AppendResult> {
     const state = this.getStream(req.stream);
 
     if (req.idempotencyKey) {
@@ -47,7 +47,7 @@ export class MemoryDb implements Db {
     return { accepted: req.changes.length };
   }
 
-  async pull(req: PullRequest): Promise<PullResponse> {
+  async pull(req: PullRequest): Promise<PullResponse<S>> {
     const state = this.getStream(req.stream);
     const afterSeq = decodeCursor(req.cursor);
     const limit = req.limit ?? 500;
@@ -65,7 +65,7 @@ export class MemoryDb implements Db {
     };
   }
 
-  private getStream(stream: string): StreamState {
+  private getStream(stream: string): StreamState<S> {
     let st = this.streams.get(stream);
     if (!st) {
       st = { nextSeq: 1, entries: [], idempotency: new Map() };

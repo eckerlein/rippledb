@@ -1,27 +1,27 @@
-import type { Change } from '@converge/core';
+import type { Change, ConvergeSchema } from '@converge/core';
 import type { Store } from './contracts';
 
-export type OutboxEntry = {
+export type OutboxEntry<S extends ConvergeSchema = ConvergeSchema> = {
   stream: string;
-  change: Change;
+  change: Change<S>;
 };
 
-export interface Outbox {
-  push(entry: OutboxEntry): void;
-  drain(stream: string): OutboxEntry[];
+export interface Outbox<S extends ConvergeSchema = ConvergeSchema> {
+  push(entry: OutboxEntry<S>): void;
+  drain(stream: string): OutboxEntry<S>[];
   size(stream?: string): number;
 }
 
-export class InMemoryOutbox implements Outbox {
-  private items: OutboxEntry[] = [];
+export class InMemoryOutbox<S extends ConvergeSchema = ConvergeSchema> implements Outbox<S> {
+  private items: OutboxEntry<S>[] = [];
 
-  push(entry: OutboxEntry) {
+  push(entry: OutboxEntry<S>) {
     this.items.push(entry);
   }
 
   drain(stream: string) {
-    const out: OutboxEntry[] = [];
-    const keep: OutboxEntry[] = [];
+    const out: OutboxEntry<S>[] = [];
+    const keep: OutboxEntry<S>[] = [];
     for (const item of this.items) {
       if (item.stream === stream) out.push(item);
       else keep.push(item);
@@ -36,18 +36,18 @@ export class InMemoryOutbox implements Outbox {
   }
 }
 
-export type SyncOnceOptions = {
+export type SyncOnceOptions<S extends ConvergeSchema = ConvergeSchema> = {
   stream: string;
-  store: Store;
+  store: Store<S>;
   remote: {
     pull(req: { stream: string; cursor: string | null; limit?: number }): Promise<{
-      changes: Change[];
+      changes: Change<S>[];
       nextCursor: string | null;
     }>;
-    append(req: { stream: string; idempotencyKey?: string; changes: Change[] }): Promise<{ accepted: number }>;
+    append(req: { stream: string; idempotencyKey?: string; changes: Change<S>[] }): Promise<{ accepted: number }>;
   };
   cursor: string | null;
-  outbox: Outbox;
+  outbox: Outbox<S>;
   limit?: number;
   idempotencyKey?: string;
 };
@@ -64,7 +64,7 @@ export type SyncOnceResult = {
  * - Apply to local store
  * - Push outbox changes
  */
-export async function syncOnce(opts: SyncOnceOptions): Promise<SyncOnceResult> {
+export async function syncOnce<S extends ConvergeSchema = ConvergeSchema>(opts: SyncOnceOptions<S>): Promise<SyncOnceResult> {
   const { stream, store, remote, cursor, outbox } = opts;
 
   const pulled = await remote.pull({ stream, cursor, limit: opts.limit });

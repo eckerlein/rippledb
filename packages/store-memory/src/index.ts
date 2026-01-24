@@ -1,9 +1,9 @@
-import type { Change, Hlc } from '@converge/core';
+import type { Change, ConvergeSchema, EntityName, Hlc } from '@converge/core';
 import { compareHlc } from '@converge/core';
 import type { DbEvent, Store } from '@converge/client';
 
-export type MemoryListQuery = {
-  entity: string;
+export type MemoryListQuery<E extends string = string> = {
+  entity: E;
 };
 
 type RecordState = {
@@ -18,17 +18,17 @@ function isNewer(incoming: Hlc, existing: Hlc | undefined | null) {
   return compareHlc(incoming, existing) > 0;
 }
 
-export class MemoryStore implements Store<Record<string, unknown>, MemoryListQuery> {
+export class MemoryStore<S extends ConvergeSchema = ConvergeSchema> implements Store<S, MemoryListQuery<EntityName<S>>> {
   private entities = new Map<string, Map<string, RecordState>>();
-  private subscribers = new Set<(event: DbEvent) => void>();
+  private subscribers = new Set<(event: DbEvent<S>) => void>();
 
-  onEvent(cb: (event: DbEvent) => void) {
+  onEvent(cb: (event: DbEvent<S>) => void) {
     this.subscribers.add(cb);
     return () => this.subscribers.delete(cb);
   }
 
-  async applyChanges(changes: Change[]): Promise<void> {
-    const events: DbEvent[] = [];
+  async applyChanges(changes: Change<S>[]): Promise<void> {
+    const events: DbEvent<S>[] = [];
 
     for (const change of changes) {
       const table = this.getTable(change.entity);
@@ -58,8 +58,8 @@ export class MemoryStore implements Store<Record<string, unknown>, MemoryListQue
       }
 
       let changed = false;
-      for (const [field, value] of Object.entries(change.patch)) {
-        const tag = change.tags[field];
+      for (const [field, value] of Object.entries(change.patch as Record<string, unknown>)) {
+        const tag = (change.tags as Record<string, Hlc | undefined>)[field];
         if (!tag) continue;
         if (isNewer(tag, rec.tags[field])) {
           rec.values[field] = value;
@@ -85,19 +85,19 @@ export class MemoryStore implements Store<Record<string, unknown>, MemoryListQue
     }
   }
 
-  async getRow(entity: string, id: string): Promise<Record<string, unknown> | null> {
+  async getRow<E extends EntityName<S>>(entity: E, id: string): Promise<S[E] | null> {
     const table = this.entities.get(entity);
     const rec = table?.get(id);
     if (!rec || rec.deleted) return null;
-    return { ...rec.values };
+    return { ...rec.values } as S[E];
   }
 
-  async listRows(query: MemoryListQuery): Promise<Record<string, unknown>[]> {
+  async listRows(query: MemoryListQuery<EntityName<S>>): Promise<Array<S[EntityName<S>]>> {
     const table = this.entities.get(query.entity);
     if (!table) return [];
-    const out: Record<string, unknown>[] = [];
+    const out: Array<S[EntityName<S>]> = [];
     for (const rec of table.values()) {
-      if (!rec.deleted) out.push({ ...rec.values });
+      if (!rec.deleted) out.push({ ...rec.values } as S[EntityName<S>]);
     }
     return out;
   }

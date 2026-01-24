@@ -1,4 +1,4 @@
-import type { Change, Hlc } from '@converge/core';
+import type { Change, ConvergeSchema, Hlc } from '@converge/core';
 
 export type Cursor = string;
 
@@ -8,19 +8,19 @@ export type PullRequest = {
   limit?: number;
 };
 
-export type PullResponse = {
-  changes: Change[];
+export type PullResponse<S extends ConvergeSchema = ConvergeSchema> = {
+  changes: Change<S>[];
   nextCursor: Cursor | null;
 };
 
-export type AppendRequest = {
+export type AppendRequest<S extends ConvergeSchema = ConvergeSchema> = {
   stream: string;
   /**
    * Idempotency key for the whole batch (optional but recommended).
    * Implementation-specific semantics (e.g. unique constraint).
    */
   idempotencyKey?: string;
-  changes: Change[];
+  changes: Change<S>[];
 };
 
 export type AppendResult = {
@@ -35,8 +35,8 @@ export type AppendResult = {
  * Server-side persistence contract (authoritative ordering + cursorable history).
  * Implementations live in `@converge/db-*`.
  */
-export interface Db {
-  append(req: AppendRequest): Promise<AppendResult>;
-  pull(req: PullRequest): Promise<PullResponse>;
+export interface Db<S extends ConvergeSchema = ConvergeSchema> {
+  append(req: AppendRequest<S>): Promise<AppendResult>;
+  pull(req: PullRequest): Promise<PullResponse<S>>;
 }
 

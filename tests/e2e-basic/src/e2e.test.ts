@@ -5,34 +5,41 @@ import { MemoryDb } from '@converge/db-memory';
 import { MemoryStore } from '@converge/store-memory';
 import { describe, expect, it } from 'vitest';
 
-function makeUpsert(opts: {
+type DemoSchema = {
+  todo: { id: string; title: string };
+};
+
+type DemoEntity = keyof DemoSchema & string;
+
+function makeUpsert<E extends DemoEntity>(opts: {
   stream: string;
-  entity: string;
+  entity: E;
   entityId: string;
-  patch: Record<string, unknown>;
+  patch: Partial<DemoSchema[E]>;
   nowMs: number;
   nodeId: string;
-}): Change {
+}): Change<DemoSchema, E> {
   const state = createHlcState(opts.nodeId);
   const hlc = tickHlc(state, opts.nowMs);
+  const tags = Object.fromEntries(Object.keys(opts.patch).map((k) => [k, hlc])) as Change<DemoSchema, E>['tags'];
   return {
     stream: opts.stream,
     entity: opts.entity,
     entityId: opts.entityId,
     kind: 'upsert',
     patch: opts.patch,
-    tags: Object.fromEntries(Object.keys(opts.patch).map((k) => [k, hlc])),
+    tags,
     hlc,
   };
 }
 
-function makeDelete(opts: {
+function makeDelete<E extends DemoEntity>(opts: {
   stream: string;
-  entity: string;
+  entity: E;
   entityId: string;
   nowMs: number;
   nodeId: string;
-}): Change {
+}): Change<DemoSchema, E> {
   const state = createHlcState(opts.nodeId);
   const hlc = tickHlc(state, opts.nowMs);
   return {
@@ -49,13 +56,13 @@ function makeDelete(opts: {
 describe('converge e2e (memory store + memory db)', () => {
   it('replicates changes and resolves last-write-wins by HLC tags', async () => {
     const stream = 'demo';
-    const remote = new MemoryDb();
+    const remote = new MemoryDb<DemoSchema>();
 
-    const storeA = new MemoryStore();
-    const storeB = new MemoryStore();
+    const storeA = new MemoryStore<DemoSchema>();
+    const storeB = new MemoryStore<DemoSchema>();
 
-    const outboxA = new InMemoryOutbox();
-    const outboxB = new InMemoryOutbox();
+    const outboxA = new InMemoryOutbox<DemoSchema>();
+    const outboxB = new InMemoryOutbox<DemoSchema>();
 
     // A creates a row
     const c1 = makeUpsert({
