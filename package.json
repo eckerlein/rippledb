@@ -9,6 +9,7 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
+    "check:packages": "node scripts/verify-packages.mjs",
     "clean": "turbo clean",
     "format": "prettier -w .",
     "test": "turbo test",
