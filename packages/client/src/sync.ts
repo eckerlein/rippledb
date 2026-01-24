@@ -39,13 +39,7 @@ export class InMemoryOutbox<S extends ConvergeSchema = ConvergeSchema> implement
 export type SyncOnceOptions<S extends ConvergeSchema = ConvergeSchema> = {
   stream: string;
   store: Store<S>;
-  remote: {
-    pull(req: { stream: string; cursor: string | null; limit?: number }): Promise<{
-      changes: Change<S>[];
-      nextCursor: string | null;
-    }>;
-    append(req: { stream: string; idempotencyKey?: string; changes: Change<S>[] }): Promise<{ accepted: number }>;
-  };
+  remote: Remote<S>;
   cursor: string | null;
   outbox: Outbox<S>;
   limit?: number;
@@ -61,7 +55,7 @@ export type SyncOnceResult = {
 export type ReplicatorOptions<S extends ConvergeSchema = ConvergeSchema> = {
   stream: string;
   store: Store<S>;
-  remote: SyncOnceOptions<S>['remote'];
+  remote: Remote<S>;
   outbox?: Outbox<S>;
   cursor?: string | null;
   limit?: number;
@@ -72,6 +66,14 @@ export type Replicator<S extends ConvergeSchema = ConvergeSchema> = {
   pushLocal(change: Change<S>): Promise<void>;
   sync(): Promise<SyncOnceResult>;
   getCursor(): string | null;
+};
+
+export type Remote<S extends ConvergeSchema = ConvergeSchema> = {
+  pull(req: { stream: string; cursor: string | null; limit?: number }): Promise<{
+    changes: Change<S>[];
+    nextCursor: string | null;
+  }>;
+  append(req: { stream: string; idempotencyKey?: string; changes: Change<S>[] }): Promise<{ accepted: number }>;
 };
 
 /**
