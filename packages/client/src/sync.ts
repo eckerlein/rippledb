@@ -58,6 +58,22 @@ export type SyncOnceResult = {
   pushed: number;
 };
 
+export type ReplicatorOptions<S extends ConvergeSchema = ConvergeSchema> = {
+  stream: string;
+  store: Store<S>;
+  remote: SyncOnceOptions<S>['remote'];
+  outbox?: Outbox<S>;
+  cursor?: string | null;
+  limit?: number;
+  idempotencyKey?: string;
+};
+
+export type Replicator<S extends ConvergeSchema = ConvergeSchema> = {
+  pushLocal(change: Change<S>): Promise<void>;
+  sync(): Promise<SyncOnceResult>;
+  getCursor(): string | null;
+};
+
 /**
  * Minimal "pull → apply → push" sync step (ADR-0002).
  * - Pull changes since cursor
@@ -82,3 +98,33 @@ export async function syncOnce<S extends ConvergeSchema = ConvergeSchema>(opts: 
   return { nextCursor: pulled.nextCursor, pulled: pulled.changes.length, pushed };
 }
 
+/**
+ * Convenience wrapper that manages cursor + outbox for a single stream.
+ */
+export function createReplicator<S extends ConvergeSchema = ConvergeSchema>(opts: ReplicatorOptions<S>): Replicator<S> {
+  let cursor = opts.cursor ?? null;
+  const outbox = opts.outbox ?? new InMemoryOutbox<S>();
+
+  return {
+    async pushLocal(change) {
+      await opts.store.applyChanges([change]);
+      outbox.push({ stream: opts.stream, change });
+    },
+    async sync() {
+      const result = await syncOnce({
+        stream: opts.stream,
+        store: opts.store,
+        remote: opts.remote,
+        cursor,
+        outbox,
+        limit: opts.limit,
+        idempotencyKey: opts.idempotencyKey,
+      });
+      cursor = result.nextCursor;
+      return result;
+    },
+    getCursor() {
+      return cursor;
+    },
+  };
+}

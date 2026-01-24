@@ -1,4 +1,4 @@
-import { InMemoryOutbox, syncOnce } from '@converge/client';
+import { createReplicator } from '@converge/client';
 import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@converge/core';
 import { MemoryDb } from '@converge/db-memory';
 import { MemoryStore } from '@converge/store-memory';
@@ -21,8 +21,8 @@ describe('converge e2e (memory store + memory db)', () => {
     const storeA = new MemoryStore<DemoSchema>();
     const storeB = new MemoryStore<DemoSchema>();
 
-    const outboxA = new InMemoryOutbox<DemoSchema>();
-    const outboxB = new InMemoryOutbox<DemoSchema>();
+    const replA = createReplicator({ stream, store: storeA, remote });
+    const replB = createReplicator({ stream, store: storeB, remote });
 
     // A creates a row
     const c1 = makeUpsert<DemoSchema>({
@@ -32,16 +32,11 @@ describe('converge e2e (memory store + memory db)', () => {
       patch: { id: '1', title: 'hello' },
       hlc: makeHlc('a', 1000),
     });
-    await storeA.applyChanges([c1]);
-    outboxA.push({ stream, change: c1 });
+    await replA.pushLocal(c1);
 
     // B pulls it
-    let cursorA: string | null = null;
-    let cursorB: string | null = null;
-
-    await syncOnce({ stream, store: storeA, remote, cursor: cursorA, outbox: outboxA });
-    const rB1 = await syncOnce({ stream, store: storeB, remote, cursor: cursorB, outbox: outboxB });
-    cursorB = rB1.nextCursor;
+    await replA.sync();
+    await replB.sync();
 
     expect(await storeB.getRow('todo', '1')).toMatchObject({ id: '1', title: 'hello' });
 
@@ -53,15 +48,11 @@ describe('converge e2e (memory store + memory db)', () => {
       patch: { title: 'bye' },
       hlc: makeHlc('b', 2000),
     });
-    await storeB.applyChanges([c2]);
-    outboxB.push({ stream, change: c2 });
+    await replB.pushLocal(c2);
 
     // B must push first, then A can pull.
-    const rBpush = await syncOnce({ stream, store: storeB, remote, cursor: cursorB, outbox: outboxB });
-    cursorB = rBpush.nextCursor;
-
-    const rApull = await syncOnce({ stream, store: storeA, remote, cursor: cursorA, outbox: outboxA });
-    cursorA = rApull.nextCursor;
+    await replB.sync();
+    await replA.sync();
 
     expect(await storeA.getRow('todo', '1')).toMatchObject({ id: '1', title: 'bye' });
 
@@ -72,12 +63,9 @@ describe('converge e2e (memory store + memory db)', () => {
       entityId: '1',
       hlc: makeHlc('a', 3000),
     });
-    await storeA.applyChanges([c3]);
-    outboxA.push({ stream, change: c3 });
-
-    await syncOnce({ stream, store: storeA, remote, cursor: cursorA, outbox: outboxA });
-    const rB2 = await syncOnce({ stream, store: storeB, remote, cursor: cursorB, outbox: outboxB });
-    cursorB = rB2.nextCursor;
+    await replA.pushLocal(c3);
+    await replA.sync();
+    await replB.sync();
 
     expect(await storeB.getRow('todo', '1')).toBeNull();
   });
