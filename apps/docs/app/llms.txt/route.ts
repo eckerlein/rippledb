@@ -1,6 +1,7 @@
 import { source } from '@/lib/source';
 
 export const revalidate = false;
+export const dynamic = 'force-static';
 
 export async function GET() {
   const lines: string[] = [];

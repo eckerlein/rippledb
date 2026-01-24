@@ -12,6 +12,15 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   if (!page) notFound();
 
   const MDX = page.data.body;
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+  const slugs = source.getPages().map((p) => p.slugs);
+  const parentSet = new Set<string>();
+  for (const slug of slugs) {
+    for (let i = 1; i < slug.length; i++) parentSet.add(slug.slice(0, i).join('/'));
+  }
+  const llmsSegments = page.slugs.length === 0 ? ['index'] : page.slugs;
+  const llmsOut = parentSet.has(llmsSegments.join('/')) ? [...llmsSegments, 'index'] : llmsSegments;
+  const markdownUrl = `${basePath}/llms.mdx/docs/${llmsOut.join('/')}`;
   const gitConfig = {
     user: 'username',
     repo: 'repo',
@@ -23,9 +32,9 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
-        <LLMCopyButton markdownUrl={`${page.url}.mdx`} />
+        <LLMCopyButton markdownUrl={markdownUrl} />
         <ViewOptions
-          markdownUrl={`${page.url}.mdx`}
+          markdownUrl={markdownUrl}
           // update it to match your repo
           githubUrl={`https://github.com/${gitConfig.user}/${gitConfig.repo}/blob/${gitConfig.branch}/docs/content/docs/${page.path}`}
         />
