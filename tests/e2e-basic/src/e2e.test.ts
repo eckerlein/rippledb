@@ -1,6 +1,5 @@
 import { InMemoryOutbox, syncOnce } from '@converge/client';
-import type { Change } from '@converge/core';
-import { createHlcState, tickHlc } from '@converge/core';
+import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@converge/core';
 import { MemoryDb } from '@converge/db-memory';
 import { MemoryStore } from '@converge/store-memory';
 import { describe, expect, it } from 'vitest';
@@ -9,48 +8,9 @@ type DemoSchema = {
   todo: { id: string; title: string };
 };
 
-type DemoEntity = keyof DemoSchema & string;
-
-function makeUpsert<E extends DemoEntity>(opts: {
-  stream: string;
-  entity: E;
-  entityId: string;
-  patch: Partial<DemoSchema[E]>;
-  nowMs: number;
-  nodeId: string;
-}): Change<DemoSchema, E> {
-  const state = createHlcState(opts.nodeId);
-  const hlc = tickHlc(state, opts.nowMs);
-  const tags = Object.fromEntries(Object.keys(opts.patch).map((k) => [k, hlc])) as Change<DemoSchema, E>['tags'];
-  return {
-    stream: opts.stream,
-    entity: opts.entity,
-    entityId: opts.entityId,
-    kind: 'upsert',
-    patch: opts.patch,
-    tags,
-    hlc,
-  };
-}
-
-function makeDelete<E extends DemoEntity>(opts: {
-  stream: string;
-  entity: E;
-  entityId: string;
-  nowMs: number;
-  nodeId: string;
-}): Change<DemoSchema, E> {
-  const state = createHlcState(opts.nodeId);
-  const hlc = tickHlc(state, opts.nowMs);
-  return {
-    stream: opts.stream,
-    entity: opts.entity,
-    entityId: opts.entityId,
-    kind: 'delete',
-    patch: {},
-    tags: {},
-    hlc,
-  };
+function makeHlc(nodeId: string, nowMs: number) {
+  const state = createHlcState(nodeId);
+  return tickHlc(state, nowMs);
 }
 
 describe('converge e2e (memory store + memory db)', () => {
@@ -65,13 +25,12 @@ describe('converge e2e (memory store + memory db)', () => {
     const outboxB = new InMemoryOutbox<DemoSchema>();
 
     // A creates a row
-    const c1 = makeUpsert({
+    const c1 = makeUpsert<DemoSchema>({
       stream,
       entity: 'todo',
       entityId: '1',
       patch: { id: '1', title: 'hello' },
-      nowMs: 1000,
-      nodeId: 'a',
+      hlc: makeHlc('a', 1000),
     });
     await storeA.applyChanges([c1]);
     outboxA.push({ stream, change: c1 });
@@ -87,13 +46,12 @@ describe('converge e2e (memory store + memory db)', () => {
     expect(await storeB.getRow('todo', '1')).toMatchObject({ id: '1', title: 'hello' });
 
     // B updates title later (should win)
-    const c2 = makeUpsert({
+    const c2 = makeUpsert<DemoSchema>({
       stream,
       entity: 'todo',
       entityId: '1',
       patch: { title: 'bye' },
-      nowMs: 2000,
-      nodeId: 'b',
+      hlc: makeHlc('b', 2000),
     });
     await storeB.applyChanges([c2]);
     outboxB.push({ stream, change: c2 });
@@ -108,12 +66,11 @@ describe('converge e2e (memory store + memory db)', () => {
     expect(await storeA.getRow('todo', '1')).toMatchObject({ id: '1', title: 'bye' });
 
     // Delete dominates when newer
-    const c3 = makeDelete({
+    const c3 = makeDelete<DemoSchema>({
       stream,
       entity: 'todo',
       entityId: '1',
-      nowMs: 3000,
-      nodeId: 'a',
+      hlc: makeHlc('a', 3000),
     });
     await storeA.applyChanges([c3]);
     outboxA.push({ stream, change: c3 });
