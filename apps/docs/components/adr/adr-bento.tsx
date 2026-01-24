@@ -11,6 +11,7 @@ const CATEGORY_ORDER: Array<(typeof ADRS)[number]['category']> = [
   'Sync & Conflicts',
   'Query Model',
   'Performance',
+  'Packages',
   'Integration & Product',
   'Scope & Process',
 ];

@@ -1,0 +1,59 @@
+---
+title: Package Structure & Dependency Rules
+description: How the monorepo is layered, why store-* vs db-* exists, and the dependency graph we enforce.
+---
+
+This page locks in how we organize Converge as a monorepo so the core stays portable and we don’t accidentally couple the system to one runtime, database, or UI framework.
+
+## The key split: client vs server persistence
+
+Converge has *two* categories of “backend” implementations that must not be blurred:
+
+- **Client-side local truth**: the database the UI reads from, updated transactionally via replication.
+  - packages: `@converge/store-*`
+- **Server-side persistence**: the system that accepts changes and serves cursorable incremental history (and may materialize domain tables).
+  - packages: `@converge/db-*`
+
+If the names don’t encode this split, contributors will mix responsibilities and the design will erode.
+
+## Layered package set (v0)
+
+### Foundation
+
+- `@converge/core`
+  - HLC, tags, Change types, merge/apply helpers (pure logic)
+
+### Orchestration (no database drivers)
+
+- `@converge/client`
+  - client sync orchestration (outbox, pull/apply/push), policies, stream handling
+- `@converge/server`
+  - server interfaces/helpers for append + cursor pull, policies
+
+### Client truth stores
+
+- `@converge/store-sqlite`
+- `@converge/store-memory` (tests)
+- later: `@converge/store-indexeddb`, etc.
+
+### Server persistence
+
+- `@converge/db-postgres`
+- `@converge/db-sqlite` (dev/tests)
+- later: `@converge/db-dynamodb`, etc.
+
+### UI bindings (optional)
+
+- `@converge/bind-tanstack`
+  - DbEvent → invalidateQueries, list registry, invalidation coalescing
+
+## Dependency graph (must hold)
+
+- `@converge/core` → depends on nothing (or only tiny pure deps)
+- `@converge/client`, `@converge/server` → depend on `@converge/core`
+- `@converge/store-*` → depend on `@converge/core` (and optionally `@converge/client` interfaces)
+- `@converge/db-*` → depend on `@converge/core` (and optionally `@converge/server` interfaces)
+- `@converge/bind-*` → depends on `@converge/core` types + its UI library; **never required by core/client/server**
+
+To keep this true over time, we should enforce it with workspace constraints or lint rules.
+

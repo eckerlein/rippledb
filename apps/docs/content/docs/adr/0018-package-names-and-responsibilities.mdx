@@ -1,0 +1,61 @@
+---
+title: "ADR-0018: Package Names and Intended Responsibilities"
+description: "Canonical package set and naming: store-* (client truth), db-* (server persistence), bind-* (UI bindings)."
+---
+
+## Status
+
+Accepted
+
+## Context
+
+We need stable package naming conventions that convey responsibility and make the client/store vs server/db distinction obvious.
+
+## Decision
+
+Recommended initial package set:
+
+### Foundation
+
+- `@converge/core` — HLC, tags, Change types, merge/compare, utilities (**pure**)
+
+### Client side
+
+- `@converge/client` — sync orchestration (outbox, pull/apply/push), policies, stream handling (**no DB deps**)
+
+### Server side
+
+- `@converge/server` — server interfaces and helpers for append + cursor pull (**no DB deps**)
+
+### Client truth stores
+
+- `@converge/store-sqlite` — client truth store implementation (+ batch loader hooks)
+- `@converge/store-indexeddb` — later (browser-only)
+- `@converge/store-memory` — tests
+
+### Server persistence
+
+- `@converge/db-postgres` — cursorable change history + append + optional materialization helpers
+- `@converge/db-sqlite` — dev / tests
+- `@converge/db-dynamodb` — later
+
+### UI bindings
+
+- `@converge/bind-tanstack` — invalidation wiring + list registry + coalescing
+
+### Future (not v0)
+
+- `@converge/transport-ws` — optional realtime helpers
+- CRDT/doc controller modules (separate scope)
+
+## Alternatives Considered
+
+- Single package
+- Different naming scheme (`adapter-*`, `driver-*`, `ui-*`)
+
+## Consequences
+
+- Clear imports and mental model
+- Easy to extend with more stores/dbs/bindings
+- Some packages start very small (acceptable)
+

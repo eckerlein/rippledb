@@ -1,0 +1,35 @@
+---
+title: "ADR-0016: store-* and db-* Packages Own Backend/Runtime Dependencies"
+description: Runtime-specific deps (SQLite, Postgres, etc.) must live outside core/client/server in store-* and db-* packages.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Concrete implementations require dependencies (SQLite driver, Postgres client, etc.). We want to avoid pulling these into the core dependency tree.
+
+## Decision
+
+All runtime-/backend-specific dependencies live in persistence packages, for example:
+
+- `@converge/store-sqlite`
+- `@converge/db-postgres`
+
+Core/orchestration packages depend only on interfaces, never on implementations:
+
+- `@converge/core`, `@converge/client`, `@converge/server` **must not** depend on any `store-*` or `db-*` package.
+
+## Alternatives Considered
+
+- A single `@converge/adapters` package
+- Core selecting implementations via optional dependencies
+
+## Consequences
+
+- Users install only what they need
+- Dependency tree stays clean
+- Clear responsibility separation
+

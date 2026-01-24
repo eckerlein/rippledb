@@ -1,0 +1,38 @@
+---
+title: "ADR-0017: UI Integrations Live in bind-* Packages"
+description: Cache invalidation wiring is UI-specific; ship it as optional bind-* packages (e.g. bind-tanstack).
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Invalidation wiring is cache/UI-specific and not part of the replication core. However, we want to provide a blessed integration for common stacks.
+
+## Decision
+
+UI/caching integration is shipped as separate packages, for example:
+
+- `@converge/bind-tanstack`
+
+Responsibilities include:
+
+- DbEvent → `invalidateQueries` wiring
+- list registry helper
+- coalescing of invalidation bursts
+
+Core packages must not import these.
+
+## Alternatives Considered
+
+- Core bundles a UI cache
+- UI integration lives inside persistence packages
+
+## Consequences
+
+- No framework lock-in
+- Integrations can evolve independently
+- Additional package to install for UI users
+

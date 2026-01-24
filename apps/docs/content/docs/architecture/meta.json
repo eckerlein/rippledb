@@ -5,6 +5,7 @@
   "pages": [
     "index",
     "purpose-scope",
+    "package-structure",
     "principles",
     "data-model",
     "sync",

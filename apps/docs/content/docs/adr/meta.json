@@ -16,7 +16,14 @@
     "0010-ui-cache-integration-optional",
     "0011-list-dependency-registry",
     "0012-crdts-out-of-scope",
-    "0013-simplicity-over-complexity"
+    "0013-simplicity-over-complexity",
+    "---Packages---",
+    "0014-monorepo-package-structure-and-layering",
+    "0015-core-pure-and-minimal",
+    "0016-store-and-db-own-runtime-deps",
+    "0017-ui-integrations-live-in-bind-packages",
+    "0018-package-names-and-responsibilities",
+    "0019-strict-dependency-graph"
   ]
 }
 

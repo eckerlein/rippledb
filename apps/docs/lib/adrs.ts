@@ -8,6 +8,7 @@ export type AdrSummary = {
     | 'Sync & Conflicts'
     | 'Query Model'
     | 'Performance'
+    | 'Packages'
     | 'Integration & Product'
     | 'Scope & Process';
 };
@@ -103,6 +104,48 @@ export const ADRS: AdrSummary[] = [
     description: 'Prefer simple rerun-based correctness; defer optimizations until proven necessary.',
     href: '/docs/adr/0013-simplicity-over-complexity',
     category: 'Core Principles',
+  },
+  {
+    id: 'ADR-0014',
+    title: 'Monorepo Package Structure and Layering',
+    description: 'Layer packages so core stays runtime/UI agnostic while optional layers provide DX.',
+    href: '/docs/adr/0014-monorepo-package-structure-and-layering',
+    category: 'Packages',
+  },
+  {
+    id: 'ADR-0015',
+    title: 'Core Package Must Be Pure and Dependency-Minimal',
+    description: '@converge/core is pure logic/types with no UI/runtime/DB deps.',
+    href: '/docs/adr/0015-core-pure-and-minimal',
+    category: 'Packages',
+  },
+  {
+    id: 'ADR-0016',
+    title: 'store-* and db-* Own Runtime Dependencies',
+    description: 'Runtime deps (SQLite/Postgres/etc.) live outside core/client/server in store-*/db-*.',
+    href: '/docs/adr/0016-store-and-db-own-runtime-deps',
+    category: 'Packages',
+  },
+  {
+    id: 'ADR-0017',
+    title: 'UI Integrations Live in bind-* Packages',
+    description: 'Cache invalidation wiring is UI-specific; ship as optional bind-* packages.',
+    href: '/docs/adr/0017-ui-integrations-live-in-bind-packages',
+    category: 'Packages',
+  },
+  {
+    id: 'ADR-0018',
+    title: 'Package Names and Intended Responsibilities',
+    description: 'Canonical naming: store-* (client truth), db-* (server persistence), bind-* (UI).',
+    href: '/docs/adr/0018-package-names-and-responsibilities',
+    category: 'Packages',
+  },
+  {
+    id: 'ADR-0019',
+    title: 'Strict Dependency Graph Between Packages',
+    description: 'Enforce a strict dependency graph to prevent layering erosion.',
+    href: '/docs/adr/0019-strict-dependency-graph',
+    category: 'Packages',
   },
 ];
 

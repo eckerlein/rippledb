@@ -1,0 +1,41 @@
+---
+title: "ADR-0014: Monorepo Package Structure and Layering"
+description: Lock in package boundaries so core stays runtime/UI agnostic while optional layers provide great DX.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Converge must remain runtime-agnostic and framework-agnostic while still offering great DX through optional adapters and integrations.
+
+We need clear boundaries so that core logic cannot accidentally depend on UI frameworks or specific databases.
+
+## Decision
+
+Converge will be organized as a monorepo with layered packages:
+
+- **Core primitives**: types, HLC, merge semantics
+- **Client replication orchestration**: outbox / pull / apply / push logic
+- **Server replication orchestration**: change append + cursor pull interfaces and helpers
+- **Persistence implementations**
+  - client truth store implementations: `@converge/store-*`
+  - server persistence implementations: `@converge/db-*`
+- **UI bindings**: optional bindings for cache invalidation and reactivity (`@converge/bind-*`)
+- **Docs / CRDT**: separate modules (future)
+
+## Alternatives Considered
+
+- Single package with optional imports
+- “Batteries included” framework-specific package
+- Multiple repos
+
+## Consequences
+
+- Clear dependency boundaries
+- Easier maintenance and testing
+- Users can adopt only what they need
+- Slightly more packaging overhead
+

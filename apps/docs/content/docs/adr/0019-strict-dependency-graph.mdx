@@ -1,0 +1,40 @@
+---
+title: "ADR-0019: Strict Dependency Graph Between Packages"
+description: Enforce a strict package dependency graph to prevent architectural erosion.
+---
+
+## Status
+
+Accepted
+
+## Context
+
+Even with multiple packages, accidental imports can break layering and portability.
+
+## Decision
+
+We enforce the following dependency graph:
+
+- `@converge/core`
+  - depends on nothing (or only tiny pure deps)
+- `@converge/client` and `@converge/server`
+  - depend on `@converge/core`
+- `@converge/store-*`
+  - depend on `@converge/core` (and optionally `@converge/client` interfaces)
+- `@converge/db-*`
+  - depend on `@converge/core` (and optionally `@converge/server` interfaces)
+- `@converge/bind-*`
+  - depend on `@converge/core` (for types like `DbEvent`) and on their UI library
+  - must not be required by core/client/server
+
+## Alternatives Considered
+
+- Free-form dependency structure
+- Everything depends on everything
+
+## Consequences
+
+- Prevents architectural erosion
+- Enables use in many environments
+- Requires linting or workspace constraints (recommended)
+

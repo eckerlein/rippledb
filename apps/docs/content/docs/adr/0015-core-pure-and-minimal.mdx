@@ -1,0 +1,33 @@
+---
+title: "ADR-0015: Core Package Must Be Pure and Dependency-Minimal"
+description: "@converge/core contains only pure logic/types and must not depend on UI, runtime APIs, or DB drivers."
+---
+
+## Status
+
+Accepted
+
+## Context
+
+The core package is the foundation. If it depends on environment-specific libraries (TanStack Query, Node APIs, SQLite drivers), the whole ecosystem becomes coupled and less reusable.
+
+## Decision
+
+`@converge/core` must:
+
+- contain only pure logic and types
+- have no dependency on UI libraries
+- have no dependency on runtime-specific APIs (Node, DOM)
+- have no dependency on database drivers
+
+## Alternatives Considered
+
+- Core includes adapters and integrations
+- Core includes a default SQLite implementation
+
+## Consequences
+
+- Maximum portability
+- Smaller surface area
+- Adapters live in separate packages
+
