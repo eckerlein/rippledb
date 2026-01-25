@@ -13,49 +13,19 @@ import type {
 import { dialects } from './dialects';
 
 /**
- * Create a custom materialization adapter.
+ * Create a custom materialization adapter for any database.
  *
- * This adapter works with any database by using a dialect name or custom
- * query/command strings. It stores entity values in actual database
- * structures (via fieldMap) and stores tags/metadata separately.
+ * Works with any database by providing a dialect name (e.g., 'sqlite', 'postgresql')
+ * or custom command hooks. Entity tables must already exist; tags are stored separately
+ * and auto-created on first use.
  *
- * **Important:**
- * - Entity tables/collections (e.g., `todos`, `users`) must already exist.
- *   The materializer does NOT create or maintain them.
- * - Entity structures only need data fields. They do NOT need tag fields.
- *   Tags are stored separately in a tags table/collection.
- * - The tags table/collection is auto-created on first use (via dialect or custom hook).
- * - The materializer assumes entity structures match the schema defined by
- *   `tableMap` and `fieldMap`.
- * - Provide a `dialect` name (e.g., 'sqlite', 'postgresql') OR custom hooks.
- *   Custom hooks override dialect defaults.
- *
- * Example (SQLite with dialect):
+ * @example
  * ```ts
- * await db.run('CREATE TABLE todos (id TEXT PRIMARY KEY, todo_title TEXT, is_done INTEGER)');
  * const adapter = createCustomMaterializer({
  *   db: myDb,
  *   dialect: 'sqlite',
  *   tableMap: { todos: 'todos' },
  *   fieldMap: { todos: { title: 'todo_title', done: 'is_done' } }
- * });
- * ```
- *
- * Example (PostgreSQL with dialect):
- * ```ts
- * const adapter = createCustomMaterializer({
- *   db: myDb, // must handle $1, $2, etc. in run()/get()
- *   dialect: 'postgresql',
- *   tableMap: { todos: 'todos' }
- * });
- * ```
- *
- * Example (Custom hooks):
- * ```ts
- * const adapter = createCustomMaterializer({
- *   db: myDb,
- *   tableMap: { todos: 'todos' },
- *   saveCommand: (tagsTable, entity, id, dataJson, tagsJson) => `...`
  * });
  * ```
  */
@@ -64,19 +34,11 @@ export function createCustomMaterializer<
 >(config: CustomMaterializerConfig<S>): MaterializerAdapter<S> {
   const tagsTable = config.tagsTable ?? 'converge_tags';
 
-  // Resolve dialect: use provided dialect, or default to 'sqlite' if no custom hooks
-  const dialectName =
-    config.dialect ??
-    (config.loadCommand || config.saveCommand || config.removeCommand || config.saveEntityCommand
-      ? undefined
-      : 'sqlite');
+  // Resolve dialect: TypeScript ensures either dialect OR all custom commands are provided
+  const dialect = config.dialect ? dialects[config.dialect] : undefined;
 
-  const dialect = dialectName ? dialects[dialectName] : undefined;
-
-  if (!dialect && !config.loadCommand && !config.saveCommand && !config.removeCommand) {
-    throw new Error(
-      'Either provide a dialect name or custom hooks (loadCommand, saveCommand, removeCommand)',
-    );
+  if (!dialect && !('loadCommand' in config)) {
+    throw new Error('Invalid config: must provide either dialect or all custom commands');
   }
 
   // Ensure tags table exists

@@ -70,12 +70,9 @@ export type Dialect = {
 };
 
 /**
- * Configuration for custom materialization adapter.
- * Works with any database by providing a dialect name or custom query/command strings.
+ * Base configuration shared by all materialization adapters.
  */
-export type CustomMaterializerConfig<
-  S extends ConvergeSchema = ConvergeSchema,
-> = {
+type BaseMaterializerConfig<S extends ConvergeSchema> = {
   /**
    * Database instance. Can be SQL, MongoDB, DynamoDB, etc.
    */
@@ -99,27 +96,44 @@ export type CustomMaterializerConfig<
    * The columns/fields must already exist in the corresponding tables/collections.
    */
   fieldMap?: Partial<Record<EntityName<S>, EntityFieldMap>>;
+};
 
+/**
+ * Configuration when using a built-in dialect.
+ */
+type DialectConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & {
   /**
    * Database dialect name (e.g., 'sqlite', 'postgresql').
-   * If provided, uses pre-configured SQL for that dialect.
-   * If omitted, you must provide custom hooks.
    */
-  dialect?: string;
+  dialect: string;
+  loadCommand?: never;
+  saveCommand?: never;
+  removeCommand?: never;
+  saveEntityCommand?: (
+    tableName: string,
+    id: string,
+    columns: string[],
+    values: unknown[],
+    updates: string[],
+  ) => { sql: string; params: unknown[] };
+};
 
+/**
+ * Configuration when providing all custom commands.
+ */
+type CustomCommandsConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & {
+  dialect?: never;
   /**
    * Custom command for loading entity state.
-   * Overrides dialect default if provided.
    * Receives: (tagsTable, entity, id) and should return command with placeholders.
    */
-  loadCommand?: (tagsTable: string, entity: string, id: string) => string;
+  loadCommand: (tagsTable: string, entity: string, id: string) => string;
 
   /**
    * Custom command for saving entity state.
-   * Overrides dialect default if provided.
    * Receives: (tagsTable, entity, id, dataJson, tagsJson) and should return command with placeholders.
    */
-  saveCommand?: (
+  saveCommand: (
     tagsTable: string,
     entity: string,
     id: string,
@@ -129,10 +143,9 @@ export type CustomMaterializerConfig<
 
   /**
    * Custom command for removing (tombstoning) entity state.
-   * Overrides dialect default if provided.
    * Receives: (tagsTable, entity, id, dataJson, tagsJson, deletedTag) and should return command with placeholders.
    */
-  removeCommand?: (
+  removeCommand: (
     tagsTable: string,
     entity: string,
     id: string,
@@ -143,7 +156,7 @@ export type CustomMaterializerConfig<
 
   /**
    * Custom command for saving entity values to actual table columns (when fieldMap is provided).
-   * Overrides dialect default if provided.
+   * Required if fieldMap is used, optional otherwise.
    */
   saveEntityCommand?: (
     tableName: string,
@@ -153,6 +166,14 @@ export type CustomMaterializerConfig<
     updates: string[],
   ) => { sql: string; params: unknown[] };
 };
+
+/**
+ * Configuration for custom materialization adapter.
+ * Either provide a dialect name OR all custom commands (loadCommand, saveCommand, removeCommand).
+ */
+export type CustomMaterializerConfig<
+  S extends ConvergeSchema = ConvergeSchema,
+> = DialectConfig<S> | CustomCommandsConfig<S>;
 
 /**
  * Internal type for tags table row structure.
