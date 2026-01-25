@@ -1,0 +1,413 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@converge/core';
+import { materializeChange, materializeChanges, type MaterializerAdapter } from '@converge/materialize-core';
+import Database from 'better-sqlite3';
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import pg from 'pg';
+import { createCustomMaterializer } from './adapter';
+import type { Db } from './types';
+
+type TestSchema = {
+  todos: {
+    id: string;
+    title: string;
+    done: boolean;
+  };
+};
+
+// SQLite Db adapter
+function createSqliteDb(): Db {
+  const db = new Database(':memory:');
+  return {
+    async get<T>(query: string, params: unknown[]): Promise<T | null> {
+      const stmt = db.prepare(query);
+      const row = stmt.get(...params) as T | undefined;
+      return row ?? null;
+    },
+    async run(command: string, params: unknown[]): Promise<void> {
+      db.prepare(command).run(...params);
+    },
+  };
+}
+
+// PostgreSQL Db adapter
+function createPostgresDb(connectionString: string): { db: Db; close: () => Promise<void> } {
+  const client = new pg.Client({ connectionString });
+  let connected = false;
+  let closing = false;
+
+  const connect = async () => {
+    if (!connected && !closing) {
+      await client.connect();
+      connected = true;
+    }
+  };
+
+  const db: Db = {
+    async get<T>(query: string, params: unknown[]): Promise<T | null> {
+      await connect();
+      if (closing) throw new Error('Database connection is closing');
+      const result = await client.query(query, params);
+      return (result.rows[0] as T) ?? null;
+    },
+    async run(command: string, params: unknown[]): Promise<void> {
+      await connect();
+      if (closing) throw new Error('Database connection is closing');
+      await client.query(command, params);
+    },
+  };
+
+  return {
+    db,
+    close: async () => {
+      if (connected && !closing) {
+        closing = true;
+        try {
+          await client.end();
+        } catch (error) {
+			console.error('Error closing database connection', error);
+          // Ignore errors during cleanup
+        }
+        connected = false;
+        closing = false;
+      }
+    },
+  };
+}
+
+describe('createCustomMaterializer', () => {
+  describe('SQLite dialect', () => {
+    let db: Db;
+    let adapter: MaterializerAdapter<TestSchema>;
+
+    beforeEach(async () => {
+      db = createSqliteDb();
+      // Create entity table
+      await db.run(
+        'CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)',
+        [],
+      );
+      adapter = createCustomMaterializer<TestSchema>({
+        db,
+        dialect: 'sqlite',
+        tableMap: { todos: 'todos' },
+      });
+    });
+
+    it('creates tags table on first use', async () => {
+      const hlc = tickHlc(createHlcState('node-1'), 100);
+      const change = makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        patch: { id: 'todo-1', title: 'Buy milk', done: false },
+        hlc,
+      });
+
+      await materializeChange(adapter, change);
+
+      // Verify tags table exists and has data
+      const row = await db.get<{ data: string; tags: string; deleted: number }>(
+        'SELECT data, tags, deleted FROM converge_tags WHERE entity = ? AND id = ?',
+        ['todos', 'todo-1'],
+      );
+      expect(row).toBeTruthy();
+      expect(JSON.parse(row!.data)).toEqual({ id: 'todo-1', title: 'Buy milk', done: false });
+      expect(row!.deleted).toBe(0);
+    });
+
+    it('saves entity to both tags table and entity table', async () => {
+      const adapterWithFieldMap = createCustomMaterializer<TestSchema>({
+        db,
+        dialect: 'sqlite',
+        tableMap: { todos: 'todos' },
+        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      });
+
+      const hlc = tickHlc(createHlcState('node-1'), 100);
+      const change = makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        patch: { id: 'todo-1', title: 'Buy milk', done: false },
+        hlc,
+      });
+
+      await materializeChange(adapterWithFieldMap, change);
+
+      // Check entity table
+      const entityRow = await db.get<{ id: string; title: string; done: number }>(
+        'SELECT id, title, done FROM todos WHERE id = ?',
+        ['todo-1'],
+      );
+      expect(entityRow).toEqual({ id: 'todo-1', title: 'Buy milk', done: 0 });
+    });
+
+    it('uses field mapping when provided', async () => {
+      const db2 = createSqliteDb();
+      await db2.run(
+        'CREATE TABLE todos (id TEXT PRIMARY KEY, todo_title TEXT, is_done INTEGER)',
+        [],
+      );
+      const adapter2 = createCustomMaterializer<TestSchema>({
+        db: db2,
+        dialect: 'sqlite',
+        tableMap: { todos: 'todos' },
+        fieldMap: { todos: { id: 'id', title: 'todo_title', done: 'is_done' } },
+      });
+
+      const hlc = tickHlc(createHlcState('node-1'), 100);
+      const change = makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        patch: { id: 'todo-1', title: 'Buy milk', done: false },
+        hlc,
+      });
+
+      await materializeChange(adapter2, change);
+
+      const row = await db2.get<{ id: string; todo_title: string; is_done: number }>(
+        'SELECT id, todo_title, is_done FROM todos WHERE id = ?',
+        ['todo-1'],
+      );
+      expect(row).toEqual({ id: 'todo-1', todo_title: 'Buy milk', is_done: 0 });
+    });
+
+    it('loads existing state', async () => {
+      const hlc1 = tickHlc(createHlcState('node-1'), 100);
+      const change1 = makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        patch: { id: 'todo-1', title: 'Buy milk', done: false },
+        hlc: hlc1,
+      });
+      await materializeChange(adapter, change1);
+
+      const state = await adapter.load('todos', 'todo-1');
+      expect(state).toBeTruthy();
+      expect(state!.values).toEqual({ id: 'todo-1', title: 'Buy milk', done: false });
+      expect(state!.tags.title).toBe(hlc1);
+      expect(state!.deleted).toBe(false);
+    });
+
+    it('handles deletes', async () => {
+      const hlc1 = tickHlc(createHlcState('node-1'), 100);
+      const change1 = makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        patch: { id: 'todo-1', title: 'Buy milk', done: false },
+        hlc: hlc1,
+      });
+      await materializeChange(adapter, change1);
+
+      const hlc2 = tickHlc(createHlcState('node-1'), 101);
+      const change2 = makeDelete<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        hlc: hlc2,
+      });
+      const result = await materializeChange(adapter, change2);
+      expect(result).toBe('removed');
+
+      const state = await adapter.load('todos', 'todo-1');
+      expect(state).toBeTruthy();
+      expect(state!.deleted).toBe(true);
+      expect(state!.deletedTag).toBe(hlc2);
+    });
+
+    it('handles multiple changes', async () => {
+      const hlc1 = tickHlc(createHlcState('node-1'), 100);
+      const hlc2 = tickHlc(createHlcState('node-1'), 101);
+      const hlc3 = tickHlc(createHlcState('node-1'), 102);
+
+      const changes = [
+        makeUpsert<TestSchema>({
+          stream: 'test',
+          entity: 'todos',
+          entityId: 'todo-1',
+          patch: { id: 'todo-1', title: 'Buy milk', done: false },
+          hlc: hlc1,
+        }),
+        makeUpsert<TestSchema>({
+          stream: 'test',
+          entity: 'todos',
+          entityId: 'todo-1',
+          patch: { done: true },
+          hlc: hlc2,
+        }),
+        makeUpsert<TestSchema>({
+          stream: 'test',
+          entity: 'todos',
+          entityId: 'todo-2',
+          patch: { id: 'todo-2', title: 'Buy bread', done: false },
+          hlc: hlc3,
+        }),
+      ];
+
+      await materializeChanges(adapter, changes);
+
+      const state1 = await adapter.load('todos', 'todo-1');
+      expect(state1!.values).toEqual({ id: 'todo-1', title: 'Buy milk', done: true });
+
+      const state2 = await adapter.load('todos', 'todo-2');
+      expect(state2!.values).toEqual({ id: 'todo-2', title: 'Buy bread', done: false });
+    });
+
+    it('throws error for missing table mapping', async () => {
+      const badAdapter = createCustomMaterializer<TestSchema>({
+        db,
+        dialect: 'sqlite',
+        tableMap: {} as Record<keyof TestSchema, string>,
+      });
+
+      const hlc = tickHlc(createHlcState('node-1'), 100);
+      const change = makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        patch: { id: 'todo-1', title: 'Buy milk', done: false },
+        hlc,
+      });
+
+      await expect(materializeChange(badAdapter, change)).rejects.toThrow('No table mapping for entity: todos');
+    });
+
+    it('throws error for invalid dialect', () => {
+      expect(() => {
+        createCustomMaterializer<TestSchema>({
+          db,
+          dialect: 'invalid-dialect' as 'sqlite',
+          tableMap: { todos: 'todos' },
+        });
+      }).toThrow('Invalid config: must provide either dialect or all custom commands');
+    });
+  });
+
+  describe('PostgreSQL dialect', () => {
+    let container: StartedPostgreSqlContainer | null = null;
+    let db: Db;
+    let dbClose: (() => Promise<void>) | null = null;
+    let adapter: MaterializerAdapter<TestSchema>;
+
+    beforeAll(async () => {
+      container = await new PostgreSqlContainer('postgres:16-alpine')
+        .withReuse()
+        .start();
+    }, 30000);
+
+    afterAll(async () => {
+      if (dbClose) {
+        await dbClose();
+      }
+      if (container) {
+        await container.stop();
+      }
+    });
+
+    beforeEach(async () => {
+      if (!container) throw new Error('Container not started');
+      // Close previous connection if it exists
+      if (dbClose) {
+        await dbClose();
+      }
+      const dbWrapper = createPostgresDb(container.getConnectionUri());
+      db = dbWrapper.db;
+      dbClose = dbWrapper.close;
+      // Create entity table
+      await db.run(
+        'CREATE TABLE IF NOT EXISTS todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)',
+        [],
+      );
+      adapter = createCustomMaterializer<TestSchema>({
+        db,
+        dialect: 'postgresql',
+        tableMap: { todos: 'todos' },
+      });
+    });
+
+    afterEach(async () => {
+      // Ensure connection is closed after each test
+      if (dbClose) {
+        await dbClose();
+        dbClose = null;
+      }
+    });
+
+    it('creates tags table and saves entity', async () => {
+      const adapterWithFieldMap = createCustomMaterializer<TestSchema>({
+        db,
+        dialect: 'postgresql',
+        tableMap: { todos: 'todos' },
+        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      });
+
+      const hlc = tickHlc(createHlcState('node-1'), 100);
+      const change = makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        patch: { id: 'todo-1', title: 'Buy milk', done: false },
+        hlc,
+      });
+
+      await materializeChange(adapterWithFieldMap, change);
+
+      // Verify tags table exists and has data
+      const row = await db.get<{ data: string; tags: string; deleted: number }>(
+        'SELECT data, tags, deleted FROM converge_tags WHERE entity = $1 AND id = $2',
+        ['todos', 'todo-1'],
+      );
+      expect(row).toBeTruthy();
+      expect(JSON.parse(row!.data)).toEqual({ id: 'todo-1', title: 'Buy milk', done: false });
+      expect(row!.deleted).toBe(0);
+
+      // Check entity table
+      const entityRow = await db.get<{ id: string; title: string; done: number }>(
+        'SELECT id, title, done FROM todos WHERE id = $1',
+        ['todo-1'],
+      );
+      expect(entityRow).toEqual({ id: 'todo-1', title: 'Buy milk', done: 0 });
+    });
+
+    it('handles updates and deletes', async () => {
+      const hlc1 = tickHlc(createHlcState('node-1'), 100);
+      const change1 = makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        patch: { id: 'todo-1', title: 'Buy milk', done: false },
+        hlc: hlc1,
+      });
+      await materializeChange(adapter, change1);
+
+      const hlc2 = tickHlc(createHlcState('node-1'), 101);
+      const change2 = makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        patch: { done: true },
+        hlc: hlc2,
+      });
+      await materializeChange(adapter, change2);
+
+      const state1 = await adapter.load('todos', 'todo-1');
+      expect(state1!.values.done).toBe(true);
+
+      const hlc3 = tickHlc(createHlcState('node-1'), 102);
+      const change3 = makeDelete<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        hlc: hlc3,
+      });
+      await materializeChange(adapter, change3);
+
+      const state2 = await adapter.load('todos', 'todo-1');
+      expect(state2!.deleted).toBe(true);
+    });
+  });
+});

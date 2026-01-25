@@ -33,13 +33,21 @@ export const dialects: Record<string, Dialect> = {
          tags = excluded.tags,
          deleted = 1,
          deleted_tag = excluded.deleted_tag`,
-    saveEntityCommand: (tableName, id, columns, values, updates) => ({
-      sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')})
-            VALUES (?, ${columns.map(() => '?').join(', ')})
-            ON CONFLICT(id) DO UPDATE SET
-              ${updates.join(', ')}`,
-      params: [id, ...values, ...values],
-    }),
+    saveEntityCommand: (tableName, id, columns, values, updates) => {
+      // Convert booleans to integers for SQLite
+      const convertValue = (v: unknown): unknown => {
+        if (typeof v === 'boolean') return v ? 1 : 0;
+        return v;
+      };
+      const convertedValues = values.map(convertValue);
+      return {
+        sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')})
+              VALUES (?, ${columns.map(() => '?').join(', ')})
+              ON CONFLICT(id) DO UPDATE SET
+                ${updates.join(', ')}`,
+        params: [id, ...convertedValues, ...convertedValues],
+      };
+    },
   },
   postgresql: {
     createTagsTable: (tagsTable) =>
@@ -71,6 +79,12 @@ export const dialects: Record<string, Dialect> = {
          deleted = 1,
          deleted_tag = EXCLUDED.deleted_tag`,
     saveEntityCommand: (tableName, id, columns, values, updates) => {
+      // Convert booleans to integers for PostgreSQL
+      const convertValue = (v: unknown): unknown => {
+        if (typeof v === 'boolean') return v ? 1 : 0;
+        return v;
+      };
+      const convertedValues = values.map(convertValue);
       const insertPlaceholders = columns.map((_, i) => `$${i + 2}`).join(', ');
       const updateClauses = updates.map((u, i) => u.replace('?', `$${i + 2 + columns.length}`));
       return {
@@ -78,7 +92,7 @@ export const dialects: Record<string, Dialect> = {
               VALUES ($1, ${insertPlaceholders})
               ON CONFLICT (id) DO UPDATE SET
                 ${updateClauses.join(', ')}`,
-        params: [id, ...values, ...values],
+        params: [id, ...convertedValues, ...convertedValues],
       };
     },
   },

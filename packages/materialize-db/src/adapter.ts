@@ -155,6 +155,8 @@ export function createCustomMaterializer<
         const updates: string[] = [];
 
         for (const [field, value] of Object.entries(state.values)) {
+          // Skip 'id' field - it's handled separately as the first parameter in saveEntityCommand
+          if (field === 'id') continue;
           const column = fieldMap[field] ?? field;
           columns.push(column);
           values.push(value);
