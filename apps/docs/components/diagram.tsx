@@ -32,7 +32,12 @@ type EdgeDef = {
   to: string;
   fromSide?: 'bottom' | 'right' | 'left' | 'top';
   toSide?: 'top' | 'left' | 'right' | 'bottom';
+  /** Label text displayed along the edge */
   label?: string;
+  /** Position of label along edge: 0 = start, 0.5 = middle, 1 = end. Default: 0.3 */
+  labelPosition?: number;
+  /** Offset for label { x, y } to fine-tune position */
+  labelOffset?: { x?: number; y?: number };
   dashed?: boolean;
   animated?: boolean;
   /** Use orthogonal (axis-aligned) routing with 90° bends */
@@ -427,14 +432,63 @@ function Edge({ edge, nodes }: { edge: EdgeDef; nodes: ResolvedNode[] }) {
   // Build path string
   const pathD = buildPathString(pathPoints, edge.orthogonal);
   
-  // Label position (midpoint of middle segment for orthogonal, or just midpoint)
-  const midIdx = Math.floor(pathPoints.length / 2);
-  const labelX = pathPoints.length > 2 
-    ? (pathPoints[midIdx - 1].x + pathPoints[midIdx].x) / 2 
-    : (start.x + end.x) / 2;
-  const labelY = pathPoints.length > 2
-    ? (pathPoints[midIdx - 1].y + pathPoints[midIdx].y) / 2
-    : (start.y + end.y) / 2;
+  // Calculate label position along the path
+  const labelPos = edge.labelPosition ?? 0.5; // Default to middle of segment
+  const userLabelOffset = edge.labelOffset || {};
+  
+  // Find position along path at labelPos (0-1)
+  let labelX = start.x;
+  let labelY = start.y;
+  let labelAnchor: 'start' | 'middle' | 'end' = 'start';
+  let labelOffsetX = userLabelOffset.x ?? 0;
+  let labelOffsetY = userLabelOffset.y ?? 0;
+  
+  if (pathPoints.length === 2) {
+    // Simple line: interpolate
+    labelX = start.x + (end.x - start.x) * labelPos;
+    labelY = start.y + (end.y - start.y) * labelPos;
+    
+    // Offset based on line direction
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // Mostly horizontal - offset above
+      labelOffsetY += -8;
+      labelAnchor = 'middle';
+    } else {
+      // Mostly vertical - offset to left of line
+      labelOffsetX += -8;
+      labelAnchor = 'end';
+    }
+  } else if (pathPoints.length >= 3) {
+    // For orthogonal paths with branches, use the SECOND segment
+    // (after the branching point) for better label placement
+    const p1 = pathPoints[1]; // End of first segment = start of second
+    const p2 = pathPoints[2]; // End of second segment
+    labelX = p1.x + (p2.x - p1.x) * labelPos;
+    labelY = p1.y + (p2.y - p1.y) * labelPos;
+    
+    // Offset based on second segment direction
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // Horizontal segment - offset above
+      labelOffsetY += -8;
+      labelAnchor = 'middle';
+    } else {
+      // Vertical segment - offset to left of line
+      labelOffsetX += -8;
+      labelAnchor = 'end';
+    }
+  } else {
+    // Fallback: use first segment
+    const p1 = pathPoints[0];
+    const p2 = pathPoints[1] || p1;
+    labelX = p1.x + (p2.x - p1.x) * labelPos;
+    labelY = p1.y + (p2.y - p1.y) * labelPos;
+    labelOffsetX += -8;
+    labelAnchor = 'end';
+  }
   
   return (
     <g className="stroke-neutral-400 fill-neutral-400 dark:stroke-neutral-500 dark:fill-neutral-500">
@@ -451,8 +505,9 @@ function Edge({ edge, nodes }: { edge: EdgeDef; nodes: ResolvedNode[] }) {
       />
       {edge.label && (
         <text
-          x={labelX + 8}
-          y={labelY + 4}
+          x={labelX + labelOffsetX}
+          y={labelY + labelOffsetY}
+          textAnchor={labelAnchor}
           className="fill-neutral-500 dark:fill-neutral-400"
           stroke="none"
           fontSize={11}
