@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createHlcState, makeUpsert, tickHlc, type Change } from '@converge/core';
 import { createSyncSqlExecutor } from '@converge/materialize-db';
 import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { getTableConfig, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { SqliteDb } from './index';
@@ -498,4 +499,71 @@ describe('SqliteDb', () => {
 
     dbWithInvalidMaterializer.close();
   });
+
+  it('accepts external db instance and allows custom Drizzle queries', async () => {
+    // Create external database instance
+    const sqlite = new Database(dbPath);
+    sqlite.exec(`
+      CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER);
+      CREATE TABLE converge_tags (
+        entity TEXT NOT NULL,
+        id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        tags TEXT NOT NULL,
+        deleted INTEGER NOT NULL DEFAULT 0,
+        deleted_tag TEXT,
+        PRIMARY KEY (entity, id)
+      );
+    `);
+
+    // Create Drizzle instance sharing the same connection
+    const drizzleDb = drizzle(sqlite);
+
+    // Create SqliteDb with external db
+    const convergeDb = new SqliteDb<TestSchema>({
+      db: sqlite,
+      materializer: () => {
+        return createDrizzleSyncMaterializerConfig<TestSchema>(drizzleDb, {
+          tableMap: { todos: todosTable },
+          tagsTableDef: tagsTable,
+          getTableConfig: (table) => getTableConfig(table as typeof todosTable),
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+          normalizeValue: (value) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
+        });
+      },
+    });
+
+    // Append via converge
+    const hlc = tickHlc(createHlcState('node-1'), 100);
+    await convergeDb.append({
+      stream: 'test',
+      changes: [
+        makeUpsert<TestSchema>({
+          stream: 'test',
+          entity: 'todos',
+          entityId: 'todo-1',
+          patch: { id: 'todo-1', title: 'Buy milk', done: false },
+          hlc,
+        }),
+      ],
+    });
+
+    // Query via Drizzle on the same connection
+    const todos = drizzleDb.select().from(todosTable).all();
+    expect(todos).toHaveLength(1);
+    expect(todos[0]).toEqual({ id: 'todo-1', title: 'Buy milk', done: 0 });
+
+    // close() should be a no-op since we provided external db
+    convergeDb.close();
+
+    // Database should still be open and usable
+    const todosAfterClose = drizzleDb.select().from(todosTable).all();
+    expect(todosAfterClose).toHaveLength(1);
+
+    // Clean up - we own the db, so we close it
+    sqlite.close();
+  });
+
+  // Note: "both db and filename" and "neither db nor filename" cases
+  // are now enforced at compile-time by the discriminated union type
 });

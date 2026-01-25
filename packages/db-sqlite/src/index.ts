@@ -8,13 +8,22 @@ import type {
 } from '@converge/materialize-db';
 import { createSyncMaterializer } from '@converge/materialize-db';
 
-type SqliteDbOptions<S extends ConvergeSchema = ConvergeSchema> = {
-  filename: string;
+export type SqliteDatabase = InstanceType<typeof Database>;
+
+export type SqliteDbOptions<S extends ConvergeSchema = ConvergeSchema> = {
+  /**
+   * SQLite pragmas to apply (only when using `filename`).
+   * Default: ['journal_mode = WAL']
+   */
   pragmas?: string[];
   materializer?: (ctx: { db: SqliteDatabase }) => MaterializerConfigBase<S> & {
     executor: SyncMaterializerExecutor;
   };
-};
+} & ({
+  filename: string;
+} | {
+  db: SqliteDatabase;
+});
 
 type ChangeRow = {
   seq: number;
@@ -36,10 +45,9 @@ function decodeCursor(cursor: Cursor | null): number {
   return Math.floor(n);
 }
 
-type SqliteDatabase = InstanceType<typeof Database>;
-
 export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S> {
   private db: SqliteDatabase;
+  private ownsDb: boolean;
   private insertChange: ReturnType<SqliteDatabase['prepare']>;
   private selectChanges: ReturnType<SqliteDatabase['prepare']>;
   private idempotencyGet: ReturnType<SqliteDatabase['prepare']>;
@@ -48,7 +56,18 @@ export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S
   private materializerFactory: SqliteDbOptions<S>['materializer'];
 
   constructor(opts: SqliteDbOptions<S>) {
-    this.db = new Database(opts.filename);
+    if ('db' in opts) {
+      this.db = opts.db;
+      this.ownsDb = false;
+    } else {
+      this.db = new Database(opts.filename);
+      this.ownsDb = true;
+
+      // Only apply pragmas when we create the database
+      for (const pragma of opts.pragmas ?? ['journal_mode = WAL']) {
+        this.db.pragma(pragma);
+      }
+    }
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS converge_changes (
@@ -64,10 +83,6 @@ export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S
         PRIMARY KEY (stream, idempotency_key)
       );
     `);
-
-    for (const pragma of opts.pragmas ?? ['journal_mode = WAL']) {
-      this.db.pragma(pragma);
-    }
 
     this.insertChange = this.db.prepare(
       'INSERT INTO converge_changes (stream, change_json) VALUES (@stream, @change_json)',
@@ -162,8 +177,15 @@ export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S
     };
   }
 
+  /**
+   * Close the database connection.
+   * Only closes if SqliteDb created the connection (via `filename`).
+   * If an external `db` was provided, this is a no-op.
+   */
   close() {
-    this.db.close();
+    if (this.ownsDb) {
+      this.db.close();
+    }
   }
 }
 
