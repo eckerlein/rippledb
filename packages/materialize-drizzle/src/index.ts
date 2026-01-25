@@ -4,49 +4,49 @@ import type {
   MaterializerExecutor,
   TagsRow,
 } from '@converge/materialize-db';
-import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
-import type { PgTable } from 'drizzle-orm/pg-core';
-import { getTableConfig as getSqliteTableConfig } from 'drizzle-orm/sqlite-core';
-import { getTableConfig as getPgTableConfig } from 'drizzle-orm/pg-core';
 import { and, eq } from 'drizzle-orm';
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
-import { pgTable, text as pgText, integer as pgInteger } from 'drizzle-orm/pg-core';
 
-type DrizzleTable = SQLiteTable | PgTable;
+type DrizzleTable = object;
 
-type DrizzleDb = {
-  select: () => {
-    from: (table: DrizzleTable) => {
-      where: (...args: unknown[]) => {
-        limit: (limit: number) => {
-          all?: () => unknown[];
-          get?: () => unknown;
-          execute?: () => Promise<unknown[]>;
-        };
-      };
-    };
-  };
-  insert: (table: DrizzleTable) => {
-    values: (values: Record<string, unknown>) => {
-      onConflictDoUpdate: (options: unknown) => {
-        run?: () => unknown;
-        execute?: () => Promise<unknown>;
-      };
-    };
-  };
+type DrizzleColumn = {
+  name: string;
 };
 
-type DrizzleMaterializerConfigOptions<S extends ConvergeSchema> = {
+type DrizzleTableConfig = {
+  name: string;
+  columns: Record<string, DrizzleColumn> | DrizzleColumn[];
+};
+
+type BivariantCallback<Args extends unknown[], Result> = {
+  bivarianceHack: (...args: Args) => Result;
+}['bivarianceHack'];
+
+type DrizzleMaterializerConfigOptions<
+  S extends ConvergeSchema,
+  TTable extends DrizzleTable,
+  TDb,
+  TConfig extends DrizzleTableConfig,
+> = {
   /**
    * Map entity names to their Drizzle table definitions.
    * These tables must already exist in your database.
    */
-  tableMap: Record<EntityName<S>, DrizzleTable>;
+  tableMap: Record<EntityName<S>, TTable>;
 
   /**
    * Drizzle database/transaction instance used to execute queries.
    */
-  db: DrizzleDb;
+  db: TDb;
+
+  /**
+   * Tags table definition (required to avoid dialect-specific branching).
+   */
+  tagsTableDef: TTable;
+
+  /**
+   * Provide table config extraction (dialect-specific in userland).
+   */
+  getTableConfig: BivariantCallback<[TTable], TConfig>;
 
   /**
    * Optional field mapping from schema field names to database column names.
@@ -55,9 +55,10 @@ type DrizzleMaterializerConfigOptions<S extends ConvergeSchema> = {
   fieldMap?: Partial<Record<EntityName<S>, Record<string, string>>>;
 
   /**
-   * Custom tags table name. Default: 'converge_tags'
+   * Optional value normalizer before writing to the database.
+   * Useful for SQLite boolean -> integer conversions.
    */
-  tagsTable?: string;
+  normalizeValue?: (value: unknown, context: { tableName: string; columnName: string }) => unknown;
 
   /**
    * Optional hook to ensure tags table exists (migrations).
@@ -68,14 +69,14 @@ type DrizzleMaterializerConfigOptions<S extends ConvergeSchema> = {
 /**
  * Creates a materializer configuration for Drizzle ORM.
  *
- * Uses Drizzle's query builder to generate database-agnostic SQL commands,
+ * Uses Drizzle's query builder to execute database-agnostic queries,
  * allowing you to use Drizzle table definitions with the materialization system
  * without writing SQL.
  *
  * @example
  * ```ts
  * import { createDrizzleMaterializerConfig } from '@converge/materialize-drizzle';
- * import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+ * import { sqliteTable, text, integer, getTableConfig } from 'drizzle-orm/sqlite-core';
  *
  * const todosTable = sqliteTable('todos', {
  *   id: text('id').primaryKey(),
@@ -83,61 +84,69 @@ type DrizzleMaterializerConfigOptions<S extends ConvergeSchema> = {
  *   done: integer('done'),
  * });
  *
+ * const tagsTable = sqliteTable('converge_tags', {
+ *   entity: text('entity').notNull(),
+ *   id: text('id').notNull(),
+ *   data: text('data').notNull(),
+ *   tags: text('tags').notNull(),
+ *   deleted: integer('deleted').notNull().default(0),
+ *   deleted_tag: text('deleted_tag'),
+ * });
+ *
  * const db = new SqliteDb({
  *   filename: 'db.sqlite',
  *   materializer: createDrizzleMaterializerConfig({
  *     tableMap: { todos: todosTable },
+ *     tagsTableDef: tagsTable,
+ *     getTableConfig,
  *   }),
  * });
  * ```
  */
-export function createDrizzleMaterializerConfig<S extends ConvergeSchema>(
-  options: DrizzleMaterializerConfigOptions<S>,
-): Omit<CustomMaterializerConfig<S>, 'db'> {
-  const { tableMap, fieldMap, tagsTable = 'converge_tags', db, ensureTagsTable } = options;
-
-  // Helper to get table config and dialect without SQL
-  const getTableConfigUnified = (table: DrizzleTable) => {
-    try {
-      return { config: getSqliteTableConfig(table as SQLiteTable), dialect: 'sqlite' as const };
-    } catch {
-      return { config: getPgTableConfig(table as PgTable), dialect: 'postgresql' as const };
-    }
-  };
-
-  // Infer dialect from first table
-  const firstTable = Object.values(tableMap)[0];
-  if (!firstTable) {
-    throw new Error('tableMap must contain at least one table');
-  }
-  const { dialect } = getTableConfigUnified(firstTable);
-
-  // Create tags table definition (no raw SQL)
-  const tagsTableDef =
-    dialect === 'sqlite'
-      ? sqliteTable(tagsTable, {
-          entity: text('entity').notNull(),
-          id: text('id').notNull(),
-          data: text('data').notNull(),
-          tags: text('tags').notNull(),
-          deleted: integer('deleted').notNull().default(0),
-          deleted_tag: text('deleted_tag'),
-        })
-      : pgTable(tagsTable, {
-          entity: pgText('entity').notNull(),
-          id: pgText('id').notNull(),
-          data: pgText('data').notNull(),
-          tags: pgText('tags').notNull(),
-          deleted: pgInteger('deleted').notNull().default(0),
-          deleted_tag: pgText('deleted_tag'),
-        });
+export function createDrizzleMaterializerConfig<
+  S extends ConvergeSchema,
+  TTable extends DrizzleTable = DrizzleTable,
+  TDb = unknown,
+  TConfig extends DrizzleTableConfig = DrizzleTableConfig,
+>(options: DrizzleMaterializerConfigOptions<S, TTable, TDb, TConfig>): CustomMaterializerConfig<S> {
+  const {
+    tableMap,
+    fieldMap,
+    tagsTableDef,
+    db,
+    ensureTagsTable,
+    getTableConfig,
+    normalizeValue,
+  } = options;
 
   // Extract table names from Drizzle table definitions and create reverse lookup
   const extractedTableMap: Record<EntityName<S>, string> = {} as Record<EntityName<S>, string>;
-  const tableNameToDrizzleTable = new Map<string, DrizzleTable>();
+  const tableNameToDrizzleTable = new Map<string, TTable>();
+
+  type SelectChain = {
+    from: (table: TTable) => {
+      where: (...args: unknown[]) => {
+        limit: (limit: number) => unknown;
+      };
+    };
+  };
+
+  type InsertChain = {
+    values: (values: Record<string, unknown>) => {
+      onConflictDoUpdate: (options: unknown) => {
+        run?: () => unknown;
+        execute?: () => Promise<unknown>;
+      };
+    };
+  };
+
+  const dbClient = db as {
+    select: () => unknown;
+    insert: (table: TTable) => unknown;
+  };
 
   for (const [entity, table] of Object.entries(tableMap)) {
-    const { config } = getTableConfigUnified(table);
+    const config = getTableConfig(table);
     const tableName = config.name;
     extractedTableMap[entity as EntityName<S>] = tableName;
     tableNameToDrizzleTable.set(tableName, table);
@@ -171,12 +180,23 @@ export function createDrizzleMaterializerConfig<S extends ConvergeSchema>(
     return [];
   };
 
-  const getColumnKeyByName = (
-    tableConfig: ReturnType<typeof getTableConfigUnified>['config'],
-    name: string,
-  ) => {
+  const getColumnKeyByName = (tableConfig: DrizzleTableConfig, name: string) => {
+    if (Array.isArray(tableConfig.columns)) {
+      const column = tableConfig.columns.find((col) => col.name === name);
+      return column ? column.name : null;
+    }
     for (const [key, column] of Object.entries(tableConfig.columns)) {
       if (column.name === name) return key;
+    }
+    return null;
+  };
+
+  const getColumnByName = (tableConfig: DrizzleTableConfig, name: string): DrizzleColumn | null => {
+    if (Array.isArray(tableConfig.columns)) {
+      return tableConfig.columns.find((col) => col.name === name) ?? null;
+    }
+    for (const column of Object.values(tableConfig.columns)) {
+      if (column.name === name) return column;
     }
     return null;
   };
@@ -186,20 +206,19 @@ export function createDrizzleMaterializerConfig<S extends ConvergeSchema>(
       if (ensureTagsTable) await ensureTagsTable();
     },
     async loadTags(entity: string, id: string): Promise<TagsRow | null> {
+      const entityColumn = (tagsTableDef as Record<string, unknown>).entity;
+      const idColumn = (tagsTableDef as Record<string, unknown>).id;
       const rows = await loadRows(
-        db
-          .select()
+        (dbClient.select() as SelectChain)
           .from(tagsTableDef)
-          .where(and(eq(tagsTableDef.entity, entity), eq(tagsTableDef.id, id)))
+          .where(and(eq(entityColumn as never, entity), eq(idColumn as never, id)))
           .limit(1),
       );
       return (rows[0] as TagsRow | undefined) ?? null;
     },
     async saveTags(entity: string, id: string, dataJson: string, tagsJson: string): Promise<void> {
       await runWrite(
-        db
-          .insert(tagsTableDef)
-          .values({
+        (dbClient.insert(tagsTableDef) as InsertChain).values({
             entity,
             id,
             data: dataJson,
@@ -208,7 +227,10 @@ export function createDrizzleMaterializerConfig<S extends ConvergeSchema>(
             deleted_tag: null,
           })
           .onConflictDoUpdate({
-            target: [tagsTableDef.entity, tagsTableDef.id],
+            target: [
+              (tagsTableDef as Record<string, unknown>).entity,
+              (tagsTableDef as Record<string, unknown>).id,
+            ],
             set: {
               data: dataJson,
               tags: tagsJson,
@@ -226,9 +248,7 @@ export function createDrizzleMaterializerConfig<S extends ConvergeSchema>(
       deletedTag: string,
     ): Promise<void> {
       await runWrite(
-        db
-          .insert(tagsTableDef)
-          .values({
+        (dbClient.insert(tagsTableDef) as InsertChain).values({
             entity,
             id,
             data: dataJson,
@@ -237,7 +257,10 @@ export function createDrizzleMaterializerConfig<S extends ConvergeSchema>(
             deleted_tag: deletedTag,
           })
           .onConflictDoUpdate({
-            target: [tagsTableDef.entity, tagsTableDef.id],
+            target: [
+              (tagsTableDef as Record<string, unknown>).entity,
+              (tagsTableDef as Record<string, unknown>).id,
+            ],
             set: {
               data: dataJson,
               tags: tagsJson,
@@ -259,9 +282,10 @@ export function createDrizzleMaterializerConfig<S extends ConvergeSchema>(
         throw new Error(`No Drizzle table found for table name: ${tableName}`);
       }
 
-      const tableConfig = getTableConfigUnified(drizzleTable).config;
+      const tableConfig = getTableConfig(drizzleTable);
       const idKey = getColumnKeyByName(tableConfig, 'id');
-      if (!idKey) {
+      const idColumn = getColumnByName(tableConfig, 'id');
+      if (!idKey || !idColumn) {
         throw new Error(`No id column found in Drizzle table ${tableName}`);
       }
 
@@ -274,21 +298,21 @@ export function createDrizzleMaterializerConfig<S extends ConvergeSchema>(
         if (!key) {
           throw new Error(`Column ${columnName} not found in Drizzle table ${tableName}`);
         }
-        insertValues[key] = values[i];
+        const normalizedValue = normalizeValue
+          ? normalizeValue(values[i], { tableName, columnName })
+          : values[i];
+        insertValues[key] = normalizedValue;
         const updateMatch = updates[i]?.match(/^(\w+)\s*=/);
         if (updateMatch) {
-          updateSet[key] = values[i];
+          updateSet[key] = normalizedValue;
         }
       }
 
       await runWrite(
-        db
-          .insert(drizzleTable)
-          .values(insertValues)
-          .onConflictDoUpdate({
-            target: [tableConfig.columns[idKey as keyof typeof tableConfig.columns]],
-            set: updateSet,
-          }),
+        (dbClient.insert(drizzleTable) as InsertChain).values(insertValues).onConflictDoUpdate({
+          target: [idColumn],
+          set: updateSet,
+        }),
       );
     },
   };

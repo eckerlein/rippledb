@@ -17,12 +17,21 @@
     "drizzle-orm": "^0.36.4"
   },
   "devDependencies": {
+    "@converge/materialize-core": "workspace:*",
+    "@testcontainers/postgresql": "^11.11.0",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/pg": "^8.11.10",
+    "better-sqlite3": "^11.7.0",
     "eslint": "^9.37.0",
+    "pg": "^8.13.1",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   },
   "scripts": {
     "build": "tsup && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint ."
   },
   "tsup": {
