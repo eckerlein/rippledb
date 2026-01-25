@@ -51,6 +51,7 @@ const NODE_PADDING_Y = 10;
 const LINE_HEIGHT = 18;
 const FONT_SIZE = 13;
 const ARROW_SIZE = 6;
+const TEXT_MARGIN = 8; // Margin between edges and text labels
 
 function getTextLines(label: string | string[]): string[] {
   return Array.isArray(label) ? label : [label];
@@ -185,16 +186,16 @@ function getAnchorPoint(node: ResolvedNode, side: 'top' | 'bottom' | 'left' | 'r
   const { width, height } = getNodeDimensions(node);
   
   if (node.variant === 'label') {
-    // For label nodes, anchor relative to text position
+    // For label nodes, anchor relative to text position with margin
     const textTop = node.y;
     const textBottom = node.y + height;
     const textCenterY = node.y + height / 2;
     
     switch (side) {
-      case 'top': return { x: node.x, y: textTop };
-      case 'bottom': return { x: node.x, y: textBottom };
-      case 'left': return { x: node.x, y: textCenterY };
-      case 'right': return { x: node.x + width, y: textCenterY };
+      case 'top': return { x: node.x, y: textTop - TEXT_MARGIN };
+      case 'bottom': return { x: node.x, y: textBottom + TEXT_MARGIN };
+      case 'left': return { x: node.x - TEXT_MARGIN, y: textCenterY };
+      case 'right': return { x: node.x + width + TEXT_MARGIN, y: textCenterY };
     }
   }
   
