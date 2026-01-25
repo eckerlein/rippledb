@@ -5,6 +5,7 @@ description: Implement client-side sync with offline support
 
 import { Steps, Step } from 'fumadocs-ui/components/steps';
 import { Callout } from 'fumadocs-ui/components/callout';
+import { Diagram } from '@/components/diagram';
 
 # Client Sync
 
@@ -12,19 +13,19 @@ This guide shows how to set up client-side sync with a Converge server.
 
 ## Architecture
 
-```
-┌─────────────────┐
-│   Client App    │
-│  ┌───────────┐  │         ┌─────────────┐
-│  │   Store   │◀─┼── sync ─│   Server    │
-│  │  (local)  │  │         │   (Db)      │
-│  └───────────┘  │         └─────────────┘
-│  ┌───────────┐  │
-│  │  Outbox   │  │
-│  │ (pending) │  │
-│  └───────────┘  │
-└─────────────────┘
-```
+<Diagram
+  height={180}
+  nodes={[
+    { id: 'store', x: 20, y: 10, label: ['Store', '(local state)'] },
+    { id: 'outbox', x: 20, y: 90, label: ['Outbox', '(pending)'] },
+    { id: 'server', x: 280, y: 40, label: ['Server', '(Db)'] },
+    { id: 'sync', relativeTo: 'server', anchor: 'left', offset: { x: -60 }, variant: 'label', label: 'sync' },
+  ]}
+  edges={[
+    { from: 'server', to: 'store', fromSide: 'left', toSide: 'right', orthogonal: true, dashed: true, animated: true },
+    { from: 'outbox', to: 'server', fromSide: 'right', toSide: 'bottom', orthogonal: true, dashed: true, animated: true },
+  ]}
+/>
 
 ## Setup
 

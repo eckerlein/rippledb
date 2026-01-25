@@ -3,6 +3,8 @@ title: "@converge/client"
 description: Client-side sync orchestration and Store interface
 ---
 
+import { Diagram } from '@/components/diagram';
+
 # @converge/client
 
 Client-side sync orchestration including the Store interface, outbox, and replicator.
@@ -236,18 +238,24 @@ type ReplicatorOptions<S extends ConvergeSchema> = {
 
 The canonical sync order is **Pull → Apply → Push**:
 
-```
-┌─────────┐    pull     ┌─────────┐
-│ Server  │────────────▶│ Client  │
-└─────────┘             └────┬────┘
-                             │
-                        apply changes
-                             │
-                             ▼
-┌─────────┐    push     ┌─────────┐
-│ Server  │◀────────────│ Outbox  │
-└─────────┘             └─────────┘
-```
+<Diagram
+  height={260}
+  nodes={[
+    { id: 'server1', x: 20, y: 10, label: 'Server' },
+    { id: 'client', x: 260, y: 10, label: 'Client' },
+    { id: 'pull-label', relativeTo: 'server1', anchor: 'right', offset: { x: 60 }, variant: 'label', label: 'pull' },
+    { id: 'apply', x: 260, y: 100, label: 'apply changes' },
+    { id: 'outbox', x: 260, y: 180, label: 'Outbox' },
+    { id: 'server2', x: 20, y: 180, label: 'Server' },
+    { id: 'push-label', relativeTo: 'outbox', anchor: 'left', offset: { x: -60 }, variant: 'label', label: 'push' },
+  ]}
+  edges={[
+    { from: 'server1', to: 'client', fromSide: 'right', toSide: 'left', orthogonal: true },
+    { from: 'client', to: 'apply', orthogonal: true },
+    { from: 'apply', to: 'outbox', orthogonal: true },
+    { from: 'outbox', to: 'server2', fromSide: 'left', toSide: 'right', orthogonal: true },
+  ]}
+/>
 
 This ensures:
 1. Remote truth is incorporated first

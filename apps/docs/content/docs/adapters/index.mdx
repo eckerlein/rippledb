@@ -5,6 +5,7 @@ description: Choose the right database adapter and materializer for your use cas
 
 import { Cards, Card } from 'fumadocs-ui/components/card';
 import { Callout } from 'fumadocs-ui/components/callout';
+import { Diagram } from '@/components/diagram';
 
 # Adapters
 
@@ -17,46 +18,46 @@ Converge uses adapters to integrate with different databases and ORMs. There are
 
 ### Which Database Adapter?
 
-```
-┌─────────────────────────────────────┐
-│ Are you using Drizzle ORM?          │
-└─────────────┬───────────────────────┘
-              │
-    ┌─────────┴─────────┐
-    │                   │
-   Yes                  No
-    │                   │
-    ▼                   ▼
-┌─────────┐   ┌─────────────────────────┐
-│db-drizzle│   │ What database?          │
-└─────────┘   └───────────┬─────────────┘
-                          │
-        ┌─────────────────┼─────────────────┐
-        │                 │                 │
-     SQLite            Turso         In-memory
-        │                 │              (tests)
-        ▼                 ▼                 ▼
-   ┌─────────┐      ┌─────────┐       ┌─────────┐
-   │db-sqlite │      │db-turso │       │db-memory│
-   └─────────┘      └─────────┘       └─────────┘
-```
+<Diagram
+  height={340}
+  nodes={[
+    { id: 'q1', x: 140, y: 10, label: 'Are you using Drizzle ORM?' },
+    { id: 'yes', relativeTo: 'q1', anchor: 'bottom', offset: { y: 30, x: -100 }, variant: 'label', label: 'Yes' },
+    { id: 'no', relativeTo: 'q1', anchor: 'bottom', offset: { y: 30, x: 100 }, variant: 'label', label: 'No' },
+    { id: 'drizzle', x: 20, y: 120, label: 'db-drizzle' },
+    { id: 'q2', x: 240, y: 120, label: 'What database?' },
+    { id: 'sqlite-label', relativeTo: 'q2', anchor: 'bottom', offset: { y: 30, x: -120 }, variant: 'label', label: 'SQLite' },
+    { id: 'turso-label', relativeTo: 'q2', anchor: 'bottom', offset: { y: 30 }, variant: 'label', label: 'Turso' },
+    { id: 'mem-label', relativeTo: 'q2', anchor: 'bottom', offset: { y: 30, x: 120 }, variant: 'label', label: 'In-memory' },
+    { id: 'sqlite', x: 140, y: 250, label: 'db-sqlite' },
+    { id: 'turso', x: 280, y: 250, label: 'db-turso' },
+    { id: 'memory', x: 420, y: 250, label: 'db-memory' },
+  ]}
+  edges={[
+    { from: 'q1', to: 'drizzle', orthogonal: true },
+    { from: 'q1', to: 'q2', orthogonal: true },
+    { from: 'q2', to: 'sqlite', orthogonal: true },
+    { from: 'q2', to: 'turso', orthogonal: true },
+    { from: 'q2', to: 'memory', orthogonal: true },
+  ]}
+/>
 
 ### Which Materializer?
 
-```
-┌─────────────────────────────────────┐
-│ Using db-drizzle?                   │
-└─────────────┬───────────────────────┘
-              │
-    ┌─────────┴─────────┐
-    │                   │
-   Yes                  No
-    │                   │
-    ▼                   ▼
-┌──────────────────┐  ┌──────────────┐
-│materialize-drizzle│  │materialize-db│
-└──────────────────┘  └──────────────┘
-```
+<Diagram
+  height={200}
+  nodes={[
+    { id: 'q', x: 140, y: 10, label: 'Using db-drizzle?' },
+    { id: 'yes', relativeTo: 'q', anchor: 'bottom', offset: { y: 30, x: -80 }, variant: 'label', label: 'Yes' },
+    { id: 'no', relativeTo: 'q', anchor: 'bottom', offset: { y: 30, x: 80 }, variant: 'label', label: 'No' },
+    { id: 'drizzle', x: 40, y: 120, label: 'materialize-drizzle' },
+    { id: 'db', x: 260, y: 120, label: 'materialize-db' },
+  ]}
+  edges={[
+    { from: 'q', to: 'drizzle', orthogonal: true },
+    { from: 'q', to: 'db', orthogonal: true },
+  ]}
+/>
 
 ## Quick Reference
 

@@ -4,6 +4,7 @@ description: Complete API documentation for all Converge packages
 ---
 
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { Diagram } from '@/components/diagram';
 
 # API Reference
 
@@ -50,24 +51,24 @@ Complete API documentation for all Converge packages.
 
 The dependency graph is strictly enforced:
 
-```
-                    ┌─────────────┐
-                    │   core      │
-                    │ (pure logic)│
-                    └──────┬──────┘
-                           │
-            ┌──────────────┼──────────────┐
-            │              │              │
-      ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐
-      │  server   │  │  client   │  │materialize│
-      │(Db iface) │  │(Store/Sync)│  │(projectors)│
-      └─────┬─────┘  └─────┬─────┘  └───────────┘
-            │              │
-      ┌─────▼─────┐  ┌─────▼─────┐
-      │   db-*    │  │  store-*  │
-      │(adapters) │  │(adapters) │
-      └───────────┘  └───────────┘
-```
+<Diagram
+  height={300}
+  nodes={[
+    { id: 'core', x: 220, y: 10, label: ['core', '(pure logic)'] },
+    { id: 'server', x: 60, y: 110, label: ['server', '(Db interface)'] },
+    { id: 'client', x: 220, y: 110, label: ['client', '(Store/Sync)'] },
+    { id: 'materialize', x: 380, y: 110, label: ['materialize', '(projectors)'] },
+    { id: 'db', x: 60, y: 210, label: ['db-*', '(adapters)'] },
+    { id: 'store', x: 220, y: 210, label: ['store-*', '(adapters)'] },
+  ]}
+  edges={[
+    { from: 'core', to: 'server', orthogonal: true },
+    { from: 'core', to: 'client', orthogonal: true },
+    { from: 'core', to: 'materialize', orthogonal: true },
+    { from: 'server', to: 'db', orthogonal: true },
+    { from: 'client', to: 'store', orthogonal: true },
+  ]}
+/>
 
 - `core` depends on **nothing**
 - `server` and `client` depend only on `core`
