@@ -194,7 +194,7 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)
 
-  packages/materialize-custom:
+  packages/materialize-db:
     dependencies:
       '@converge/core':
         specifier: workspace:*

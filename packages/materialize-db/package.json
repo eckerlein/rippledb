@@ -1,5 +1,5 @@
 {
-  "name": "@converge/materialize-custom",
+  "name": "@converge/materialize-db",
   "version": "0.0.0",
   "private": false,
   "type": "module",
