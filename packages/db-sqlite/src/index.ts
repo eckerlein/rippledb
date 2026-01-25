@@ -2,13 +2,18 @@ import Database from 'better-sqlite3';
 import type { Change, ConvergeSchema } from '@converge/core';
 import type { AppendRequest, AppendResult, Cursor, Db, PullRequest, PullResponse } from '@converge/server';
 import { applyChangeToState } from '@converge/materialize-core';
-import type { CustomMaterializerConfig, SyncMaterializerAdapter } from '@converge/materialize-db';
+import type {
+  MaterializerConfigBase,
+  SyncMaterializerExecutor,
+} from '@converge/materialize-db';
 import { createSyncMaterializer } from '@converge/materialize-db';
 
 type SqliteDbOptions<S extends ConvergeSchema = ConvergeSchema> = {
   filename: string;
   pragmas?: string[];
-  materializer?: Omit<CustomMaterializerConfig<S>, 'db'>;
+  materializer?: (ctx: { db: SqliteDatabase }) => MaterializerConfigBase<S> & {
+    executor: SyncMaterializerExecutor;
+  };
 };
 
 type ChangeRow = {
@@ -40,7 +45,7 @@ export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S
   private idempotencyGet: ReturnType<SqliteDatabase['prepare']>;
   private idempotencyInsert: ReturnType<SqliteDatabase['prepare']>;
   private idempotencyUpdate: ReturnType<SqliteDatabase['prepare']>;
-  private materializer: SyncMaterializerAdapter<S> | null = null;
+  private materializerFactory: SqliteDbOptions<S>['materializer'];
 
   constructor(opts: SqliteDbOptions<S>) {
     this.db = new Database(opts.filename);
@@ -80,10 +85,7 @@ export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S
       'UPDATE converge_idempotency SET last_seq = @last_seq WHERE stream = @stream AND idempotency_key = @idempotency_key',
     );
 
-    // Create sync materializer if configured
-    if (opts.materializer) {
-      this.materializer = createSyncMaterializer(this.db, opts.materializer);
-    }
+    this.materializerFactory = opts.materializer;
   }
 
   async append(req: AppendRequest<S>): Promise<AppendResult> {
@@ -119,16 +121,18 @@ export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S
       }
 
       // Materialize changes if materializer is configured
-      if (this.materializer) {
+      if (this.materializerFactory) {
+        const materializerConfig = this.materializerFactory({ db: this.db });
+        const materializer = createSyncMaterializer(materializerConfig);
         for (const change of input.changes) {
-          const current = this.materializer.load(change.entity, change.entityId);
+          const current = materializer.load(change.entity, change.entityId);
           const result = applyChangeToState(current, change);
 
           if (result.changed) {
             if (result.deleted) {
-              this.materializer.remove(change.entity, change.entityId, result.state);
+              materializer.remove(change.entity, change.entityId, result.state);
             } else {
-              this.materializer.save(change.entity, change.entityId, result.state);
+              materializer.save(change.entity, change.entityId, result.state);
             }
           }
         }

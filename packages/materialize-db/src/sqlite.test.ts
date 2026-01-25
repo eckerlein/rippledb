@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@converge/core';
 import { materializeChange, materializeChanges, type MaterializerAdapter } from '@converge/materialize-core';
-import { createCustomMaterializer } from './adapter';
+import { createCustomMaterializer, createSqlExecutor } from './adapter';
 import type { Db } from './types';
 import { createSqliteDb, type TestSchema } from './test-helpers';
 
@@ -16,10 +16,13 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       'CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)',
       [],
     );
-    adapter = createCustomMaterializer<TestSchema>({
-      db,
+    const sqlConfig = {
       dialect: 'sqlite',
       tableMap: { todos: 'todos' },
+    } as const;
+    adapter = createCustomMaterializer<TestSchema>({
+      tableMap: sqlConfig.tableMap,
+      executor: createSqlExecutor(sqlConfig, db),
     });
   });
 
@@ -46,11 +49,15 @@ describe('createCustomMaterializer - SQLite dialect', () => {
   });
 
   it('saves entity to both tags table and entity table', async () => {
-    const adapterWithFieldMap = createCustomMaterializer<TestSchema>({
-      db,
+    const sqlConfig = {
       dialect: 'sqlite',
       tableMap: { todos: 'todos' },
       fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    } as const;
+    const adapterWithFieldMap = createCustomMaterializer<TestSchema>({
+      tableMap: sqlConfig.tableMap,
+      fieldMap: sqlConfig.fieldMap,
+      executor: createSqlExecutor(sqlConfig, db),
     });
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
@@ -78,11 +85,15 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       'CREATE TABLE todos (id TEXT PRIMARY KEY, todo_title TEXT, is_done INTEGER)',
       [],
     );
-    const adapter2 = createCustomMaterializer<TestSchema>({
-      db: db2,
+    const sqlConfig = {
       dialect: 'sqlite',
       tableMap: { todos: 'todos' },
       fieldMap: { todos: { id: 'id', title: 'todo_title', done: 'is_done' } },
+    } as const;
+    const adapter2 = createCustomMaterializer<TestSchema>({
+      tableMap: sqlConfig.tableMap,
+      fieldMap: sqlConfig.fieldMap,
+      executor: createSqlExecutor(sqlConfig, db2),
     });
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
@@ -187,10 +198,13 @@ describe('createCustomMaterializer - SQLite dialect', () => {
   });
 
   it('throws error for missing table mapping', async () => {
-    const badAdapter = createCustomMaterializer<TestSchema>({
-      db,
+    const sqlConfig = {
       dialect: 'sqlite',
       tableMap: {} as Record<keyof TestSchema, string>,
+    };
+    const badAdapter = createCustomMaterializer<TestSchema>({
+      tableMap: sqlConfig.tableMap,
+      executor: createSqlExecutor(sqlConfig, db),
     });
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
@@ -207,11 +221,14 @@ describe('createCustomMaterializer - SQLite dialect', () => {
 
   it('throws error for invalid dialect', () => {
     expect(() => {
-      createCustomMaterializer<TestSchema>({
-        db,
+      const sqlConfig = {
         dialect: 'invalid-dialect' as 'sqlite',
         tableMap: { todos: 'todos' },
+      };
+      createCustomMaterializer<TestSchema>({
+        tableMap: sqlConfig.tableMap,
+        executor: createSqlExecutor(sqlConfig, db),
       });
-    }).toThrow('Invalid config: must provide executor, dialect, or custom commands');
+    }).toThrow('Invalid config: must provide dialect or custom commands');
   });
 });

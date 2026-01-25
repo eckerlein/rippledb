@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createHlcState, makeUpsert, tickHlc, type Change } from '@converge/core';
+import { createSyncSqlExecutor } from '@converge/materialize-db';
+import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { getTableConfig, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { SqliteDb } from './index';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,6 +16,21 @@ type TestSchema = {
     done: boolean;
   };
 };
+
+const todosTable = sqliteTable('todos', {
+  id: text('id').primaryKey(),
+  title: text('title'),
+  done: integer('done'),
+});
+
+const tagsTable = sqliteTable('converge_tags', {
+  entity: text('entity').notNull(),
+  id: text('id').notNull(),
+  data: text('data').notNull(),
+  tags: text('tags').notNull(),
+  deleted: integer('deleted').notNull().default(0),
+  deleted_tag: text('deleted_tag'),
+});
 
 describe('SqliteDb', () => {
   let db: SqliteDb<TestSchema>;
@@ -102,10 +121,16 @@ describe('SqliteDb', () => {
 
     const dbWithMaterializer = new SqliteDb<TestSchema>({
       filename: dbPath,
-      materializer: {
-        dialect: 'sqlite',
-        tableMap: { todos: 'todos' },
-        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      materializer: ({ db }) => {
+        const sqlConfig = {
+          dialect: 'sqlite',
+          tableMap: { todos: 'todos' },
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+        } as const;
+        return {
+          ...sqlConfig,
+          executor: createSyncSqlExecutor(db, sqlConfig),
+        };
       },
     });
 
@@ -190,10 +215,16 @@ describe('SqliteDb', () => {
     db.close();
     const tempDb = new SqliteDb<TestSchema>({
       filename: dbPath,
-      materializer: {
-        dialect: 'sqlite',
-        tableMap: { todos: 'todos' },
-        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      materializer: ({ db }) => {
+        const sqlConfig = {
+          dialect: 'sqlite',
+          tableMap: { todos: 'todos' },
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+        } as const;
+        return {
+          ...sqlConfig,
+          executor: createSyncSqlExecutor(db, sqlConfig),
+        };
       },
     });
 
@@ -211,10 +242,16 @@ describe('SqliteDb', () => {
 
     const dbWithMaterializer = new SqliteDb<TestSchema>({
       filename: dbPath,
-      materializer: {
-        dialect: 'sqlite',
-        tableMap: { todos: 'todos' },
-        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      materializer: ({ db }) => {
+        const sqlConfig = {
+          dialect: 'sqlite',
+          tableMap: { todos: 'todos' },
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+        } as const;
+        return {
+          ...sqlConfig,
+          executor: createSyncSqlExecutor(db, sqlConfig),
+        };
       },
     });
 
@@ -291,6 +328,94 @@ describe('SqliteDb', () => {
     dbWithMaterializer.close();
   });
 
+  it('rolls back all writes when drizzle materializer fails (atomicity)', async () => {
+    db.close();
+    const setupDb = new SqliteDb<TestSchema>({ filename: dbPath });
+    setupDb['db'].exec(`
+      CREATE TABLE todos (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        done INTEGER CHECK (done IN (0, 1))
+      );
+      CREATE TABLE converge_tags (
+        entity TEXT NOT NULL,
+        id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        tags TEXT NOT NULL,
+        deleted INTEGER NOT NULL DEFAULT 0,
+        deleted_tag TEXT,
+        PRIMARY KEY (entity, id)
+      );
+    `);
+    setupDb.close();
+
+    const dbWithDrizzleMaterializer = new SqliteDb<TestSchema>({
+      filename: dbPath,
+      materializer: ({ db }) => {
+        const drizzleDb = drizzle(db);
+        return createDrizzleSyncMaterializerConfig<TestSchema>(drizzleDb, {
+          tableMap: { todos: todosTable },
+          tagsTableDef: tagsTable,
+          getTableConfig: (table) => getTableConfig(table as typeof todosTable),
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+          normalizeValue: (value) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
+          ensureTagsTable: () => {
+            db.exec(`CREATE TABLE IF NOT EXISTS converge_tags (
+              entity TEXT NOT NULL,
+              id TEXT NOT NULL,
+              data TEXT NOT NULL,
+              tags TEXT NOT NULL,
+              deleted INTEGER NOT NULL DEFAULT 0,
+              deleted_tag TEXT,
+              PRIMARY KEY (entity, id)
+            );`);
+          },
+        });
+      },
+    });
+
+    const validChange = makeUpsert<TestSchema>({
+      stream: 'test',
+      entity: 'todos',
+      entityId: 'todo-1',
+      patch: { id: 'todo-1', title: 'Valid', done: false },
+      hlc: tickHlc(createHlcState('node-1'), 100),
+    });
+
+    // Create a change with done: 2 which violates CHECK (done IN (0, 1)) constraint
+    const invalidChange = {
+      ...makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-invalid',
+        patch: { id: 'todo-invalid', title: 'Invalid', done: false },
+        hlc: tickHlc(createHlcState('node-1'), 101),
+      }),
+      patch: { id: 'todo-invalid', title: 'Invalid', done: 2 },
+    } as unknown as Change<TestSchema>;
+
+    await expect(
+      dbWithDrizzleMaterializer.append({
+        stream: 'test',
+        changes: [validChange, invalidChange],
+      }),
+    ).rejects.toThrow();
+
+    const verifyDb = new SqliteDb<TestSchema>({ filename: dbPath });
+    const count = verifyDb['db']
+      .prepare('SELECT COUNT(*) as count FROM converge_changes WHERE stream = ?')
+      .get('test') as { count: number };
+    const todos = verifyDb['db']
+      .prepare('SELECT id FROM todos WHERE id IN (?, ?)')
+      .all('todo-1', 'todo-invalid') as Array<{ id: string }>;
+    verifyDb.close();
+
+    expect(count.count).toBe(0);
+    expect(todos).toHaveLength(0);
+
+    dbWithDrizzleMaterializer.close();
+  });
+
   it('rolls back all writes when materializer generates invalid SQL (adapter-level test)', async () => {
     // Create entity table
     db.close();
@@ -304,21 +429,27 @@ describe('SqliteDb', () => {
     // This will cause the transaction to fail, testing atomicity through the adapter
     const dbWithInvalidMaterializer = new SqliteDb<TestSchema>({
       filename: dbPath,
-      materializer: {
-        tableMap: { todos: 'todos' },
-        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-        // Custom commands that will generate invalid SQL
-        loadCommand: (tagsTable) =>
-          `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = ? AND id = ?`,
-        saveCommand: (tagsTable) =>
-          `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 0, NULL)`,
-        removeCommand: (tagsTable) =>
-          `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 1, ?)`,
-        // This will generate invalid SQL - trying to insert into a non-existent column
-        saveEntityCommand: (tableName, id, columns, values) => ({
-          sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')}, invalid_column) VALUES (?, ${values.map(() => '?').join(', ')}, ?)`,
-          params: [id, ...values, 'invalid'],
-        }),
+      materializer: ({ db }) => {
+        const sqlConfig = {
+          tableMap: { todos: 'todos' },
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+          // Custom commands that will generate invalid SQL
+          loadCommand: (tagsTable: string) =>
+            `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = ? AND id = ?`,
+          saveCommand: (tagsTable: string) =>
+            `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 0, NULL)`,
+          removeCommand: (tagsTable: string) =>
+            `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 1, ?)`,
+          // This will generate invalid SQL - trying to insert into a non-existent column
+          saveEntityCommand: (tableName: string, id: string, columns: string[], values: unknown[]) => ({
+            sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')}, invalid_column) VALUES (?, ${values.map(() => '?').join(', ')}, ?)`,
+            params: [id, ...values, 'invalid'],
+          }),
+        };
+        return {
+          ...sqlConfig,
+          executor: createSyncSqlExecutor(db, sqlConfig),
+        };
       },
     });
 

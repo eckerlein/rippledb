@@ -16,7 +16,7 @@ import type { Db as MaterializerDb } from '@converge/materialize-db';
 type TursoDbOptions<S extends ConvergeSchema = ConvergeSchema> = {
   url: string;
   authToken: string;
-  materializer?: Omit<CustomMaterializerConfig<S>, 'db'>;
+  materializer?: (ctx: { db: MaterializerDb }) => CustomMaterializerConfig<S>;
 };
 
 type SqlStatement = {
@@ -82,7 +82,7 @@ function decodeCursor(cursor: Cursor | null): number {
 
 export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S> {
   private client: Client;
-  private materializerConfig: Omit<CustomMaterializerConfig<S>, 'db'> | undefined;
+  private materializerFactory: TursoDbOptions<S>['materializer'];
 
   constructor(opts: TursoDbOptions<S>) {
     this.client = createClient({
@@ -93,8 +93,8 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
     // Initialize tables
     this.initTables();
 
-    // Store materializer config for per-request use
-    this.materializerConfig = opts.materializer;
+    // Store materializer factory for per-request use
+    this.materializerFactory = opts.materializer;
   }
 
   private async initTables(): Promise<void> {
@@ -149,16 +149,10 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
     }
 
     // Materialize changes if materializer is configured
-    if (this.materializerConfig) {
+    if (this.materializerFactory) {
       const collectingDb = new CollectingDb(this.client);
-      const materializerConfig = this.materializerConfig;
-      const materializer =
-        materializerConfig && 'executor' in materializerConfig && materializerConfig.executor
-          ? createCustomMaterializer(materializerConfig as CustomMaterializerConfig<S>)
-          : createCustomMaterializer({
-              ...materializerConfig,
-              db: collectingDb,
-            } as CustomMaterializerConfig<S>);
+      const materializerConfig = this.materializerFactory({ db: collectingDb });
+      const materializer = createCustomMaterializer(materializerConfig);
 
       // Load current states (executes immediately)
       for (const change of req.changes) {

@@ -65,8 +65,7 @@ describe('materialize-drizzle (sqlite)', () => {
 
   it('materializes upserts into tags and entity tables', async () => {
     const db = drizzle(sqlite);
-    const config = createDrizzleMaterializerConfig<TestSchema>({
-      db,
+    const config = createDrizzleMaterializerConfig<TestSchema>(db, {
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
       getTableConfig: (table) => getTableConfig(table as typeof todosTable),
@@ -101,8 +100,7 @@ describe('materialize-drizzle (sqlite)', () => {
 
   it('handles deletes by marking tags', async () => {
     const db = drizzle(sqlite);
-    const config = createDrizzleMaterializerConfig<TestSchema>({
-      db,
+    const config = createDrizzleMaterializerConfig<TestSchema>(db, {
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
       getTableConfig: (table) => getTableConfig(table as typeof todosTable),

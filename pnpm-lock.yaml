@@ -162,9 +162,15 @@ importers:
         specifier: ^12.4.1
         version: 12.6.2
     devDependencies:
+      '@converge/materialize-drizzle':
+        specifier: workspace:*
+        version: link:../materialize-drizzle
       '@types/better-sqlite3':
         specifier: ^7.6.9
         version: 7.6.13
+      drizzle-orm:
+        specifier: ^0.36.4
+        version: 0.36.4(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.16.0)(@types/react@19.2.9)(better-sqlite3@12.6.2)(pg@8.17.2)(react@19.2.3)
       eslint:
         specifier: ^9.37.0
         version: 9.39.2(jiti@2.6.1)
@@ -5611,6 +5617,16 @@ snapshots:
       '@types/pg': 8.16.0
       '@types/react': 19.2.9
       better-sqlite3: 11.10.0
+      pg: 8.17.2
+      react: 19.2.3
+
+  drizzle-orm@0.36.4(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.16.0)(@types/react@19.2.9)(better-sqlite3@12.6.2)(pg@8.17.2)(react@19.2.3):
+    optionalDependencies:
+      '@libsql/client': 0.14.0
+      '@types/better-sqlite3': 7.6.13
+      '@types/pg': 8.16.0
+      '@types/react': 19.2.9
+      better-sqlite3: 12.6.2
       pg: 8.17.2
       react: 19.2.3
 

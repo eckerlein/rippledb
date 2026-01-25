@@ -70,7 +70,7 @@ export type Dialect = {
 /**
  * Base configuration shared by all materialization adapters.
  */
-type BaseMaterializerConfig<S extends ConvergeSchema> = {
+export type MaterializerConfigBase<S extends ConvergeSchema> = {
   /**
    * Table/collection name for storing entity tags/metadata.
    * Default: 'converge_tags'
@@ -139,17 +139,10 @@ export type MaterializerExecutor = {
   ) => Promise<void>;
 };
 
-type DbConfig = {
-  /**
-   * Database instance used for SQL command execution.
-   */
-  db: Db;
-};
-
 /**
  * Configuration when using a built-in dialect.
  */
-type DialectConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & DbConfig & {
+type DialectConfig<S extends ConvergeSchema> = MaterializerConfigBase<S> & {
   /**
    * Database dialect name (e.g., 'sqlite', 'postgresql').
    */
@@ -164,44 +157,33 @@ type DialectConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & DbCon
     values: unknown[],
     updates: string[],
   ) => { sql: string; params: unknown[] };
-  executor?: never;
 };
 
 /**
  * Configuration when providing all custom commands.
  */
-type CustomCommandsConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & DbConfig & {
+type CustomCommandsConfig<S extends ConvergeSchema> = MaterializerConfigBase<S> & {
   dialect?: never;
   /**
    * Custom command for loading entity state.
-   * Receives: (tagsTable, entity, id) and should return command with placeholders.
+   * Receives: (tagsTable) and should return command with placeholders for entity and id.
+   * The command should return columns: data, tags, deleted, deleted_tag
    */
-  loadCommand: (tagsTable: string, entity: string, id: string) => string;
+  loadCommand: (tagsTable: string) => string;
 
   /**
    * Custom command for saving entity state.
-   * Receives: (tagsTable, entity, id, dataJson, tagsJson) and should return command with placeholders.
+   * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson.
+   * Should handle upsert.
    */
-  saveCommand: (
-    tagsTable: string,
-    entity: string,
-    id: string,
-    dataJson: string,
-    tagsJson: string,
-  ) => string;
+  saveCommand: (tagsTable: string) => string;
 
   /**
    * Custom command for removing (tombstoning) entity state.
-   * Receives: (tagsTable, entity, id, dataJson, tagsJson, deletedTag) and should return command with placeholders.
+   * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson, deletedTag.
+   * Should handle upsert with deleted flag.
    */
-  removeCommand: (
-    tagsTable: string,
-    entity: string,
-    id: string,
-    dataJson: string,
-    tagsJson: string,
-    deletedTag: string,
-  ) => string;
+  removeCommand: (tagsTable: string) => string;
 
   /**
    * Custom command for saving entity values to actual table columns (when fieldMap is provided).
@@ -214,29 +196,31 @@ type CustomCommandsConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> 
     values: unknown[],
     updates: string[],
   ) => { sql: string; params: unknown[] };
-  executor?: never;
 };
 
 /**
  * Configuration when providing a custom executor.
  */
-type ExecutorConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & {
+type ExecutorConfig<S extends ConvergeSchema> = MaterializerConfigBase<S> & {
   executor: MaterializerExecutor;
   dialect?: never;
   loadCommand?: never;
   saveCommand?: never;
   removeCommand?: never;
   saveEntityCommand?: never;
-  db?: never;
 };
 
 /**
  * Configuration for custom materialization adapter.
  * Either provide a dialect name OR all custom commands (loadCommand, saveCommand, removeCommand).
  */
+export type SqlMaterializerConfig<
+  S extends ConvergeSchema = ConvergeSchema,
+> = DialectConfig<S> | CustomCommandsConfig<S>;
+
 export type CustomMaterializerConfig<
   S extends ConvergeSchema = ConvergeSchema,
-> = DialectConfig<S> | CustomCommandsConfig<S> | ExecutorConfig<S>;
+> = ExecutorConfig<S>;
 
 /**
  * Internal type for tags table row structure.

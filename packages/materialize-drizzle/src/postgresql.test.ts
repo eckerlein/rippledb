@@ -81,8 +81,7 @@ describe('materialize-drizzle (postgresql)', () => {
   it('materializes upserts into tags and entity tables', async () => {
     if (!client) throw new Error('Client not connected');
     const db = drizzle(client);
-    const config = createDrizzleMaterializerConfig<TestSchema>({
-      db,
+    const config = createDrizzleMaterializerConfig<TestSchema>(db, {
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
       getTableConfig: (table) => getTableConfig(table as typeof todosTable),
@@ -120,8 +119,7 @@ describe('materialize-drizzle (postgresql)', () => {
   it('handles deletes by marking tags', async () => {
     if (!client) throw new Error('Client not connected');
     const db = drizzle(client);
-    const config = createDrizzleMaterializerConfig<TestSchema>({
-      db,
+    const config = createDrizzleMaterializerConfig<TestSchema>(db, {
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
       getTableConfig: (table) => getTableConfig(table as typeof todosTable),

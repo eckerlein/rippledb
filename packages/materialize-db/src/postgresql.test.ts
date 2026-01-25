@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@converge/core';
 import { materializeChange, type MaterializerAdapter } from '@converge/materialize-core';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { createCustomMaterializer } from './adapter';
+import { createCustomMaterializer, createSqlExecutor } from './adapter';
 import type { Db } from './types';
 import { createPostgresDb, type TestSchema } from './test-helpers';
 
@@ -47,10 +47,13 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
       'CREATE TABLE IF NOT EXISTS todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)',
       [],
     );
-    adapter = createCustomMaterializer<TestSchema>({
-      db,
+    const sqlConfig = {
       dialect: 'postgresql',
       tableMap: { todos: 'todos' },
+    } as const;
+    adapter = createCustomMaterializer<TestSchema>({
+      tableMap: sqlConfig.tableMap,
+      executor: createSqlExecutor(sqlConfig, db),
     });
   });
 
@@ -63,11 +66,15 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
   });
 
   it('creates tags table and saves entity', async () => {
-    const adapterWithFieldMap = createCustomMaterializer<TestSchema>({
-      db,
+    const sqlConfig = {
       dialect: 'postgresql',
       tableMap: { todos: 'todos' },
       fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    } as const;
+    const adapterWithFieldMap = createCustomMaterializer<TestSchema>({
+      tableMap: sqlConfig.tableMap,
+      fieldMap: sqlConfig.fieldMap,
+      executor: createSqlExecutor(sqlConfig, db),
     });
 
     const hlc = tickHlc(createHlcState('node-1'), 100);

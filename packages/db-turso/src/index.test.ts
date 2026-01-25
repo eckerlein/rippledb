@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { unlinkSync } from 'node:fs';
 import { createClient } from '@libsql/client';
+import { createSqlExecutor } from '@converge/materialize-db';
 
 type TestSchema = {
   todos: {
@@ -124,10 +125,17 @@ describe('TursoDb', () => {
     const dbWithMaterializer = new TursoDb<TestSchema>({
       url: `file:${dbPath}`,
       authToken: '',
-      materializer: {
-        dialect: 'sqlite',
-        tableMap: { todos: 'todos' },
-        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      materializer: ({ db }) => {
+        const sqlConfig = {
+          dialect: 'sqlite',
+          tableMap: { todos: 'todos' },
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+        } as const;
+        return {
+          tableMap: sqlConfig.tableMap,
+          fieldMap: sqlConfig.fieldMap,
+          executor: createSqlExecutor(sqlConfig, db),
+        };
       },
     });
 
@@ -244,10 +252,17 @@ describe('TursoDb', () => {
     const dbWithMaterializer = new TursoDb<TestSchema>({
       url: `file:${dbPath}`,
       authToken: '',
-      materializer: {
-        dialect: 'sqlite',
-        tableMap: { todos: 'todos' },
-        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      materializer: ({ db }) => {
+        const sqlConfig = {
+          dialect: 'sqlite',
+          tableMap: { todos: 'todos' },
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+        } as const;
+        return {
+          tableMap: sqlConfig.tableMap,
+          fieldMap: sqlConfig.fieldMap,
+          executor: createSqlExecutor(sqlConfig, db),
+        };
       },
     });
 
@@ -383,21 +398,28 @@ describe('TursoDb', () => {
     const dbWithInvalidMaterializer = new TursoDb<TestSchema>({
       url: `file:${dbPath}`,
       authToken: '',
-      materializer: {
-        tableMap: { todos: 'todos' },
-        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-        // Custom commands that will generate invalid SQL
-        loadCommand: (tagsTable) =>
-          `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = ? AND id = ?`,
-        saveCommand: (tagsTable) =>
-          `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 0, NULL)`,
-        removeCommand: (tagsTable) =>
-          `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 1, ?)`,
-        // This will generate invalid SQL - trying to insert into a non-existent column
-        saveEntityCommand: (tableName, id, columns, values) => ({
-          sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')}, invalid_column) VALUES (?, ${values.map(() => '?').join(', ')}, ?)`,
-          params: [id, ...values, 'invalid'],
-        }),
+      materializer: ({ db }) => {
+        const sqlConfig = {
+          tableMap: { todos: 'todos' },
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+          // Custom commands that will generate invalid SQL
+          loadCommand: (tagsTable: string) =>
+            `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = ? AND id = ?`,
+          saveCommand: (tagsTable: string) =>
+            `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 0, NULL)`,
+          removeCommand: (tagsTable: string) =>
+            `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 1, ?)`,
+          // This will generate invalid SQL - trying to insert into a non-existent column
+          saveEntityCommand: (tableName: string, id: string, columns: string[], values: unknown[]) => ({
+            sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')}, invalid_column) VALUES (?, ${values.map(() => '?').join(', ')}, ?)`,
+            params: [id, ...values, 'invalid'],
+          }),
+        };
+        return {
+          tableMap: sqlConfig.tableMap,
+          fieldMap: sqlConfig.fieldMap,
+          executor: createSqlExecutor(sqlConfig, db),
+        };
       },
     });
 

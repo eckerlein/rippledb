@@ -19,7 +19,9 @@
     "better-sqlite3": "^12.4.1"
   },
   "devDependencies": {
+    "@converge/materialize-drizzle": "workspace:*",
     "@types/better-sqlite3": "^7.6.9",
+    "drizzle-orm": "^0.36.4",
     "eslint": "^9.37.0",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3",
