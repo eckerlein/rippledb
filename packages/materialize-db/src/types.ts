@@ -2,9 +2,7 @@ import type { ConvergeSchema, EntityName } from '@converge/core';
 
 /**
  * Database interface for materialization.
- * Implement this to provide database persistence. Works with any database
- * (SQL, MongoDB, DynamoDB, etc.) as long as you provide the appropriate
- * query/command strings in the hooks.
+ * Implement this to provide database persistence when using SQL commands.
  */
 export type Db = {
   /**
@@ -74,11 +72,6 @@ export type Dialect = {
  */
 type BaseMaterializerConfig<S extends ConvergeSchema> = {
   /**
-   * Database instance. Can be SQL, MongoDB, DynamoDB, etc.
-   */
-  db: Db;
-
-  /**
    * Table/collection name for storing entity tags/metadata.
    * Default: 'converge_tags'
    */
@@ -99,9 +92,64 @@ type BaseMaterializerConfig<S extends ConvergeSchema> = {
 };
 
 /**
+ * Executor for materialization operations.
+ * Allows transaction-aware implementations without SQL strings.
+ */
+export type MaterializerExecutor = {
+  /**
+   * Ensure tags table/collection exists. Optional.
+   */
+  ensureTagsTable?: () => Promise<void>;
+
+  /**
+   * Load tags row for a specific entity + id.
+   */
+  loadTags: (entity: string, id: string) => Promise<TagsRow | null>;
+
+  /**
+   * Save tags row for a specific entity + id.
+   */
+  saveTags: (
+    entity: string,
+    id: string,
+    dataJson: string,
+    tagsJson: string,
+  ) => Promise<void>;
+
+  /**
+   * Remove (tombstone) tags row for a specific entity + id.
+   */
+  removeTags: (
+    entity: string,
+    id: string,
+    dataJson: string,
+    tagsJson: string,
+    deletedTag: string,
+  ) => Promise<void>;
+
+  /**
+   * Save entity values to the domain table/collection (when fieldMap is provided).
+   */
+  saveEntity?: (
+    tableName: string,
+    id: string,
+    columns: string[],
+    values: unknown[],
+    updates: string[],
+  ) => Promise<void>;
+};
+
+type DbConfig = {
+  /**
+   * Database instance used for SQL command execution.
+   */
+  db: Db;
+};
+
+/**
  * Configuration when using a built-in dialect.
  */
-type DialectConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & {
+type DialectConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & DbConfig & {
   /**
    * Database dialect name (e.g., 'sqlite', 'postgresql').
    */
@@ -116,12 +164,13 @@ type DialectConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & {
     values: unknown[],
     updates: string[],
   ) => { sql: string; params: unknown[] };
+  executor?: never;
 };
 
 /**
  * Configuration when providing all custom commands.
  */
-type CustomCommandsConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & {
+type CustomCommandsConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & DbConfig & {
   dialect?: never;
   /**
    * Custom command for loading entity state.
@@ -165,6 +214,20 @@ type CustomCommandsConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> 
     values: unknown[],
     updates: string[],
   ) => { sql: string; params: unknown[] };
+  executor?: never;
+};
+
+/**
+ * Configuration when providing a custom executor.
+ */
+type ExecutorConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> & {
+  executor: MaterializerExecutor;
+  dialect?: never;
+  loadCommand?: never;
+  saveCommand?: never;
+  removeCommand?: never;
+  saveEntityCommand?: never;
+  db?: never;
 };
 
 /**
@@ -173,7 +236,7 @@ type CustomCommandsConfig<S extends ConvergeSchema> = BaseMaterializerConfig<S> 
  */
 export type CustomMaterializerConfig<
   S extends ConvergeSchema = ConvergeSchema,
-> = DialectConfig<S> | CustomCommandsConfig<S>;
+> = DialectConfig<S> | CustomCommandsConfig<S> | ExecutorConfig<S>;
 
 /**
  * Internal type for tags table row structure.

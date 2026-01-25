@@ -8,6 +8,7 @@ import type { MaterializerAdapter, MaterializerState } from '@converge/materiali
 import type {
   CustomMaterializerConfig,
   EntityFieldMap,
+  MaterializerExecutor,
   TagsRow,
 } from './types';
 import { dialects } from './dialects';
@@ -34,27 +35,134 @@ export function createCustomMaterializer<
 >(config: CustomMaterializerConfig<S>): MaterializerAdapter<S> {
   const tagsTable = config.tagsTable ?? 'converge_tags';
 
+  const hasExecutor = 'executor' in config;
+  const sqlConfig = !hasExecutor && 'db' in config ? config : null;
   // Resolve dialect: TypeScript ensures either dialect OR all custom commands are provided
-  const dialect = config.dialect ? dialects[config.dialect] : undefined;
+  const dialect =
+    !hasExecutor && 'dialect' in config && config.dialect ? dialects[config.dialect] : undefined;
 
-  if (!dialect && !('loadCommand' in config)) {
-    throw new Error('Invalid config: must provide either dialect or all custom commands');
+  if (!hasExecutor && !sqlConfig) {
+    throw new Error('Invalid config: SQL materializer requires db');
   }
 
-  // Ensure tags table exists
-  const ensureTagsTable = async () => {
-    if (dialect) {
-      const sql = dialect.createTagsTable(tagsTable);
-      await config.db.run(sql, []);
+  if (!hasExecutor && !dialect && !('loadCommand' in config)) {
+    throw new Error('Invalid config: must provide executor, dialect, or custom commands');
+  }
+
+  const createSqlExecutor = (): MaterializerExecutor => {
+    if (!sqlConfig) {
+      throw new Error('Invalid config: SQL materializer requires db');
     }
-    // If no dialect and no custom create, assume table exists or user handles it
+    const loadCommand = (entity: string, id: string): string => {
+      if ('loadCommand' in config && config.loadCommand) {
+        return config.loadCommand(tagsTable, entity, id);
+      }
+      if (dialect) {
+        return dialect.loadCommand(tagsTable);
+      }
+      throw new Error('No loadCommand provided and no dialect specified');
+    };
+
+    const saveCommand = (
+      entity: string,
+      id: string,
+      dataJson: string,
+      tagsJson: string,
+    ): string => {
+      if ('saveCommand' in config && config.saveCommand) {
+        return config.saveCommand(tagsTable, entity, id, dataJson, tagsJson);
+      }
+      if (dialect) {
+        return dialect.saveCommand(tagsTable);
+      }
+      throw new Error('No saveCommand provided and no dialect specified');
+    };
+
+    const removeCommand = (
+      entity: string,
+      id: string,
+      dataJson: string,
+      tagsJson: string,
+      deletedTag: string,
+    ): string => {
+      if ('removeCommand' in config && config.removeCommand) {
+        return config.removeCommand(tagsTable, entity, id, dataJson, tagsJson, deletedTag);
+      }
+      if (dialect) {
+        return dialect.removeCommand(tagsTable);
+      }
+      throw new Error('No removeCommand provided and no dialect specified');
+    };
+
+    return {
+      ensureTagsTable: async () => {
+        if (dialect) {
+          const sql = dialect.createTagsTable(tagsTable);
+          await sqlConfig.db.run(sql, []);
+        }
+      },
+      async loadTags(entity: string, id: string): Promise<TagsRow | null> {
+        const command = loadCommand(entity, id);
+        return await sqlConfig.db.get<TagsRow>(command, [entity, id]);
+      },
+      async saveTags(
+        entity: string,
+        id: string,
+        dataJson: string,
+        tagsJson: string,
+      ): Promise<void> {
+        const command = saveCommand(entity, id, dataJson, tagsJson);
+        await sqlConfig.db.run(command, [entity, id, dataJson, tagsJson]);
+      },
+      async removeTags(
+        entity: string,
+        id: string,
+        dataJson: string,
+        tagsJson: string,
+        deletedTag: string,
+      ): Promise<void> {
+        const command = removeCommand(entity, id, dataJson, tagsJson, deletedTag);
+        await sqlConfig.db.run(command, [entity, id, dataJson, tagsJson, deletedTag]);
+      },
+      async saveEntity(
+        tableName: string,
+        id: string,
+        columns: string[],
+        values: unknown[],
+        updates: string[],
+      ): Promise<void> {
+        let command: string;
+        let params: unknown[];
+
+        if ('saveEntityCommand' in config && config.saveEntityCommand) {
+          const result = config.saveEntityCommand(tableName, id, columns, values, updates);
+          command = result.sql;
+          params = result.params;
+        } else if (dialect) {
+          const result = dialect.saveEntityCommand(tableName, id, columns, values, updates);
+          command = result.sql;
+          params = result.params;
+        } else {
+          throw new Error('No saveEntityCommand provided and no dialect specified');
+        }
+
+        await sqlConfig.db.run(command, params);
+      },
+    };
   };
+
+  const executor = hasExecutor ? config.executor : createSqlExecutor();
+  if (!executor) {
+    throw new Error('Invalid config: executor is required');
+  }
 
   // Initialize tags table on first use
   let tagsTableInitialized = false;
   const initTagsTable = async () => {
     if (!tagsTableInitialized) {
-      await ensureTagsTable();
+      if (executor.ensureTagsTable) {
+        await executor.ensureTagsTable();
+      }
       tagsTableInitialized = true;
     }
   };
@@ -73,55 +181,13 @@ export function createCustomMaterializer<
     return (config.fieldMap?.[entity] as EntityFieldMap | undefined) ?? null;
   };
 
-  const loadCommand = (entity: string, id: string): string => {
-    if (config.loadCommand) {
-      return config.loadCommand(tagsTable, entity, id);
-    }
-    if (dialect) {
-      return dialect.loadCommand(tagsTable);
-    }
-    throw new Error('No loadCommand provided and no dialect specified');
-  };
-
-  const saveCommand = (
-    entity: string,
-    id: string,
-    dataJson: string,
-    tagsJson: string,
-  ): string => {
-    if (config.saveCommand) {
-      return config.saveCommand(tagsTable, entity, id, dataJson, tagsJson);
-    }
-    if (dialect) {
-      return dialect.saveCommand(tagsTable);
-    }
-    throw new Error('No saveCommand provided and no dialect specified');
-  };
-
-  const removeCommand = (
-    entity: string,
-    id: string,
-    dataJson: string,
-    tagsJson: string,
-    deletedTag: string,
-  ): string => {
-    if (config.removeCommand) {
-      return config.removeCommand(tagsTable, entity, id, dataJson, tagsJson, deletedTag);
-    }
-    if (dialect) {
-      return dialect.removeCommand(tagsTable);
-    }
-    throw new Error('No removeCommand provided and no dialect specified');
-  };
-
   return {
     async load<E extends EntityName<S>>(
       entity: E,
       id: string,
     ): Promise<MaterializerState<S, E> | null> {
       await initTagsTable();
-      const command = loadCommand(entity, id);
-      const row = await config.db.get<TagsRow>(command, [entity, id]);
+      const row = await executor.loadTags(entity, id);
 
       if (!row) return null;
 
@@ -145,8 +211,7 @@ export function createCustomMaterializer<
       const tagsJson = JSON.stringify(state.tags);
 
       // Save to tags table
-      const command = saveCommand(entity, id, dataJson, tagsJson);
-      await config.db.run(command, [entity, id, dataJson, tagsJson]);
+      await executor.saveTags(entity, id, dataJson, tagsJson);
 
       // Optionally save values to actual table columns if fieldMap is provided
       if (fieldMap && Object.keys(state.values).length > 0) {
@@ -164,22 +229,10 @@ export function createCustomMaterializer<
         }
 
         if (columns.length > 0) {
-          let command: string;
-          let params: unknown[];
-
-          if (config.saveEntityCommand) {
-            const result = config.saveEntityCommand(tableName, id, columns, values, updates);
-            command = result.sql;
-            params = result.params;
-          } else if (dialect) {
-            const result = dialect.saveEntityCommand(tableName, id, columns, values, updates);
-            command = result.sql;
-            params = result.params;
-          } else {
-            throw new Error('No saveEntityCommand provided and no dialect specified');
+          if (!executor.saveEntity) {
+            throw new Error('No saveEntity executor provided for fieldMap');
           }
-
-          await config.db.run(command, params);
+          await executor.saveEntity(tableName, id, columns, values, updates);
         }
       }
     },
@@ -194,8 +247,7 @@ export function createCustomMaterializer<
       const tagsJson = JSON.stringify(state.tags);
       const deletedTag = state.deletedTag ?? '';
 
-      const command = removeCommand(entity, id, dataJson, tagsJson, deletedTag);
-      await config.db.run(command, [entity, id, dataJson, tagsJson, deletedTag]);
+      await executor.removeTags(entity, id, dataJson, tagsJson, deletedTag);
     },
   };
 }

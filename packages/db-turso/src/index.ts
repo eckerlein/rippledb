@@ -151,10 +151,14 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
     // Materialize changes if materializer is configured
     if (this.materializerConfig) {
       const collectingDb = new CollectingDb(this.client);
-      const materializer = createCustomMaterializer({
-        ...this.materializerConfig,
-        db: collectingDb,
-      } as CustomMaterializerConfig<S>);
+      const materializerConfig = this.materializerConfig;
+      const materializer =
+        materializerConfig && 'executor' in materializerConfig && materializerConfig.executor
+          ? createCustomMaterializer(materializerConfig as CustomMaterializerConfig<S>)
+          : createCustomMaterializer({
+              ...materializerConfig,
+              db: collectingDb,
+            } as CustomMaterializerConfig<S>);
 
       // Load current states (executes immediately)
       for (const change of req.changes) {

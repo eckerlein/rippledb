@@ -13,9 +13,13 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
   let adapter: MaterializerAdapter<TestSchema>;
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:16-alpine')
-      .withReuse()
-      .start();
+    try {
+      container = await new PostgreSqlContainer('postgres:16-alpine')
+        .withReuse()
+        .start();
+    } catch {
+      throw new Error('PostgreSQL testcontainer failed to start');
+    }
   }, 30000);
 
   afterAll(async () => {
@@ -28,7 +32,9 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
   });
 
   beforeEach(async () => {
-    if (!container) throw new Error('Container not started');
+    if (!container) {
+      throw new Error('Container not started');
+    }
     // Close previous connection if it exists
     if (dbClose) {
       await dbClose();

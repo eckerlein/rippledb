@@ -9,6 +9,7 @@ import type { MaterializerState } from '@converge/materialize-core';
 import type {
   CustomMaterializerConfig,
   EntityFieldMap,
+  MaterializerExecutor,
   TagsRow,
 } from './types';
 import { dialects } from './dialects';
@@ -21,6 +22,26 @@ export type SyncMaterializerAdapter<S extends ConvergeSchema = ConvergeSchema> =
   load<E extends EntityName<S>>(entity: E, id: string): MaterializerState<S, E> | null;
   save<E extends EntityName<S>>(entity: E, id: string, state: MaterializerState<S, E>): void;
   remove<E extends EntityName<S>>(entity: E, id: string, state: MaterializerState<S, E>): void;
+};
+
+export type SyncMaterializerExecutor = {
+  ensureTagsTable?: () => void;
+  loadTags: (entity: string, id: string) => TagsRow | null;
+  saveTags: (entity: string, id: string, dataJson: string, tagsJson: string) => void;
+  removeTags: (
+    entity: string,
+    id: string,
+    dataJson: string,
+    tagsJson: string,
+    deletedTag: string,
+  ) => void;
+  saveEntity?: (
+    tableName: string,
+    id: string,
+    columns: string[],
+    values: unknown[],
+    updates: string[],
+  ) => void;
 };
 
 /**
@@ -44,27 +65,128 @@ export function createSyncMaterializer<
 ): SyncMaterializerAdapter<S> {
   const tagsTable = config.tagsTable ?? 'converge_tags';
 
+  const hasExecutor = 'executor' in config;
+  const sqlConfig = !hasExecutor ? config : null;
   // Resolve dialect: TypeScript ensures either dialect OR all custom commands are provided
-  const dialect = config.dialect ? dialects[config.dialect] : undefined;
+  const dialect =
+    !hasExecutor && 'dialect' in config && config.dialect ? dialects[config.dialect] : undefined;
 
-  if (!dialect && !('loadCommand' in config)) {
-    throw new Error('Invalid config: must provide either dialect or all custom commands');
+  if (!hasExecutor && !dialect && !('loadCommand' in config)) {
+    throw new Error('Invalid config: must provide executor, dialect, or custom commands');
   }
 
-  // Ensure tags table exists (synchronous)
-  const ensureTagsTable = () => {
-    if (dialect) {
-      const sql = dialect.createTagsTable(tagsTable);
-      db.exec(sql);
+  const createSqlExecutor = (): SyncMaterializerExecutor => {
+    if (!sqlConfig) {
+      throw new Error('Invalid config: SQL materializer requires config');
     }
-    // If no dialect and no custom create, assume table exists or user handles it
+    const loadCommand = (entity: string, id: string): string => {
+      if ('loadCommand' in config && config.loadCommand) {
+        return config.loadCommand(tagsTable, entity, id);
+      }
+      if (dialect) {
+        return dialect.loadCommand(tagsTable);
+      }
+      throw new Error('No loadCommand provided and no dialect specified');
+    };
+
+    const saveCommand = (
+      entity: string,
+      id: string,
+      dataJson: string,
+      tagsJson: string,
+    ): string => {
+      if ('saveCommand' in config && config.saveCommand) {
+        return config.saveCommand(tagsTable, entity, id, dataJson, tagsJson);
+      }
+      if (dialect) {
+        return dialect.saveCommand(tagsTable);
+      }
+      throw new Error('No saveCommand provided and no dialect specified');
+    };
+
+    const removeCommand = (
+      entity: string,
+      id: string,
+      dataJson: string,
+      tagsJson: string,
+      deletedTag: string,
+    ): string => {
+      if ('removeCommand' in config && config.removeCommand) {
+        return config.removeCommand(tagsTable, entity, id, dataJson, tagsJson, deletedTag);
+      }
+      if (dialect) {
+        return dialect.removeCommand(tagsTable);
+      }
+      throw new Error('No removeCommand provided and no dialect specified');
+    };
+
+    return {
+      ensureTagsTable: () => {
+        if (dialect) {
+          const sql = dialect.createTagsTable(tagsTable);
+          db.exec(sql);
+        }
+      },
+      loadTags: (entity: string, id: string): TagsRow | null => {
+        const command = loadCommand(entity, id);
+        const stmt = db.prepare(command);
+        return (stmt.get(entity, id) as TagsRow | undefined) ?? null;
+      },
+      saveTags: (entity: string, id: string, dataJson: string, tagsJson: string): void => {
+        const command = saveCommand(entity, id, dataJson, tagsJson);
+        const stmt = db.prepare(command);
+        stmt.run(entity, id, dataJson, tagsJson);
+      },
+      removeTags: (
+        entity: string,
+        id: string,
+        dataJson: string,
+        tagsJson: string,
+        deletedTag: string,
+      ): void => {
+        const command = removeCommand(entity, id, dataJson, tagsJson, deletedTag);
+        const stmt = db.prepare(command);
+        stmt.run(entity, id, dataJson, tagsJson, deletedTag);
+      },
+      saveEntity: (
+        tableName: string,
+        id: string,
+        columns: string[],
+        values: unknown[],
+        updates: string[],
+      ): void => {
+        let command: string;
+        let params: unknown[];
+
+        if ('saveEntityCommand' in config && config.saveEntityCommand) {
+          const result = config.saveEntityCommand(tableName, id, columns, values, updates);
+          command = result.sql;
+          params = result.params;
+        } else if (dialect) {
+          const result = dialect.saveEntityCommand(tableName, id, columns, values, updates);
+          command = result.sql;
+          params = result.params;
+        } else {
+          throw new Error('No saveEntityCommand provided and no dialect specified');
+        }
+
+        const entityStmt = db.prepare(command);
+        entityStmt.run(...params);
+      },
+    };
   };
+
+  const executor: SyncMaterializerExecutor = hasExecutor
+    ? (config.executor as unknown as SyncMaterializerExecutor)
+    : createSqlExecutor();
 
   // Initialize tags table on first use
   let tagsTableInitialized = false;
   const initTagsTable = () => {
     if (!tagsTableInitialized) {
-      ensureTagsTable();
+      if (executor.ensureTagsTable) {
+        executor.ensureTagsTable();
+      }
       tagsTableInitialized = true;
     }
   };
@@ -83,56 +205,13 @@ export function createSyncMaterializer<
     return (config.fieldMap?.[entity] as EntityFieldMap | undefined) ?? null;
   };
 
-  const loadCommand = (entity: string, id: string): string => {
-    if ('loadCommand' in config && config.loadCommand) {
-      return config.loadCommand(tagsTable, entity, id);
-    }
-    if (dialect) {
-      return dialect.loadCommand(tagsTable);
-    }
-    throw new Error('No loadCommand provided and no dialect specified');
-  };
-
-  const saveCommand = (
-    entity: string,
-    id: string,
-    dataJson: string,
-    tagsJson: string,
-  ): string => {
-    if ('saveCommand' in config && config.saveCommand) {
-      return config.saveCommand(tagsTable, entity, id, dataJson, tagsJson);
-    }
-    if (dialect) {
-      return dialect.saveCommand(tagsTable);
-    }
-    throw new Error('No saveCommand provided and no dialect specified');
-  };
-
-  const removeCommand = (
-    entity: string,
-    id: string,
-    dataJson: string,
-    tagsJson: string,
-    deletedTag: string,
-  ): string => {
-    if ('removeCommand' in config && config.removeCommand) {
-      return config.removeCommand(tagsTable, entity, id, dataJson, tagsJson, deletedTag);
-    }
-    if (dialect) {
-      return dialect.removeCommand(tagsTable);
-    }
-    throw new Error('No removeCommand provided and no dialect specified');
-  };
-
   return {
     load<E extends EntityName<S>>(
       entity: E,
       id: string,
     ): MaterializerState<S, E> | null {
       initTagsTable();
-      const command = loadCommand(entity, id);
-      const stmt = db.prepare(command);
-      const row = stmt.get(entity, id) as TagsRow | undefined;
+      const row = executor.loadTags(entity, id);
 
       if (!row) return null;
 
@@ -156,9 +235,7 @@ export function createSyncMaterializer<
       const tagsJson = JSON.stringify(state.tags);
 
       // Save to tags table
-      const command = saveCommand(entity, id, dataJson, tagsJson);
-      const stmt = db.prepare(command);
-      stmt.run(entity, id, dataJson, tagsJson);
+      executor.saveTags(entity, id, dataJson, tagsJson);
 
       // Optionally save values to actual table columns if fieldMap is provided
       if (fieldMap && Object.keys(state.values).length > 0) {
@@ -176,23 +253,10 @@ export function createSyncMaterializer<
         }
 
         if (columns.length > 0) {
-          let command: string;
-          let params: unknown[];
-
-          if ('saveEntityCommand' in config && config.saveEntityCommand) {
-            const result = config.saveEntityCommand(tableName, id, columns, values, updates);
-            command = result.sql;
-            params = result.params;
-          } else if (dialect) {
-            const result = dialect.saveEntityCommand(tableName, id, columns, values, updates);
-            command = result.sql;
-            params = result.params;
-          } else {
-            throw new Error('No saveEntityCommand provided and no dialect specified');
+          if (!executor.saveEntity) {
+            throw new Error('No saveEntity executor provided for fieldMap');
           }
-
-          const entityStmt = db.prepare(command);
-          entityStmt.run(...params);
+          executor.saveEntity(tableName, id, columns, values, updates);
         }
       }
     },
@@ -207,9 +271,7 @@ export function createSyncMaterializer<
       const tagsJson = JSON.stringify(state.tags);
       const deletedTag = state.deletedTag ?? '';
 
-      const command = removeCommand(entity, id, dataJson, tagsJson, deletedTag);
-      const stmt = db.prepare(command);
-      stmt.run(entity, id, dataJson, tagsJson, deletedTag);
+      executor.removeTags(entity, id, dataJson, tagsJson, deletedTag);
     },
   };
 }

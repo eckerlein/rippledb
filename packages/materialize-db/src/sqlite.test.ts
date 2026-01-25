@@ -212,6 +212,6 @@ describe('createCustomMaterializer - SQLite dialect', () => {
         dialect: 'invalid-dialect' as 'sqlite',
         tableMap: { todos: 'todos' },
       });
-    }).toThrow('Invalid config: must provide either dialect or all custom commands');
+    }).toThrow('Invalid config: must provide executor, dialect, or custom commands');
   });
 });

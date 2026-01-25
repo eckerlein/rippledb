@@ -1,0 +1,35 @@
+{
+  "name": "@converge/materialize-drizzle",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@converge/core": "workspace:*",
+    "@converge/materialize-db": "workspace:*",
+    "drizzle-orm": "^0.36.4"
+  },
+  "devDependencies": {
+    "eslint": "^9.37.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "lint": "eslint ."
+  },
+  "tsup": {
+    "entry": ["src/index.ts"],
+    "format": ["esm"],
+    "dts": false,
+    "sourcemap": true,
+    "clean": true
+  }
+}
