@@ -43,9 +43,9 @@ SELECT * FROM todos WHERE id = 'todo-1';
     { id: 'lww', x: 20, y: 140, label: ['2. Apply field-level LWW', '(compare HLC timestamps)'] },
     { id: 'domain', x: 20, y: 220, label: '3. Update domain table' },
     { id: 'tags', x: 20, y: 290, label: '4. Update tags table' },
-    { id: 'tags-read', x: 300, y: 70, variant: 'label', label: 'converge_tags' },
-    { id: 'todos', x: 300, y: 220, variant: 'label', label: 'todos' },
-    { id: 'tags-write', x: 300, y: 290, variant: 'label', label: 'converge_tags' },
+    { id: 'tags-read', relativeTo: 'load', anchor: 'right', offset: { x: 40 }, variant: 'label', label: 'converge_tags' },
+    { id: 'todos', relativeTo: 'domain', anchor: 'right', offset: { x: 40 }, variant: 'label', label: 'todos' },
+    { id: 'tags-write', relativeTo: 'tags', anchor: 'right', offset: { x: 40 }, variant: 'label', label: 'converge_tags' },
   ]}
   edges={[
     { from: 'append', to: 'load' },

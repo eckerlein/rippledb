@@ -2,12 +2,29 @@
 
 import { useMemo } from 'react';
 
+type AbsolutePosition = { x: number; y: number };
+
+type RelativePosition = {
+  relativeTo: string;
+  anchor: 'right' | 'left' | 'top' | 'bottom';
+  offset?: { x?: number; y?: number };
+  alignY?: 'top' | 'center' | 'bottom';
+  alignX?: 'left' | 'center' | 'right';
+};
+
 type NodeDef = {
   id: string;
-  x: number;
-  y: number;
   label: string | string[];
   variant?: 'step' | 'label';
+} & (AbsolutePosition | RelativePosition);
+
+// Internal resolved node with guaranteed x, y
+type ResolvedNode = {
+  id: string;
+  label: string | string[];
+  variant?: 'step' | 'label';
+  x: number;
+  y: number;
 };
 
 type EdgeDef = {
@@ -37,7 +54,7 @@ function getTextLines(label: string | string[]): string[] {
   return Array.isArray(label) ? label : [label];
 }
 
-function getNodeDimensions(node: NodeDef) {
+function getNodeDimensions(node: { label: string | string[]; variant?: 'step' | 'label' }) {
   const lines = getTextLines(node.label);
   const maxLineLength = Math.max(...lines.map(l => l.length));
   
@@ -54,12 +71,119 @@ function getNodeDimensions(node: NodeDef) {
   return { width, height };
 }
 
-function getAnchorPoint(node: NodeDef, side: 'top' | 'bottom' | 'left' | 'right') {
+function isRelativePosition(node: NodeDef): node is NodeDef & RelativePosition {
+  return 'relativeTo' in node;
+}
+
+function resolveNodePositions(nodes: NodeDef[]): ResolvedNode[] {
+  const resolved = new Map<string, ResolvedNode>();
+  const pending = [...nodes];
+  let iterations = 0;
+  const maxIterations = nodes.length * 2; // Prevent infinite loops
+  
+  while (pending.length > 0 && iterations < maxIterations) {
+    iterations++;
+    const node = pending.shift()!;
+    
+    if (!isRelativePosition(node)) {
+      // Absolute position - resolve immediately
+      resolved.set(node.id, {
+        id: node.id,
+        label: node.label,
+        variant: node.variant,
+        x: node.x,
+        y: node.y,
+      });
+      continue;
+    }
+    
+    // Relative position - check if reference node is resolved
+    const refNode = resolved.get(node.relativeTo);
+    if (!refNode) {
+      // Reference not yet resolved, push back to pending
+      pending.push(node);
+      continue;
+    }
+    
+    // Calculate position based on reference node
+    const refDims = getNodeDimensions(refNode);
+    const thisDims = getNodeDimensions(node);
+    const offset = node.offset || {};
+    const offsetX = offset.x ?? 0;
+    const offsetY = offset.y ?? 0;
+    
+    let x: number;
+    let y: number;
+    
+    // Base position from anchor
+    switch (node.anchor) {
+      case 'right':
+        x = refNode.x + refDims.width + offsetX;
+        y = refNode.y + offsetY;
+        break;
+      case 'left':
+        x = refNode.x - thisDims.width + offsetX;
+        y = refNode.y + offsetY;
+        break;
+      case 'bottom':
+        x = refNode.x + offsetX;
+        y = refNode.y + refDims.height + offsetY;
+        break;
+      case 'top':
+        x = refNode.x + offsetX;
+        y = refNode.y - thisDims.height + offsetY;
+        break;
+    }
+    
+    // Apply Y alignment for horizontal anchors (left/right)
+    if (node.anchor === 'left' || node.anchor === 'right') {
+      const alignY = node.alignY || 'center';
+      switch (alignY) {
+        case 'top':
+          // y already at refNode.y
+          break;
+        case 'center':
+          y = refNode.y + (refDims.height - thisDims.height) / 2 + offsetY;
+          break;
+        case 'bottom':
+          y = refNode.y + refDims.height - thisDims.height + offsetY;
+          break;
+      }
+    }
+    
+    // Apply X alignment for vertical anchors (top/bottom)
+    if (node.anchor === 'top' || node.anchor === 'bottom') {
+      const alignX = node.alignX || 'left';
+      switch (alignX) {
+        case 'left':
+          // x already at refNode.x
+          break;
+        case 'center':
+          x = refNode.x + (refDims.width - thisDims.width) / 2 + offsetX;
+          break;
+        case 'right':
+          x = refNode.x + refDims.width - thisDims.width + offsetX;
+          break;
+      }
+    }
+    
+    resolved.set(node.id, {
+      id: node.id,
+      label: node.label,
+      variant: node.variant,
+      x,
+      y,
+    });
+  }
+  
+  return Array.from(resolved.values());
+}
+
+function getAnchorPoint(node: ResolvedNode, side: 'top' | 'bottom' | 'left' | 'right') {
   const { width, height } = getNodeDimensions(node);
   
   if (node.variant === 'label') {
     // For label nodes, anchor relative to text position
-    // Text is rendered at (node.x, node.y + FONT_SIZE) with baseline alignment
     const textTop = node.y;
     const textBottom = node.y + height;
     const textCenterY = node.y + height / 2;
@@ -84,7 +208,7 @@ function getAnchorPoint(node: NodeDef, side: 'top' | 'bottom' | 'left' | 'right'
   }
 }
 
-function Node({ node }: { node: NodeDef }) {
+function Node({ node }: { node: ResolvedNode }) {
   const lines = getTextLines(node.label);
   const { width, height } = getNodeDimensions(node);
   
@@ -135,7 +259,7 @@ function Node({ node }: { node: NodeDef }) {
   );
 }
 
-function Edge({ edge, nodes }: { edge: EdgeDef; nodes: NodeDef[] }) {
+function Edge({ edge, nodes }: { edge: EdgeDef; nodes: ResolvedNode[] }) {
   const fromNode = nodes.find(n => n.id === edge.from);
   const toNode = nodes.find(n => n.id === edge.to);
   
@@ -198,19 +322,22 @@ function Edge({ edge, nodes }: { edge: EdgeDef; nodes: NodeDef[] }) {
 }
 
 export function Diagram({ nodes, edges, width = 500, height = 400 }: DiagramProps) {
-  // Auto-calculate dimensions if not provided
+  // Resolve relative positions
+  const resolvedNodes = useMemo(() => resolveNodePositions(nodes), [nodes]);
+  
+  // Auto-calculate dimensions
   const autoDimensions = useMemo(() => {
     let maxX = 0;
     let maxY = 0;
     
-    for (const node of nodes) {
+    for (const node of resolvedNodes) {
       const { width: nw, height: nh } = getNodeDimensions(node);
       maxX = Math.max(maxX, node.x + nw + 20);
       maxY = Math.max(maxY, node.y + nh + 20);
     }
     
     return { width: Math.max(width, maxX), height: Math.max(height, maxY) };
-  }, [nodes, width, height]);
+  }, [resolvedNodes, width, height]);
   
   return (
     <div className="my-4 overflow-x-auto">
@@ -231,11 +358,11 @@ export function Diagram({ nodes, edges, width = 500, height = 400 }: DiagramProp
       >
         {/* Render edges first (behind nodes) */}
         {edges.map((edge, i) => (
-          <Edge key={i} edge={edge} nodes={nodes} />
+          <Edge key={i} edge={edge} nodes={resolvedNodes} />
         ))}
         
         {/* Render nodes */}
-        {nodes.map(node => (
+        {resolvedNodes.map(node => (
           <Node key={node.id} node={node} />
         ))}
       </svg>
