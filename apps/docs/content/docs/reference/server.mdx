@@ -1,0 +1,185 @@
+---
+title: "@converge/server"
+description: Db interface and server persistence contracts
+---
+
+# @converge/server
+
+Defines the `Db` interface for server-side persistence. Implementations live in `@converge/db-*` packages.
+
+## Installation
+
+```bash
+pnpm add @converge/server
+```
+
+## Db Interface
+
+The core interface that all database adapters implement:
+
+```ts
+interface Db<S extends ConvergeSchema = ConvergeSchema> {
+  append(req: AppendRequest<S>): Promise<AppendResult>;
+  pull(req: PullRequest): Promise<PullResponse<S>>;
+}
+```
+
+### `append(req: AppendRequest<S>): Promise<AppendResult>`
+
+Append changes to the log for a stream.
+
+**AppendRequest:**
+
+```ts
+type AppendRequest<S extends ConvergeSchema> = {
+  stream: string;
+  idempotencyKey?: string;
+  changes: Change<S>[];
+};
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stream` | `string` | Partition key (e.g., user ID, project ID) |
+| `idempotencyKey` | `string?` | Optional key to prevent duplicate appends |
+| `changes` | `Change<S>[]` | Array of changes to append |
+
+**AppendResult:**
+
+```ts
+type AppendResult = {
+  accepted: number;
+  hlc?: Hlc;
+};
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `accepted` | `number` | Number of changes accepted (0 if idempotency key was seen) |
+| `hlc` | `Hlc?` | Optional server-assigned high watermark |
+
+**Example:**
+
+```ts
+const result = await db.append({
+  stream: 'user-123',
+  idempotencyKey: 'req-abc',
+  changes: [
+    makeUpsert({
+      stream: 'user-123',
+      entity: 'todos',
+      entityId: 'todo-1',
+      patch: { title: 'Buy milk' },
+      hlc: hlc(),
+    }),
+  ],
+});
+
+console.log(result.accepted); // 1
+```
+
+### `pull(req: PullRequest): Promise<PullResponse<S>>`
+
+Pull changes from the log since a cursor.
+
+**PullRequest:**
+
+```ts
+type PullRequest = {
+  stream: string;
+  cursor: Cursor | null;
+  limit?: number;
+};
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stream` | `string` | Partition key |
+| `cursor` | `string \| null` | Cursor from last pull, or `null` for beginning |
+| `limit` | `number?` | Max changes to return (default: 500) |
+
+**PullResponse:**
+
+```ts
+type PullResponse<S extends ConvergeSchema> = {
+  changes: Change<S>[];
+  nextCursor: Cursor | null;
+};
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `changes` | `Change<S>[]` | Changes since cursor |
+| `nextCursor` | `string \| null` | Cursor for next pull |
+
+**Example:**
+
+```ts
+// First pull (from beginning)
+const { changes, nextCursor } = await db.pull({
+  stream: 'user-123',
+  cursor: null,
+  limit: 100,
+});
+
+console.log(changes.length); // Number of changes
+console.log(nextCursor);     // e.g., "42"
+
+// Subsequent pull (incremental)
+const next = await db.pull({
+  stream: 'user-123',
+  cursor: nextCursor,
+  limit: 100,
+});
+```
+
+## Cursor
+
+Cursors are opaque strings representing a position in the change log:
+
+```ts
+type Cursor = string;
+```
+
+- Start with `null` to pull from the beginning
+- Store the returned `nextCursor` for incremental pulls
+- Cursors are stream-specific
+
+## Implementing a Custom Adapter
+
+```ts
+import type { Db, AppendRequest, AppendResult, PullRequest, PullResponse } from '@converge/server';
+import type { ConvergeSchema } from '@converge/core';
+
+class MyDb<S extends ConvergeSchema> implements Db<S> {
+  async append(req: AppendRequest<S>): Promise<AppendResult> {
+    // 1. Check idempotency key if provided
+    // 2. Insert changes into your storage
+    // 3. Optionally materialize to domain tables
+    // 4. Return accepted count
+    return { accepted: req.changes.length };
+  }
+
+  async pull(req: PullRequest): Promise<PullResponse<S>> {
+    // 1. Decode cursor to position
+    // 2. Query changes after position
+    // 3. Encode next position as cursor
+    return { changes: [], nextCursor: req.cursor };
+  }
+}
+```
+
+## Built-in Adapters
+
+| Package | Database | Notes |
+|---------|----------|-------|
+| `@converge/db-sqlite` | SQLite | Uses better-sqlite3 |
+| `@converge/db-turso` | Turso/libSQL | Edge-ready |
+| `@converge/db-drizzle` | Any Drizzle DB | Database-agnostic |
+| `@converge/db-memory` | In-memory | Testing only |
+
+## Related
+
+- [Adapters Overview](/docs/adapters) — Choose the right adapter
+- [Core Reference](/docs/reference/core) — Change types
+- [Client Reference](/docs/reference/client) — Client-side sync

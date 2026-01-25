@@ -1,0 +1,253 @@
+---
+title: Core Concepts
+description: Understand the mental model behind Converge — HLCs, Changes, Streams, and Materialization
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Core Concepts
+
+Converge is built on a few key ideas. Understanding them will help you use the library effectively.
+
+## The Mental Model
+
+> **Local storage is truth.**  
+> Replication is log-based.  
+> Conflicts resolve per field.  
+> Queries read materialized state.
+
+## Hybrid Logical Clocks (HLC)
+
+An HLC is a timestamp that combines physical time with a logical counter. It ensures:
+
+- **Monotonicity**: Timestamps always increase within a node
+- **Comparability**: Any two timestamps can be ordered globally
+- **Determinism**: Tie-breaking is consistent across all replicas
+
+### Format
+
+```
+wallMs:counter:nodeId
+```
+
+Example: `1706123456789:0:server-abc123`
+
+### Usage
+
+```ts
+import { createHlcState, tickHlc, compareHlc } from '@converge/core';
+
+// Create state for this node
+const state = createHlcState('my-node-id');
+
+// Generate a new timestamp
+const ts1 = tickHlc(state, Date.now());
+const ts2 = tickHlc(state, Date.now());
+
+// Compare timestamps
+compareHlc(ts1, ts2); // -1 (ts1 < ts2)
+```
+
+<Callout type="info">
+Each node (server, client device) needs a unique `nodeId`. Use a random string or UUID.
+</Callout>
+
+## Changes
+
+A **Change** is the atomic unit of replication. It represents a single mutation to an entity.
+
+### Structure
+
+```ts
+type Change = {
+  stream: string;     // Partition key (e.g., user ID, project ID)
+  entity: string;     // Entity type (e.g., 'todos', 'comments')
+  entityId: string;   // Primary key of the entity
+  kind: 'upsert' | 'delete';
+  patch: Record<string, unknown>;  // Changed fields only
+  tags: Record<string, Hlc>;       // HLC per field
+  hlc: Hlc;           // Change-level timestamp
+};
+```
+
+### Key Design Decisions
+
+1. **`stream` is opaque** — You decide what it means (like org, user, project, or a combination of those)
+2. **`kind` is restricted** — Only `upsert` and `delete`, no custom operations
+3. **Patches are partial** — Only include changed fields
+4. **Tags are per-field** — Each field has its own timestamp
+
+### Creating Changes
+
+```ts
+import { makeUpsert, makeDelete } from '@converge/core';
+
+// Create or update
+const change = makeUpsert({
+  stream: 'user-123',
+  entity: 'todos',
+  entityId: 'todo-1',
+  patch: { title: 'Updated title' },
+  hlc: hlc(),
+});
+
+// Delete
+const deletion = makeDelete({
+  stream: 'user-123',
+  entity: 'todos',
+  entityId: 'todo-1',
+  hlc: hlc(),
+});
+```
+
+## Streams
+
+A **stream** is a partition of changes. All changes in a stream are:
+
+- Ordered (by sequence number)
+- Pulled together (cursor-based)
+- Typically scoped to a user, project, or tenant
+
+### Common Patterns
+
+| Pattern | Stream Key | Use Case |
+|---------|-----------|----------|
+| Per-user | `user-{userId}` | Personal data, settings |
+| Per-project | `project-{projectId}` | Collaborative documents |
+| Per-tenant | `tenant-{tenantId}` | Multi-tenant SaaS |
+
+### Why Streams?
+
+1. **Isolation** — Users only pull changes they care about
+2. **Scalability** — Different streams can live on different servers
+3. **Security** — Easy to scope access control
+
+## Field-Level LWW
+
+Converge uses **Last-Writer-Wins (LWW)** at the field level, not the row level.
+
+### How It Works
+
+Each field has:
+- A **value**
+- A **tag** (HLC timestamp)
+
+When merging:
+
+```ts
+if (incomingTag > localTag) {
+  // Accept incoming value
+} else {
+  // Keep local value
+}
+```
+
+### Example: Concurrent Edits
+
+User A and User B edit the same todo:
+
+| | User A | User B |
+|---|--------|--------|
+| Edit | `title: "A's title"` | `done: true` |
+| Tag | `1000:0:A` | `1001:0:B` |
+
+After sync, both see:
+- `title: "A's title"` (A's tag wins for title)
+- `done: true` (B's tag wins for done)
+
+**No data loss.** Each field resolves independently.
+
+## Deletes (Tombstones)
+
+Deletes are modeled as tombstones:
+
+```ts
+{
+  deleted: true,
+  deleted_tag: '<hlc>'
+}
+```
+
+This ensures:
+- Deletes replicate correctly
+- Delete/update conflicts resolve cleanly
+- Entities don't resurrect after sync
+
+## Materialization
+
+**Materialization** is the process of applying changes to domain tables.
+
+### Without Materialization
+
+You'd need to replay all changes to compute current state:
+
+```sql
+-- Expensive query to get current todo state
+SELECT * FROM converge_changes 
+WHERE entity = 'todos' AND entity_id = 'todo-1'
+ORDER BY seq;
+-- Then apply LWW in code...
+```
+
+### With Materialization
+
+Changes are applied to a `todos` table as they arrive:
+
+```sql
+-- Fast lookup of current state
+SELECT * FROM todos WHERE id = 'todo-1';
+```
+
+### How It Works
+
+1. Change arrives via `db.append()`
+2. Materializer reads existing tags from `converge_tags`
+3. For each field, compare tags and apply LWW
+4. Update the `todos` table with winning values
+5. Update `converge_tags` with new timestamps
+
+<Callout type="info">
+Server-side materialization is optional. It's useful if your server also serves 
+direct queries (REST APIs, admin dashboards) alongside the sync endpoints.
+On the client, the `Store` handles applying changes to local state.
+</Callout>
+
+## Sync Model
+
+### Append-Only Log
+
+Changes are stored in an immutable, ordered log:
+
+```sql
+converge_changes (
+  seq        INTEGER PRIMARY KEY,  -- Auto-incrementing
+  stream     TEXT,
+  change_json TEXT  -- Serialized Change
+)
+```
+
+### Cursor-Based Pull
+
+Clients sync by pulling changes after their last cursor:
+
+```ts
+const { changes, cursor } = await db.pull(stream, lastCursor);
+// Process changes...
+// Save cursor for next pull
+```
+
+### Canonical Sync Order
+
+**Pull → Apply → Push**
+
+1. Pull remote changes first
+2. Apply them to local state
+3. Then push local changes
+
+This ensures conflicts are resolved deterministically.
+
+## Next Steps
+
+- [Server Setup Guide](/docs/guides/server-setup) — Build a production sync server
+- [Adapters](/docs/adapters) — Choose the right database and materializer
+- [API Reference](/docs/reference/core) — Full `@converge/core` API

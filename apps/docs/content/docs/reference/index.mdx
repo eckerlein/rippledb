@@ -1,0 +1,90 @@
+---
+title: API Reference
+description: Complete API documentation for all Converge packages
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+# API Reference
+
+Complete API documentation for all Converge packages.
+
+## Core Packages
+
+<Cards>
+  <Card 
+    title="@converge/core" 
+    description="HLC timestamps, Change types, and pure merge logic"
+    href="/docs/reference/core"
+  />
+  <Card 
+    title="@converge/server" 
+    description="Db interface and server contracts"
+    href="/docs/reference/server"
+  />
+  <Card 
+    title="@converge/client" 
+    description="Client-side sync orchestration"
+    href="/docs/reference/client"
+  />
+  <Card 
+    title="@converge/remote-http" 
+    description="HTTP transport for client-server sync"
+    href="/docs/reference/remote-http"
+  />
+</Cards>
+
+## Package Overview
+
+| Package | Depends On | Purpose |
+|---------|------------|---------|
+| `@converge/core` | nothing | HLC, Change types, merge helpers |
+| `@converge/server` | core | Db interface for server persistence |
+| `@converge/client` | core | Store interface, sync orchestration |
+| `@converge/remote-http` | client | HTTP transport layer |
+| `@converge/db-*` | server | Database adapters |
+| `@converge/materialize-*` | core | State materializers |
+| `@converge/store-*` | client | Client-side stores |
+
+## Dependency Rules
+
+The dependency graph is strictly enforced:
+
+```
+                    ┌─────────────┐
+                    │   core      │
+                    │ (pure logic)│
+                    └──────┬──────┘
+                           │
+            ┌──────────────┼──────────────┐
+            │              │              │
+      ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐
+      │  server   │  │  client   │  │materialize│
+      │(Db iface) │  │(Store/Sync)│  │(projectors)│
+      └─────┬─────┘  └─────┬─────┘  └───────────┘
+            │              │
+      ┌─────▼─────┐  ┌─────▼─────┐
+      │   db-*    │  │  store-*  │
+      │(adapters) │  │(adapters) │
+      └───────────┘  └───────────┘
+```
+
+- `core` depends on **nothing**
+- `server` and `client` depend only on `core`
+- `db-*` adapters depend on `server`
+- `store-*` adapters depend on `client`
+- `materialize-*` depend on `core`
+
+## Type Safety
+
+All packages export TypeScript types. Use the `ConvergeSchema` generic for type-safe changes:
+
+```ts
+type MySchema = {
+  todos: { id: string; title: string; done: boolean };
+  users: { id: string; name: string; email: string };
+};
+
+// Now all methods are typed
+const db = new SqliteDb<MySchema>({ filename: './data.db' });
+```

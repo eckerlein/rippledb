@@ -1,0 +1,244 @@
+---
+title: "@converge/core"
+description: HLC timestamps, Change types, and pure merge logic
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# @converge/core
+
+The foundation package containing HLC timestamps, Change types, and pure merge logic. Has zero dependencies.
+
+## Installation
+
+```bash
+pnpm add @converge/core
+```
+
+## Hybrid Logical Clocks (HLC)
+
+### Types
+
+```ts
+// HLC string format: "wallMs:counter:nodeId"
+type Hlc = `${number}:${number}:${string}`;
+
+type ParsedHlc = {
+  wallMs: number;
+  counter: number;
+  nodeId: string;
+};
+
+type HlcState = {
+  lastWallMs: number;
+  counter: number;
+  nodeId: string;
+};
+```
+
+### Functions
+
+#### `createHlcState(nodeId: string): HlcState`
+
+Create a new HLC state for a node.
+
+```ts
+import { createHlcState } from '@converge/core';
+
+const state = createHlcState('server-abc123');
+// { lastWallMs: 0, counter: 0, nodeId: 'server-abc123' }
+```
+
+#### `tickHlc(state: HlcState, nowMs: number): Hlc`
+
+Generate a new HLC timestamp. Mutates `state` to ensure monotonicity.
+
+```ts
+import { createHlcState, tickHlc } from '@converge/core';
+
+const state = createHlcState('node-1');
+const ts1 = tickHlc(state, Date.now());
+const ts2 = tickHlc(state, Date.now());
+// ts2 > ts1 (always increasing)
+```
+
+#### `observeHlc(state: HlcState, remote: Hlc, nowMs: number): Hlc`
+
+Update local state after observing a remote HLC. Ensures local clock stays ahead.
+
+```ts
+import { createHlcState, observeHlc } from '@converge/core';
+
+const state = createHlcState('node-1');
+const remoteTs = '1706123456789:5:node-2';
+const localTs = observeHlc(state, remoteTs, Date.now());
+// localTs >= remoteTs
+```
+
+#### `parseHlc(hlc: Hlc): ParsedHlc`
+
+Parse an HLC string into its components.
+
+```ts
+import { parseHlc } from '@converge/core';
+
+const parsed = parseHlc('1706123456789:5:node-1');
+// { wallMs: 1706123456789, counter: 5, nodeId: 'node-1' }
+```
+
+#### `formatHlc(p: ParsedHlc): Hlc`
+
+Format ParsedHlc back to string.
+
+```ts
+import { formatHlc } from '@converge/core';
+
+const hlc = formatHlc({ wallMs: 1706123456789, counter: 5, nodeId: 'node-1' });
+// '1706123456789:5:node-1'
+```
+
+#### `compareHlc(a: Hlc, b: Hlc): number`
+
+Compare two HLCs. Returns -1, 0, or 1.
+
+```ts
+import { compareHlc } from '@converge/core';
+
+compareHlc('1000:0:a', '1001:0:b'); // -1 (a < b)
+compareHlc('1000:0:a', '1000:0:a'); // 0 (equal)
+compareHlc('1000:1:a', '1000:0:a'); // 1 (a > b)
+```
+
+## Changes
+
+### Types
+
+```ts
+type ChangeKind = 'upsert' | 'delete';
+
+type ConvergeSchema = Record<string, Record<string, unknown>>;
+
+type Change<S extends ConvergeSchema, E extends EntityName<S>> = {
+  stream: string;
+  entity: E;
+  entityId: string;
+  kind: ChangeKind;
+  patch: Partial<S[E]>;
+  tags: Partial<Record<keyof S[E], Hlc>>;
+  hlc: Hlc;
+};
+```
+
+### Functions
+
+#### `makeUpsert<S, E>(input): Change<S, E>`
+
+Create an upsert change. Auto-generates tags if not provided.
+
+```ts
+import { makeUpsert } from '@converge/core';
+
+type MySchema = { todos: { id: string; title: string; done: boolean } };
+
+const change = makeUpsert<MySchema>({
+  stream: 'user-123',
+  entity: 'todos',
+  entityId: 'todo-1',
+  patch: { title: 'Buy milk', done: false },
+  hlc: '1706123456789:0:server-1',
+});
+// {
+//   stream: 'user-123',
+//   entity: 'todos',
+//   entityId: 'todo-1',
+//   kind: 'upsert',
+//   patch: { title: 'Buy milk', done: false },
+//   tags: { title: '1706123456789:0:server-1', done: '1706123456789:0:server-1' },
+//   hlc: '1706123456789:0:server-1',
+// }
+```
+
+**Input type:**
+
+```ts
+type UpsertChangeInput<S, E> = {
+  stream: string;
+  entity: E;
+  entityId: string;
+  patch: Partial<S[E]>;
+  hlc: Hlc;
+  tags?: Partial<Record<keyof S[E], Hlc>>; // Optional, auto-generated if omitted
+};
+```
+
+#### `makeDelete<S, E>(input): Change<S, E>`
+
+Create a delete change (tombstone).
+
+```ts
+import { makeDelete } from '@converge/core';
+
+const change = makeDelete<MySchema>({
+  stream: 'user-123',
+  entity: 'todos',
+  entityId: 'todo-1',
+  hlc: '1706123456789:0:server-1',
+});
+// {
+//   stream: 'user-123',
+//   entity: 'todos',
+//   entityId: 'todo-1',
+//   kind: 'delete',
+//   patch: {},
+//   tags: {},
+//   hlc: '1706123456789:0:server-1',
+// }
+```
+
+**Input type:**
+
+```ts
+type DeleteChangeInput<S, E> = {
+  stream: string;
+  entity: E;
+  entityId: string;
+  hlc: Hlc;
+};
+```
+
+## Schema Definition
+
+Define your schema as a TypeScript type:
+
+```ts
+// Each key is an entity name
+// Each value is the shape of that entity's data
+type MySchema = {
+  todos: {
+    id: string;
+    title: string;
+    done: boolean;
+    createdAt: string;
+  };
+  users: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  comments: {
+    id: string;
+    todoId: string;
+    text: string;
+  };
+};
+```
+
+<Callout type="info">
+The schema type is used for compile-time type checking only. It doesn't create database tables.
+</Callout>
+
+## Related
+
+- [Core Concepts](/docs/getting-started/concepts) — Understand HLCs and Changes
+- [Server Reference](/docs/reference/server) — Db interface for persistence
+- [Client Reference](/docs/reference/client) — Store interface for local state

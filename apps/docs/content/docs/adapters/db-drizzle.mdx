@@ -1,0 +1,343 @@
+---
+title: db-drizzle
+description: Database-agnostic adapter using Drizzle ORM
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# @converge/db-drizzle
+
+A database-agnostic adapter that uses [Drizzle ORM](https://orm.drizzle.team/) for all database operations. Works with any Drizzle-supported database: SQLite, PostgreSQL, MySQL, and more.
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @converge/db-drizzle drizzle-orm
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @converge/db-drizzle drizzle-orm
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @converge/db-drizzle drizzle-orm
+```
+  </Tab>
+</Tabs>
+
+Plus your database driver:
+
+```bash
+# SQLite
+pnpm add better-sqlite3
+
+# PostgreSQL
+pnpm add pg
+
+# MySQL
+pnpm add mysql2
+```
+
+## Basic Usage (SQLite)
+
+```ts
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { getTableConfig } from 'drizzle-orm/sqlite-core';
+import { DrizzleDb } from '@converge/db-drizzle';
+
+// Define Drizzle table schemas for internal tables
+const changesTable = sqliteTable('converge_changes', {
+  seq: integer('seq').primaryKey({ autoIncrement: true }),
+  stream: text('stream').notNull(),
+  change_json: text('change_json').notNull(),
+});
+
+const idempotencyTable = sqliteTable('converge_idempotency', {
+  stream: text('stream').notNull(),
+  idempotency_key: text('idempotency_key').notNull(),
+  last_seq: integer('last_seq').notNull(),
+});
+
+// Create the database
+const sqlite = new Database('./data.db');
+const drizzleDb = drizzle(sqlite);
+
+// Create tables (use Drizzle migrations in production)
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS converge_changes (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    stream TEXT NOT NULL,
+    change_json TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS converge_idempotency (
+    stream TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    last_seq INTEGER NOT NULL,
+    PRIMARY KEY (stream, idempotency_key)
+  );
+`);
+
+// Create the Converge adapter
+const db = new DrizzleDb({
+  db: drizzleDb,
+  changesTable,
+  idempotencyTable,
+  getTableConfig,
+  isSync: true,  // Required for better-sqlite3
+});
+```
+
+## Basic Usage (PostgreSQL)
+
+```ts
+import { Client } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { pgTable, text, serial, integer } from 'drizzle-orm/pg-core';
+import { getTableConfig } from 'drizzle-orm/pg-core';
+import { DrizzleDb } from '@converge/db-drizzle';
+
+const changesTable = pgTable('converge_changes', {
+  seq: serial('seq').primaryKey(),
+  stream: text('stream').notNull(),
+  change_json: text('change_json').notNull(),
+});
+
+const idempotencyTable = pgTable('converge_idempotency', {
+  stream: text('stream').notNull(),
+  idempotency_key: text('idempotency_key').notNull(),
+  last_seq: integer('last_seq').notNull(),
+});
+
+const client = new Client({ connectionString: process.env.DATABASE_URL });
+await client.connect();
+const drizzleDb = drizzle(client);
+
+const db = new DrizzleDb({
+  db: drizzleDb,
+  changesTable,
+  idempotencyTable,
+  getTableConfig,
+  // isSync defaults to false for async drivers
+});
+```
+
+## The `isSync` Flag
+
+<Callout type="warning">
+**Critical for SQLite with better-sqlite3**: You must set `isSync: true`.
+</Callout>
+
+The `isSync` flag tells Converge whether the underlying Drizzle driver is synchronous or asynchronous:
+
+| Driver | `isSync` Value |
+|--------|---------------|
+| `better-sqlite3` | `true` |
+| `pg` (node-postgres) | `false` (default) |
+| `mysql2` | `false` (default) |
+| `@libsql/client` | `false` (default) |
+
+### Why Is This Needed?
+
+Drizzle drivers have different transaction APIs:
+
+```ts
+// Synchronous (better-sqlite3)
+db.transaction((tx) => {
+  tx.insert(...).run();  // Synchronous
+});
+
+// Asynchronous (pg, mysql2)
+await db.transaction(async (tx) => {
+  await tx.insert(...).execute();  // Returns Promise
+});
+```
+
+Converge needs to know which style to use for proper transaction handling.
+
+### What Happens If I Get It Wrong?
+
+- **`isSync: false` with better-sqlite3**: Error: "Transaction function cannot return a promise"
+- **`isSync: true` with async driver**: Queries won't await properly, causing data corruption
+
+## With Materialization
+
+```ts
+import { DrizzleDb } from '@converge/db-drizzle';
+import { and, eq } from 'drizzle-orm';
+
+// Tags table for materialization
+const tagsTable = sqliteTable('converge_tags', {
+  entity: text('entity').notNull(),
+  id: text('id').notNull(),
+  data: text('data').notNull(),
+  tags: text('tags').notNull(),
+  deleted: integer('deleted').notNull().default(0),
+  deleted_tag: text('deleted_tag'),
+});
+
+// Your domain table
+const todosTable = sqliteTable('todos', {
+  id: text('id').primaryKey(),
+  title: text('title'),
+  done: integer('done'),
+});
+
+const db = new DrizzleDb<MySchema, typeof drizzleDb>({
+  db: drizzleDb,
+  changesTable,
+  idempotencyTable,
+  getTableConfig,
+  isSync: true,
+  materializer: () => ({
+    tableMap: { todos: 'todos' },
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    executor: {
+      loadTags(db, entity, id) {
+        const rows = db
+          .select()
+          .from(tagsTable)
+          .where(and(eq(tagsTable.entity, entity), eq(tagsTable.id, id)))
+          .all();
+        return rows[0] ?? null;
+      },
+      saveTags(db, entity, id, data, tags) {
+        db.insert(tagsTable)
+          .values({
+            entity,
+            id,
+            data: JSON.stringify(data),
+            tags: JSON.stringify(tags),
+            deleted: 0,
+            deleted_tag: null,
+          })
+          .onConflictDoUpdate({
+            target: [tagsTable.entity, tagsTable.id],
+            set: {
+              data: JSON.stringify(data),
+              tags: JSON.stringify(tags),
+              deleted: 0,
+              deleted_tag: null,
+            },
+          })
+          .run();
+      },
+      removeTags(db, entity, id, deletedTag) {
+        db.update(tagsTable)
+          .set({ deleted: 1, deleted_tag: deletedTag })
+          .where(and(eq(tagsTable.entity, entity), eq(tagsTable.id, id)))
+          .run();
+      },
+      saveEntity(db, entity, id, values) {
+        // Implement upsert for your domain table
+        db.insert(todosTable)
+          .values(values as typeof todosTable.$inferInsert)
+          .onConflictDoUpdate({
+            target: todosTable.id,
+            set: values as typeof todosTable.$inferInsert,
+          })
+          .run();
+      },
+      removeEntity(db, entity, id) {
+        db.delete(todosTable)
+          .where(eq(todosTable.id, id))
+          .run();
+      },
+    },
+  }),
+});
+```
+
+<Callout type="info">
+For a simpler materializer setup, consider using [materialize-drizzle](/docs/adapters/materialize-drizzle) which provides sensible defaults.
+</Callout>
+
+## Options
+
+### `db`
+
+The Drizzle database instance. Works with any Drizzle-supported database.
+
+### `changesTable`
+
+Drizzle table definition for the changes log. Required columns:
+
+- `seq` — Auto-increment primary key
+- `stream` — Text, partition key
+- `change_json` — Text, serialized change
+
+### `idempotencyTable`
+
+Drizzle table definition for idempotency tracking. Required columns:
+
+- `stream` — Text, partition key
+- `idempotency_key` — Text
+- `last_seq` — Integer
+
+Primary key: `(stream, idempotency_key)`
+
+### `getTableConfig`
+
+Import from your Drizzle dialect:
+
+```ts
+import { getTableConfig } from 'drizzle-orm/sqlite-core';
+import { getTableConfig } from 'drizzle-orm/pg-core';
+import { getTableConfig } from 'drizzle-orm/mysql-core';
+```
+
+### `isSync`
+
+Set to `true` for synchronous drivers (better-sqlite3). Default: `false`.
+
+### `materializer`
+
+Optional factory function for materialization. Receives `{ db }` where `db` is the transaction-bound Drizzle instance.
+
+## Table Creation
+
+DrizzleDb does **not** create tables automatically. Use Drizzle Kit for migrations:
+
+```bash
+npx drizzle-kit generate
+npx drizzle-kit migrate
+```
+
+Or create tables manually:
+
+```sql
+-- SQLite
+CREATE TABLE converge_changes (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  stream TEXT NOT NULL,
+  change_json TEXT NOT NULL
+);
+
+CREATE TABLE converge_idempotency (
+  stream TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL,
+  last_seq INTEGER NOT NULL,
+  PRIMARY KEY (stream, idempotency_key)
+);
+```
+
+## Benefits Over db-sqlite
+
+| Feature | db-sqlite | db-drizzle |
+|---------|-----------|------------|
+| Database support | SQLite only | Any Drizzle-supported DB |
+| Type-safe queries | No | Yes |
+| ORM integration | Manual | Native |
+| Custom materializer | SQL-based | Drizzle query builder |
+
+## Related
+
+- [materialize-drizzle](/docs/adapters/materialize-drizzle) — Type-safe materializer
+- [db-sqlite](/docs/adapters/db-sqlite) — Simpler SQLite-only adapter
+- [Server Reference](/docs/reference/server) — Full Db interface

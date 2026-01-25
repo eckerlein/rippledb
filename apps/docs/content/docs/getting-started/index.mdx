@@ -1,0 +1,110 @@
+---
+title: Installation
+description: Install Converge packages and set up your project
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+# Installation
+
+Converge is distributed as a set of npm packages. Install what you need based on your use case.
+
+## Server-Side Setup
+
+For a backend that stores changes and materializes state:
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @converge/core @converge/server @converge/db-sqlite @converge/materialize-db
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @converge/core @converge/server @converge/db-sqlite @converge/materialize-db
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @converge/core @converge/server @converge/db-sqlite @converge/materialize-db
+```
+  </Tab>
+</Tabs>
+
+### Using Drizzle ORM?
+
+If you're already using Drizzle, use the Drizzle-specific packages instead:
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @converge/core @converge/server @converge/db-drizzle @converge/materialize-drizzle
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @converge/core @converge/server @converge/db-drizzle @converge/materialize-drizzle
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @converge/core @converge/server @converge/db-drizzle @converge/materialize-drizzle
+```
+  </Tab>
+</Tabs>
+
+## Client-Side Setup
+
+For a client that syncs with a Converge server:
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @converge/core @converge/client @converge/remote-http
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @converge/core @converge/client @converge/remote-http
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @converge/core @converge/client @converge/remote-http
+```
+  </Tab>
+</Tabs>
+
+## Package Overview
+
+| Package | Purpose |
+|---------|---------|
+| `@converge/core` | HLC timestamps, Change types, merge logic (always required) |
+| `@converge/server` | Db interface and contracts for server persistence |
+| `@converge/client` | Client-side sync orchestration |
+| `@converge/db-sqlite` | SQLite adapter using better-sqlite3 |
+| `@converge/db-turso` | Turso/libSQL adapter |
+| `@converge/db-drizzle` | Database-agnostic Drizzle ORM adapter |
+| `@converge/materialize-db` | SQL-based state materializer |
+| `@converge/materialize-drizzle` | Drizzle-based state materializer |
+| `@converge/remote-http` | HTTP client for sync |
+
+## TypeScript
+
+Converge is written in TypeScript and ships with full type definitions. No additional `@types/*` packages needed.
+
+## Next Steps
+
+<Cards>
+  <Card 
+    title="Quick Start" 
+    description="Build a working example in 5 minutes"
+    href="/docs/getting-started/quick-start"
+  />
+  <Card 
+    title="Core Concepts" 
+    description="Understand the mental model behind Converge"
+    href="/docs/getting-started/concepts"
+  />
+</Cards>

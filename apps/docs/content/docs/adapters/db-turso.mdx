@@ -1,0 +1,163 @@
+---
+title: db-turso
+description: Edge-ready adapter for Turso and libSQL
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# @converge/db-turso
+
+An adapter for [Turso](https://turso.tech/) and [libSQL](https://github.com/libsql/libsql), perfect for edge deployments and serverless functions.
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @converge/db-turso @libsql/client
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @converge/db-turso @libsql/client
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @converge/db-turso @libsql/client
+```
+  </Tab>
+</Tabs>
+
+## Basic Usage
+
+```ts
+import { TursoDb } from '@converge/db-turso';
+
+const db = new TursoDb({
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN!,
+});
+
+// Append changes
+await db.append({
+  stream: 'user-123',
+  changes: [/* ... */],
+});
+
+// Pull changes
+const { changes, nextCursor } = await db.pull({
+  stream: 'user-123',
+  cursor: null,
+});
+
+// Close when done
+db.close();
+```
+
+## With Materialization
+
+```ts
+import { TursoDb } from '@converge/db-turso';
+import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+
+const db = new TursoDb<MySchema>({
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN!,
+  materializer: ({ db }) =>
+    createMaterializerConfig({
+      db,
+      dialect: SqliteDialect,
+      tableMap: { todos: 'todos' },
+      fieldMap: {
+        todos: { id: 'id', title: 'title', done: 'done' },
+      },
+    }),
+});
+```
+
+## Options
+
+### `url`
+
+Turso database URL. Formats:
+
+- **Remote**: `libsql://your-db-name.turso.io`
+- **Local file**: `file:./local.db`
+- **In-memory**: `:memory:`
+
+### `authToken`
+
+Authentication token from your Turso dashboard. Not needed for local files.
+
+### `materializer`
+
+Optional materializer factory. Receives `{ db }` for executing SQL.
+
+## Local Development
+
+Use a local SQLite file during development:
+
+```ts
+const db = new TursoDb({
+  url: 'file:./dev.db',
+  authToken: '', // Not needed for local files
+});
+```
+
+## Environment Variables
+
+```bash
+# .env
+TURSO_DATABASE_URL=libsql://your-db-name.turso.io
+TURSO_AUTH_TOKEN=your-auth-token
+```
+
+## Turso Features
+
+### Edge Locations
+
+Turso replicates your database to edge locations worldwide. Your Converge data benefits from:
+
+- Low-latency reads from nearby replicas
+- Automatic failover
+- Global distribution
+
+### Embedded Replicas
+
+For local-first patterns, Turso supports embedded replicas:
+
+```ts
+import { createClient } from '@libsql/client';
+
+const client = createClient({
+  url: 'file:./local-replica.db',
+  syncUrl: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
+```
+
+<Callout type="info">
+Embedded replicas require additional setup. See the [Turso docs](https://docs.turso.tech/sdk/ts/reference#embedded-replicas) for details.
+</Callout>
+
+## Limitations
+
+- **Batch transactions**: Uses libSQL's `batch()` which is atomic but doesn't return `lastInsertRowid` easily
+- **No prepared statements**: Each query is sent individually (libSQL handles optimization)
+
+## When to Use
+
+| Use Case | Recommendation |
+|----------|----------------|
+| Edge/serverless | db-turso |
+| Local server | db-sqlite |
+| Global distribution | db-turso |
+| Development | Either (Turso supports `file:`) |
+
+## Related
+
+- [db-sqlite](/docs/adapters/db-sqlite) — Local SQLite adapter
+- [materialize-db](/docs/adapters/materialize-db) — SQL-based materializer
+- [Server Reference](/docs/reference/server) — Full Db interface

@@ -1,0 +1,268 @@
+---
+title: materialize-db
+description: SQL-based state materializer for raw SQL projects
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# @converge/materialize-db
+
+A SQL-based materializer that projects changes into domain tables. Works with `db-sqlite` and `db-turso`.
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @converge/materialize-db
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @converge/materialize-db
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @converge/materialize-db
+```
+  </Tab>
+</Tabs>
+
+## What Is Materialization?
+
+Materialization is the process of applying changes to your domain tables so you can query them efficiently.
+
+**Without materialization:**
+```sql
+-- Expensive: replay all changes to compute current state
+SELECT * FROM converge_changes 
+WHERE entity = 'todos' AND entity_id = 'todo-1'
+ORDER BY seq;
+-- Then apply LWW in code...
+```
+
+**With materialization:**
+```sql
+-- Fast: directly query current state
+SELECT * FROM todos WHERE id = 'todo-1';
+```
+
+## Basic Usage
+
+```ts
+import { SqliteDb } from '@converge/db-sqlite';
+import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+
+const db = new SqliteDb<MySchema>({
+  filename: './data.db',
+  materializer: ({ db }) =>
+    createMaterializerConfig({
+      db,
+      dialect: SqliteDialect,
+      tableMap: { todos: 'todos', users: 'users' },
+      fieldMap: {
+        todos: { id: 'id', title: 'title', done: 'done' },
+        users: { id: 'id', name: 'name', email: 'email' },
+      },
+    }),
+});
+```
+
+## How It Works
+
+1. **Change arrives** via `db.append()`
+2. **Load existing tags** from `converge_tags` table
+3. **Apply field-level LWW** — compare HLC timestamps per field
+4. **Update domain table** with winning values
+5. **Update tags table** with new timestamps
+
+All happens atomically in the same transaction.
+
+## Configuration
+
+### `dialect`
+
+Built-in SQL dialect. Currently supported:
+
+- `SqliteDialect` — For SQLite and Turso
+
+```ts
+import { SqliteDialect } from '@converge/materialize-db';
+
+createMaterializerConfig({
+  db,
+  dialect: SqliteDialect,
+  // ...
+});
+```
+
+### `tableMap`
+
+Maps entity names (from your schema) to database table names.
+
+```ts
+type MySchema = {
+  todos: { id: string; title: string; done: boolean };
+  users: { id: string; name: string };
+};
+
+createMaterializerConfig({
+  // ...
+  tableMap: {
+    todos: 'todos',      // Entity 'todos' → table 'todos'
+    users: 'app_users',  // Entity 'users' → table 'app_users'
+  },
+});
+```
+
+### `fieldMap`
+
+Maps schema field names to database column names. If omitted, field names are used as-is.
+
+```ts
+createMaterializerConfig({
+  // ...
+  fieldMap: {
+    todos: {
+      id: 'id',
+      title: 'title',
+      done: 'is_done',  // Schema field 'done' → column 'is_done'
+    },
+  },
+});
+```
+
+<Callout type="info">
+If `fieldMap` is provided for an entity, changes to that entity will update the domain table. Without `fieldMap`, only the `converge_tags` table is updated.
+</Callout>
+
+### `tagsTable`
+
+Name of the table storing entity tags/metadata. Default: `'converge_tags'`
+
+```ts
+createMaterializerConfig({
+  // ...
+  tagsTable: 'my_converge_tags',
+});
+```
+
+## Tags Table Schema
+
+The materializer automatically creates a `converge_tags` table:
+
+```sql
+CREATE TABLE converge_tags (
+  entity TEXT NOT NULL,
+  id TEXT NOT NULL,
+  data TEXT NOT NULL,      -- JSON: current field values
+  tags TEXT NOT NULL,      -- JSON: field → HLC timestamp
+  deleted INTEGER NOT NULL DEFAULT 0,
+  deleted_tag TEXT,
+  PRIMARY KEY (entity, id)
+);
+```
+
+## Custom Commands
+
+For databases not covered by built-in dialects, provide custom SQL commands:
+
+```ts
+createMaterializerConfig({
+  db,
+  tableMap: { todos: 'todos' },
+  loadCommand: (tagsTable) => `
+    SELECT data, tags, deleted, deleted_tag 
+    FROM ${tagsTable} 
+    WHERE entity = ? AND id = ?
+  `,
+  saveCommand: (tagsTable) => `
+    INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
+    VALUES (?, ?, ?, ?, 0, NULL)
+    ON CONFLICT (entity, id) DO UPDATE SET
+      data = excluded.data,
+      tags = excluded.tags,
+      deleted = 0,
+      deleted_tag = NULL
+  `,
+  removeCommand: (tagsTable) => `
+    INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
+    VALUES (?, ?, ?, ?, 1, ?)
+    ON CONFLICT (entity, id) DO UPDATE SET
+      data = excluded.data,
+      tags = excluded.tags,
+      deleted = 1,
+      deleted_tag = excluded.deleted_tag
+  `,
+});
+```
+
+## Custom Executor
+
+For full control, provide a custom executor:
+
+```ts
+createMaterializerConfig({
+  tableMap: { todos: 'todos' },
+  fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+  executor: {
+    ensureTagsTable: async () => {
+      // Create tags table if needed
+    },
+    loadTags: async (entity, id) => {
+      // Load and return TagsRow or null
+    },
+    saveTags: async (entity, id, dataJson, tagsJson) => {
+      // Upsert tags row
+    },
+    removeTags: async (entity, id, dataJson, tagsJson, deletedTag) => {
+      // Upsert tags row with deleted flag
+    },
+    saveEntity: async (tableName, id, columns, values, updates) => {
+      // Upsert domain table row
+    },
+  },
+});
+```
+
+## Sync vs Async
+
+For SQLite with `better-sqlite3`, use the sync variants:
+
+```ts
+import { createSyncMaterializer, createSyncSqlExecutor } from '@converge/materialize-db';
+
+// Sync executor for better-sqlite3
+const executor = createSyncSqlExecutor({
+  db,
+  dialect: SqliteDialect,
+  tagsTable: 'converge_tags',
+  tableMap: { todos: 'todos' },
+  fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+});
+```
+
+## Domain Table Requirements
+
+Your domain tables must:
+
+1. Have an `id` column (or whatever your schema uses as primary key)
+2. Have columns for each field in `fieldMap`
+3. Already exist (the materializer doesn't create them)
+
+```sql
+CREATE TABLE todos (
+  id TEXT PRIMARY KEY,
+  title TEXT,
+  done INTEGER  -- SQLite doesn't have boolean, use 0/1
+);
+```
+
+## Related
+
+- [db-sqlite](/docs/adapters/db-sqlite) — SQLite database adapter
+- [db-turso](/docs/adapters/db-turso) — Turso database adapter
+- [materialize-drizzle](/docs/adapters/materialize-drizzle) — Type-safe alternative
+- [Core Concepts](/docs/getting-started/concepts) — Understand field-level LWW

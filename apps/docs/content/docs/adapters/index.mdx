@@ -1,0 +1,155 @@
+---
+title: Adapters Overview
+description: Choose the right database adapter and materializer for your use case
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Adapters
+
+Converge uses adapters to integrate with different databases and ORMs. There are two types:
+
+1. **Database Adapters (`db-*`)** — Store the change log and handle append/pull
+2. **Materializers (`materialize-*`)** — Project changes into domain tables
+
+## Decision Tree
+
+### Which Database Adapter?
+
+```
+┌─────────────────────────────────────┐
+│ Are you using Drizzle ORM?          │
+└─────────────┬───────────────────────┘
+              │
+    ┌─────────┴─────────┐
+    │                   │
+   Yes                  No
+    │                   │
+    ▼                   ▼
+┌─────────┐   ┌─────────────────────────┐
+│db-drizzle│   │ What database?          │
+└─────────┘   └───────────┬─────────────┘
+                          │
+        ┌─────────────────┼─────────────────┐
+        │                 │                 │
+     SQLite            Turso         In-memory
+        │                 │              (tests)
+        ▼                 ▼                 ▼
+   ┌─────────┐      ┌─────────┐       ┌─────────┐
+   │db-sqlite │      │db-turso │       │db-memory│
+   └─────────┘      └─────────┘       └─────────┘
+```
+
+### Which Materializer?
+
+```
+┌─────────────────────────────────────┐
+│ Using db-drizzle?                   │
+└─────────────┬───────────────────────┘
+              │
+    ┌─────────┴─────────┐
+    │                   │
+   Yes                  No
+    │                   │
+    ▼                   ▼
+┌──────────────────┐  ┌──────────────┐
+│materialize-drizzle│  │materialize-db│
+└──────────────────┘  └──────────────┘
+```
+
+## Quick Reference
+
+| Adapter | Best For | Sync/Async | Notes |
+|---------|----------|------------|-------|
+| `db-sqlite` | Local servers, Electron, tests | Sync | Uses `better-sqlite3` |
+| `db-turso` | Edge deployments, serverless | Async | Uses `@libsql/client` |
+| `db-drizzle` | Existing Drizzle projects | Both | Database-agnostic |
+| `db-memory` | Unit tests | Sync | No persistence |
+| `materialize-db` | Raw SQL projects | Both | Works with db-sqlite, db-turso |
+| `materialize-drizzle` | Drizzle projects | Both | Type-safe queries |
+
+## Database Adapters
+
+<Cards>
+  <Card 
+    title="db-sqlite" 
+    description="Production-ready SQLite adapter using better-sqlite3"
+    href="/docs/adapters/db-sqlite"
+  />
+  <Card 
+    title="db-turso" 
+    description="Edge-ready adapter for Turso and libSQL"
+    href="/docs/adapters/db-turso"
+  />
+  <Card 
+    title="db-drizzle" 
+    description="Database-agnostic adapter using Drizzle ORM"
+    href="/docs/adapters/db-drizzle"
+  />
+  <Card 
+    title="db-memory" 
+    description="In-memory adapter for testing"
+    href="/docs/adapters/db-memory"
+  />
+</Cards>
+
+## Materializers
+
+<Cards>
+  <Card 
+    title="materialize-db" 
+    description="SQL-based materializer for raw SQL projects"
+    href="/docs/adapters/materialize-db"
+  />
+  <Card 
+    title="materialize-drizzle" 
+    description="Type-safe materializer using Drizzle schemas"
+    href="/docs/adapters/materialize-drizzle"
+  />
+</Cards>
+
+## Pairing Guide
+
+<Callout type="info">
+Not all combinations work. Here are the recommended pairings:
+</Callout>
+
+| Database Adapter | Recommended Materializer |
+|------------------|--------------------------|
+| `db-sqlite` | `materialize-db` |
+| `db-turso` | `materialize-db` |
+| `db-drizzle` | `materialize-drizzle` |
+| `db-memory` | Custom or none |
+
+### Why These Pairings?
+
+- **db-sqlite + materialize-db**: Both use raw SQL, share the same connection
+- **db-turso + materialize-db**: Both use libSQL driver
+- **db-drizzle + materialize-drizzle**: Both use Drizzle's query builder, type-safe
+
+## Atomicity
+
+All adapters guarantee atomicity within `db.append()`:
+
+- Changes are written to the log
+- Materialization happens in the same transaction
+- If anything fails, everything rolls back
+
+<Callout type="warning">
+With `db-drizzle`, set `isSync: true` for synchronous drivers like `better-sqlite3` to ensure proper transaction handling. See the [db-drizzle docs](/docs/adapters/db-drizzle#issync-flag) for details.
+</Callout>
+
+## Custom Adapters
+
+You can implement your own adapters by following the `Db` interface:
+
+```ts
+interface Db<S extends ConvergeSchema> {
+  append(stream: string, changes: Change<S>[]): Promise<{ accepted: number }>;
+  pull(stream: string, cursor: number | null): Promise<{ changes: Change<S>[]; cursor: number }>;
+  close(): void;
+}
+```
+
+See the [Server Reference](/docs/reference/server) for the full interface definition.

@@ -1,13 +1,88 @@
 ---
-title: Hello World
-description: Your first document
+title: Converge
+description: A local-first sync engine with field-level conflict resolution
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+import { Cards, Card } from 'fumadocs-ui/components/card';
 
-## What is Next?
+# Converge
+
+A **local-first sync engine** that treats local storage as the source of truth. Changes replicate via an append-only log, and conflicts resolve deterministically at the field level using hybrid logical clocks.
+
+## Why Converge?
+
+- **Local-first**: Your app works offline. Local writes are instant.
+- **Field-level LWW**: Conflicts resolve per-field, not per-row. No data loss.
+- **Append-only log**: Simple, auditable replication primitive.
+- **Bring your own database**: SQLite, Turso, Drizzle, or write your own adapter.
+- **Framework agnostic**: Works with any UI framework or backend.
+
+## Quick Example
+
+```ts
+import { SqliteDb } from '@converge/db-sqlite';
+import { createMaterializerConfig } from '@converge/materialize-db';
+
+const db = new SqliteDb({
+  filename: './data.db',
+  materializer: ({ db }) => createMaterializerConfig({ db }),
+});
+
+// Append a change
+await db.append('my-stream', [{
+  entity: 'todos',
+  entityId: 'todo-1',
+  kind: 'upsert',
+  patch: { title: 'Buy milk', done: false },
+  tags: { title: hlc(), done: hlc() },
+  hlc: hlc(),
+}]);
+```
+
+## Get Started
 
 <Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
+  <Card 
+    title="Installation" 
+    description="Install Converge and set up your first project"
+    href="/docs/getting-started"
+  />
+  <Card 
+    title="Quick Start" 
+    description="Build a sync-enabled app in 5 minutes"
+    href="/docs/getting-started/quick-start"
+  />
+  <Card 
+    title="Core Concepts" 
+    description="Understand HLCs, changes, streams, and materialization"
+    href="/docs/getting-started/concepts"
+  />
 </Cards>
+
+## Choose Your Path
+
+<Cards>
+  <Card 
+    title="Adapters" 
+    description="Pick the right database and materializer for your use case"
+    href="/docs/adapters"
+  />
+  <Card 
+    title="API Reference" 
+    description="Full API documentation for all packages"
+    href="/docs/reference"
+  />
+</Cards>
+
+## Packages
+
+| Package | Description |
+|---------|-------------|
+| `@converge/core` | HLC, Change types, pure merge logic |
+| `@converge/server` | Db interface, append/pull contracts |
+| `@converge/client` | Client-side sync orchestration |
+| `@converge/db-sqlite` | SQLite database adapter |
+| `@converge/db-turso` | Turso (libSQL) database adapter |
+| `@converge/db-drizzle` | Drizzle ORM database adapter |
+| `@converge/materialize-db` | SQL-based state materializer |
+| `@converge/materialize-drizzle` | Drizzle-based state materializer |

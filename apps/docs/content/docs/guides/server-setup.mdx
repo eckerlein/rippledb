@@ -1,0 +1,363 @@
+---
+title: Server Setup
+description: Build a production-ready Converge server
+---
+
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Server Setup
+
+This guide walks through setting up a Converge server with HTTP endpoints for sync.
+
+## What You'll Build
+
+- A Node.js server with `/pull` and `/append` endpoints
+- SQLite database with materialization
+- Ready for client sync
+
+<Steps>
+
+<Step>
+### Install Dependencies
+
+<Tabs items={['SQLite', 'Turso', 'Drizzle']}>
+  <Tab value="SQLite">
+```bash
+npm install @converge/core @converge/db-sqlite @converge/materialize-db better-sqlite3 express
+npm install -D typescript @types/better-sqlite3 @types/express tsx
+```
+  </Tab>
+  <Tab value="Turso">
+```bash
+npm install @converge/core @converge/db-turso @converge/materialize-db @libsql/client express
+npm install -D typescript @types/express tsx
+```
+  </Tab>
+  <Tab value="Drizzle">
+```bash
+npm install @converge/core @converge/db-drizzle @converge/materialize-drizzle drizzle-orm better-sqlite3 express
+npm install -D typescript @types/better-sqlite3 @types/express tsx
+```
+  </Tab>
+</Tabs>
+</Step>
+
+<Step>
+### Define Your Schema
+
+```ts title="src/schema.ts"
+export type AppSchema = {
+  todos: {
+    id: string;
+    title: string;
+    done: boolean;
+    createdAt: string;
+  };
+  users: {
+    id: string;
+    name: string;
+    email: string;
+  };
+};
+```
+</Step>
+
+<Step>
+### Set Up HLC Generator
+
+```ts title="src/hlc.ts"
+import { createHlcState, tickHlc } from '@converge/core';
+import { randomUUID } from 'crypto';
+
+const nodeId = process.env.NODE_ID ?? `server-${randomUUID().slice(0, 8)}`;
+const hlcState = createHlcState(nodeId);
+
+export function hlc() {
+  return tickHlc(hlcState, Date.now());
+}
+```
+
+<Callout type="warning">
+In a distributed setup, each server instance needs a unique `NODE_ID`.
+</Callout>
+</Step>
+
+<Step>
+### Configure the Database
+
+<Tabs items={['SQLite', 'Turso', 'Drizzle']}>
+  <Tab value="SQLite">
+```ts title="src/db.ts"
+import { SqliteDb } from '@converge/db-sqlite';
+import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+import type { AppSchema } from './schema';
+
+// Create domain tables
+const db = new SqliteDb<AppSchema>({
+  filename: process.env.DB_PATH ?? './data.db',
+  materializer: ({ db }) => {
+    // Create domain tables if they don't exist
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS todos (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        done INTEGER,
+        createdAt TEXT
+      );
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        email TEXT
+      );
+    `);
+
+    return createMaterializerConfig({
+      db,
+      dialect: SqliteDialect,
+      tableMap: {
+        todos: 'todos',
+        users: 'users',
+      },
+      fieldMap: {
+        todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' },
+        users: { id: 'id', name: 'name', email: 'email' },
+      },
+    });
+  },
+});
+
+export { db };
+```
+  </Tab>
+  <Tab value="Turso">
+```ts title="src/db.ts"
+import { TursoDb } from '@converge/db-turso';
+import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+import type { AppSchema } from './schema';
+
+const db = new TursoDb<AppSchema>({
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN!,
+  materializer: ({ db }) => createMaterializerConfig({
+    db,
+    dialect: SqliteDialect,
+    tableMap: {
+      todos: 'todos',
+      users: 'users',
+    },
+    fieldMap: {
+      todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' },
+      users: { id: 'id', name: 'name', email: 'email' },
+    },
+  }),
+});
+
+export { db };
+```
+  </Tab>
+  <Tab value="Drizzle">
+```ts title="src/db.ts"
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { getTableConfig } from 'drizzle-orm/sqlite-core';
+import { DrizzleDb } from '@converge/db-drizzle';
+import { createDrizzleMaterializerConfig } from '@converge/materialize-drizzle';
+import type { AppSchema } from './schema';
+
+// Drizzle table definitions
+export const todosTable = sqliteTable('todos', {
+  id: text('id').primaryKey(),
+  title: text('title'),
+  done: integer('done'),
+  createdAt: text('createdAt'),
+});
+
+const changesTable = sqliteTable('converge_changes', {
+  seq: integer('seq').primaryKey({ autoIncrement: true }),
+  stream: text('stream').notNull(),
+  change_json: text('change_json').notNull(),
+});
+
+const idempotencyTable = sqliteTable('converge_idempotency', {
+  stream: text('stream').notNull(),
+  idempotency_key: text('idempotency_key').notNull(),
+  last_seq: integer('last_seq').notNull(),
+});
+
+const tagsTable = sqliteTable('converge_tags', {
+  entity: text('entity').notNull(),
+  id: text('id').notNull(),
+  data: text('data').notNull(),
+  tags: text('tags').notNull(),
+  deleted: integer('deleted').notNull().default(0),
+  deleted_tag: text('deleted_tag'),
+});
+
+// Initialize SQLite
+const sqlite = new Database(process.env.DB_PATH ?? './data.db');
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS converge_changes (...);
+  CREATE TABLE IF NOT EXISTS converge_idempotency (...);
+  CREATE TABLE IF NOT EXISTS converge_tags (...);
+  CREATE TABLE IF NOT EXISTS todos (...);
+`);
+
+const drizzleDb = drizzle(sqlite);
+
+const db = new DrizzleDb<AppSchema, typeof drizzleDb>({
+  db: drizzleDb,
+  changesTable,
+  idempotencyTable,
+  getTableConfig,
+  isSync: true,
+  materializer: () => createDrizzleMaterializerConfig(drizzleDb, {
+    tableMap: { todos: todosTable },
+    tagsTableDef: tagsTable,
+    getTableConfig,
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' } },
+  }),
+});
+
+export { db, drizzleDb, todosTable };
+```
+  </Tab>
+</Tabs>
+</Step>
+
+<Step>
+### Create HTTP Server
+
+```ts title="src/server.ts"
+import express from 'express';
+import { db } from './db';
+
+const app = express();
+app.use(express.json());
+
+// Pull endpoint
+app.post('/pull', async (req, res) => {
+  try {
+    const { stream, cursor, limit } = req.body;
+    const result = await db.pull({ stream, cursor, limit });
+    res.json(result);
+  } catch (error) {
+    console.error('Pull error:', error);
+    res.status(500).json({ error: 'Pull failed' });
+  }
+});
+
+// Append endpoint
+app.post('/append', async (req, res) => {
+  try {
+    const { stream, idempotencyKey, changes } = req.body;
+    const result = await db.append({ stream, idempotencyKey, changes });
+    res.json(result);
+  } catch (error) {
+    console.error('Append error:', error);
+    res.status(500).json({ error: 'Append failed' });
+  }
+});
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+const PORT = process.env.PORT ?? 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+```
+</Step>
+
+<Step>
+### Run the Server
+
+```bash
+npx tsx src/server.ts
+```
+</Step>
+
+</Steps>
+
+## Testing the Server
+
+```bash
+# Append a change
+curl -X POST http://localhost:3000/append \
+  -H "Content-Type: application/json" \
+  -d '{
+    "stream": "user-123",
+    "changes": [{
+      "stream": "user-123",
+      "entity": "todos",
+      "entityId": "todo-1",
+      "kind": "upsert",
+      "patch": { "id": "todo-1", "title": "Test", "done": false },
+      "tags": { "id": "1000:0:test", "title": "1000:0:test", "done": "1000:0:test" },
+      "hlc": "1000:0:test"
+    }]
+  }'
+
+# Pull changes
+curl -X POST http://localhost:3000/pull \
+  -H "Content-Type: application/json" \
+  -d '{ "stream": "user-123", "cursor": null }'
+```
+
+## Production Considerations
+
+### Authentication
+
+Add authentication middleware:
+
+```ts
+import jwt from 'jsonwebtoken';
+
+app.use((req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET!);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+```
+
+### Stream Authorization
+
+Ensure users can only access their own streams:
+
+```ts
+app.post('/pull', async (req, res) => {
+  const { stream } = req.body;
+  
+  // Check stream belongs to user
+  if (!stream.startsWith(`user-${req.user.id}`)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  
+  // ... pull logic
+});
+```
+
+### Error Handling
+
+```ts
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Internal server error' });
+});
+```
+
+## Next Steps
+
+- [Client Sync](/docs/guides/client-sync) — Connect clients to your server
+- [Materialization](/docs/guides/materialization) — Optimize query performance
+- [Adapters](/docs/adapters) — Explore database options

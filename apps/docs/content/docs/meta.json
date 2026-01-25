@@ -1,8 +1,16 @@
 {
-  "title": "Converge Docs",
+  "title": "Converge",
   "root": true,
   "pages": [
     "index",
+    "---Getting Started---",
+    "getting-started",
+    "---Guides---",
+    "guides",
+    "---Adapters---",
+    "adapters",
+    "---Reference---",
+    "reference",
     "---Internal---",
     "internal"
   ]

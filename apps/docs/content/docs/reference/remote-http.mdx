@@ -1,0 +1,203 @@
+---
+title: "@converge/remote-http"
+description: HTTP transport for client-server sync
+---
+
+# @converge/remote-http
+
+HTTP transport implementation of the `Remote` interface. Connects clients to Converge servers over HTTP.
+
+## Installation
+
+```bash
+pnpm add @converge/remote-http
+```
+
+## Usage
+
+```ts
+import { createHttpRemote } from '@converge/remote-http';
+import { createReplicator } from '@converge/client';
+
+const remote = createHttpRemote<MySchema>({
+  baseUrl: 'https://api.example.com',
+});
+
+// Use with replicator
+const replicator = createReplicator({
+  stream: 'user-123',
+  store,
+  remote,
+});
+
+await replicator.sync();
+```
+
+## createHttpRemote
+
+```ts
+function createHttpRemote<S extends ConvergeSchema>(
+  opts: HttpRemoteOptions
+): Remote<S>
+```
+
+**Options:**
+
+```ts
+type HttpRemoteOptions = {
+  baseUrl: string;
+  fetch?: typeof fetch;
+  headers?: Record<string, string>;
+};
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `baseUrl` | `string` | Server URL (trailing slash removed automatically) |
+| `fetch` | `typeof fetch?` | Custom fetch implementation (default: global `fetch`) |
+| `headers` | `Record<string, string>?` | Additional headers for all requests |
+
+## Endpoints
+
+The HTTP remote expects two endpoints:
+
+### POST `/pull`
+
+Pull changes from the server.
+
+**Request:**
+
+```json
+{
+  "stream": "user-123",
+  "cursor": "42",
+  "limit": 100
+}
+```
+
+**Response:**
+
+```json
+{
+  "changes": [
+    {
+      "stream": "user-123",
+      "entity": "todos",
+      "entityId": "todo-1",
+      "kind": "upsert",
+      "patch": { "title": "Buy milk" },
+      "tags": { "title": "1706123456789:0:server-1" },
+      "hlc": "1706123456789:0:server-1"
+    }
+  ],
+  "nextCursor": "43"
+}
+```
+
+### POST `/append`
+
+Append changes to the server.
+
+**Request:**
+
+```json
+{
+  "stream": "user-123",
+  "idempotencyKey": "req-abc",
+  "changes": [
+    {
+      "stream": "user-123",
+      "entity": "todos",
+      "entityId": "todo-1",
+      "kind": "upsert",
+      "patch": { "title": "Buy milk" },
+      "tags": { "title": "1706123456789:0:client-1" },
+      "hlc": "1706123456789:0:client-1"
+    }
+  ]
+}
+```
+
+**Response:**
+
+```json
+{
+  "accepted": 1
+}
+```
+
+## Server Implementation
+
+Here's a minimal Express server that works with the HTTP remote:
+
+```ts
+import express from 'express';
+import { SqliteDb } from '@converge/db-sqlite';
+
+const app = express();
+app.use(express.json());
+
+const db = new SqliteDb<MySchema>({ filename: './data.db' });
+
+app.post('/pull', async (req, res) => {
+  const { stream, cursor, limit } = req.body;
+  const result = await db.pull({ stream, cursor, limit });
+  res.json(result);
+});
+
+app.post('/append', async (req, res) => {
+  const { stream, idempotencyKey, changes } = req.body;
+  const result = await db.append({ stream, idempotencyKey, changes });
+  res.json(result);
+});
+
+app.listen(3000);
+```
+
+## Authentication
+
+Add authentication headers:
+
+```ts
+const remote = createHttpRemote({
+  baseUrl: 'https://api.example.com',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+  },
+});
+```
+
+## Custom Fetch
+
+Use a custom fetch implementation (useful for testing or React Native):
+
+```ts
+import nodeFetch from 'node-fetch';
+
+const remote = createHttpRemote({
+  baseUrl: 'https://api.example.com',
+  fetch: nodeFetch as unknown as typeof fetch,
+});
+```
+
+## Error Handling
+
+The remote throws on non-2xx responses:
+
+```ts
+try {
+  await remote.pull({ stream: 'user-123', cursor: null });
+} catch (error) {
+  // error.message: "remote.pull failed: 401"
+}
+```
+
+## Content Type
+
+All requests use `Content-Type: application/json`.
+
+## Related
+
+- [Client Reference](/docs/reference/client) — Replicator and Store
+- [Server Reference](/docs/reference/server) — Db interface
+- [Guides: Client Sync](/docs/guides/client-sync) — Full sync setup guide

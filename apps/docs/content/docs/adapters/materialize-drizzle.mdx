@@ -1,0 +1,294 @@
+---
+title: materialize-drizzle
+description: Type-safe materializer using Drizzle ORM schemas
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# @converge/materialize-drizzle
+
+A type-safe materializer that uses [Drizzle ORM](https://orm.drizzle.team/) table definitions. No raw SQL needed.
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @converge/materialize-drizzle drizzle-orm
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @converge/materialize-drizzle drizzle-orm
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @converge/materialize-drizzle drizzle-orm
+```
+  </Tab>
+</Tabs>
+
+## Why Use This?
+
+| Feature | materialize-db | materialize-drizzle |
+|---------|---------------|---------------------|
+| Type safety | No | Yes |
+| Raw SQL | Yes | No |
+| Drizzle integration | Manual | Native |
+| Multi-database | Via dialects | Via Drizzle |
+
+## Basic Usage (SQLite)
+
+```ts
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { getTableConfig } from 'drizzle-orm/sqlite-core';
+import { SqliteDb } from '@converge/db-sqlite';
+import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+
+// Define your domain table
+const todosTable = sqliteTable('todos', {
+  id: text('id').primaryKey(),
+  title: text('title'),
+  done: integer('done'),
+});
+
+// Define the tags table (required)
+const tagsTable = sqliteTable('converge_tags', {
+  entity: text('entity').notNull(),
+  id: text('id').notNull(),
+  data: text('data').notNull(),
+  tags: text('tags').notNull(),
+  deleted: integer('deleted').notNull().default(0),
+  deleted_tag: text('deleted_tag'),
+});
+
+const db = new SqliteDb<MySchema>({
+  filename: './data.db',
+  materializer: ({ db }) => {
+    const drizzleDb = drizzle(db);
+    return createDrizzleSyncMaterializerConfig(drizzleDb, {
+      tableMap: { todos: todosTable },
+      tagsTableDef: tagsTable,
+      getTableConfig,
+    });
+  },
+});
+```
+
+## Sync vs Async
+
+Use the right function based on your database driver:
+
+| Driver | Function |
+|--------|----------|
+| `better-sqlite3` | `createDrizzleSyncMaterializerConfig` |
+| `pg`, `mysql2`, `@libsql/client` | `createDrizzleMaterializerConfig` |
+
+```ts
+// Synchronous (SQLite with better-sqlite3)
+import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+
+// Asynchronous (PostgreSQL, MySQL, Turso)
+import { createDrizzleMaterializerConfig } from '@converge/materialize-drizzle';
+```
+
+## Configuration
+
+### `tableMap`
+
+Maps entity names to Drizzle table definitions.
+
+```ts
+createDrizzleSyncMaterializerConfig(drizzleDb, {
+  tableMap: {
+    todos: todosTable,
+    users: usersTable,
+  },
+  // ...
+});
+```
+
+### `tagsTableDef`
+
+Drizzle table definition for the tags table. Required columns:
+
+- `entity` (text, not null)
+- `id` (text, not null)
+- `data` (text, not null)
+- `tags` (text, not null)
+- `deleted` (integer, not null, default 0)
+- `deleted_tag` (text, nullable)
+
+Primary key: `(entity, id)`
+
+### `getTableConfig`
+
+Import from your Drizzle dialect:
+
+```ts
+import { getTableConfig } from 'drizzle-orm/sqlite-core';
+import { getTableConfig } from 'drizzle-orm/pg-core';
+import { getTableConfig } from 'drizzle-orm/mysql-core';
+```
+
+### `fieldMap`
+
+Optional mapping from schema fields to column names. If omitted, field names are used as-is.
+
+```ts
+createDrizzleSyncMaterializerConfig(drizzleDb, {
+  // ...
+  fieldMap: {
+    todos: {
+      id: 'id',
+      title: 'title',
+      done: 'done',
+    },
+  },
+});
+```
+
+<Callout type="info">
+Without `fieldMap`, only the `converge_tags` table is updated. Add `fieldMap` to also write to domain tables.
+</Callout>
+
+### `normalizeValue`
+
+Transform values before writing to the database. Useful for SQLite boolean conversion:
+
+```ts
+createDrizzleSyncMaterializerConfig(drizzleDb, {
+  // ...
+  normalizeValue: (value, { tableName, columnName }) => {
+    // Convert booleans to integers for SQLite
+    if (typeof value === 'boolean') {
+      return value ? 1 : 0;
+    }
+    return value;
+  },
+});
+```
+
+### `ensureTagsTable`
+
+Hook to create the tags table if it doesn't exist:
+
+```ts
+createDrizzleSyncMaterializerConfig(drizzleDb, {
+  // ...
+  ensureTagsTable: () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS converge_tags (
+        entity TEXT NOT NULL,
+        id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        tags TEXT NOT NULL,
+        deleted INTEGER NOT NULL DEFAULT 0,
+        deleted_tag TEXT,
+        PRIMARY KEY (entity, id)
+      )
+    `);
+  },
+});
+```
+
+## Full Example (PostgreSQL)
+
+```ts
+import { Client } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { pgTable, text, integer, primaryKey } from 'drizzle-orm/pg-core';
+import { getTableConfig } from 'drizzle-orm/pg-core';
+import { createDrizzleMaterializerConfig } from '@converge/materialize-drizzle';
+
+const todosTable = pgTable('todos', {
+  id: text('id').primaryKey(),
+  title: text('title'),
+  done: integer('done'),
+});
+
+const tagsTable = pgTable('converge_tags', {
+  entity: text('entity').notNull(),
+  id: text('id').notNull(),
+  data: text('data').notNull(),
+  tags: text('tags').notNull(),
+  deleted: integer('deleted').notNull().default(0),
+  deleted_tag: text('deleted_tag'),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.entity, t.id] }),
+}));
+
+const client = new Client({ connectionString: process.env.DATABASE_URL });
+await client.connect();
+const drizzleDb = drizzle(client);
+
+// Use with db-drizzle
+const convergeDb = new DrizzleDb({
+  db: drizzleDb,
+  changesTable,
+  idempotencyTable,
+  getTableConfig,
+  materializer: () => createDrizzleMaterializerConfig(drizzleDb, {
+    tableMap: { todos: todosTable },
+    tagsTableDef: tagsTable,
+    getTableConfig,
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+  }),
+});
+```
+
+## Using with db-sqlite
+
+When using `db-sqlite`, you must use the sync version:
+
+```ts
+import { SqliteDb } from '@converge/db-sqlite';
+import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+
+const db = new SqliteDb<MySchema>({
+  filename: './data.db',
+  materializer: ({ db }) => {
+    const drizzleDb = drizzle(db);
+    return createDrizzleSyncMaterializerConfig(drizzleDb, {
+      tableMap: { todos: todosTable },
+      tagsTableDef: tagsTable,
+      getTableConfig,
+      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    });
+  },
+});
+```
+
+## Using with db-drizzle
+
+For the most integrated experience, use both `db-drizzle` and `materialize-drizzle`:
+
+```ts
+import { DrizzleDb } from '@converge/db-drizzle';
+import { createDrizzleMaterializerConfig } from '@converge/materialize-drizzle';
+
+const db = new DrizzleDb<MySchema, typeof drizzleDb>({
+  db: drizzleDb,
+  changesTable,
+  idempotencyTable,
+  getTableConfig,
+  isSync: true,
+  materializer: () => createDrizzleMaterializerConfig(drizzleDb, {
+    tableMap: { todos: todosTable },
+    tagsTableDef: tagsTable,
+    getTableConfig,
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+  }),
+});
+```
+
+## Related
+
+- [db-drizzle](/docs/adapters/db-drizzle) — Drizzle database adapter
+- [db-sqlite](/docs/adapters/db-sqlite) — SQLite database adapter
+- [materialize-db](/docs/adapters/materialize-db) — SQL-based alternative
+- [Core Concepts](/docs/getting-started/concepts) — Understand field-level LWW

@@ -1,0 +1,234 @@
+---
+title: db-sqlite
+description: SQLite database adapter using better-sqlite3
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# @converge/db-sqlite
+
+A production-ready SQLite adapter for Converge using [better-sqlite3](https://github.com/WiseLibs/better-sqlite3).
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @converge/db-sqlite better-sqlite3
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @converge/db-sqlite better-sqlite3
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @converge/db-sqlite better-sqlite3
+```
+  </Tab>
+</Tabs>
+
+## Basic Usage
+
+```ts
+import { SqliteDb } from '@converge/db-sqlite';
+
+const db = new SqliteDb({
+  filename: './data.db',
+});
+
+// Append changes
+await db.append({
+  stream: 'user-123',
+  changes: [/* ... */],
+});
+
+// Pull changes
+const { changes, nextCursor } = await db.pull({
+  stream: 'user-123',
+  cursor: null,
+});
+
+// Close when done
+db.close();
+```
+
+## With Materialization
+
+To project changes into domain tables, add a materializer:
+
+```ts
+import { SqliteDb } from '@converge/db-sqlite';
+import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+
+const db = new SqliteDb<MySchema>({
+  filename: './data.db',
+  materializer: ({ db }) =>
+    createMaterializerConfig({
+      db,
+      dialect: SqliteDialect,
+      tableMap: { todos: 'todos' },
+      fieldMap: {
+        todos: { id: 'id', title: 'title', done: 'done' },
+      },
+    }),
+});
+```
+
+See [materialize-db](/docs/adapters/materialize-db) for full configuration options.
+
+## Options
+
+### `filename`
+
+Path to the SQLite database file. Use `:memory:` for an in-memory database.
+
+```ts
+new SqliteDb({ filename: './data.db' });
+new SqliteDb({ filename: ':memory:' });
+```
+
+### `db`
+
+Alternatively, pass an existing `better-sqlite3` database instance:
+
+```ts
+import Database from 'better-sqlite3';
+
+const sqlite = new Database('./data.db');
+const db = new SqliteDb({ db: sqlite });
+```
+
+<Callout type="info">
+When using `db`, Converge will **not** close the connection when you call `db.close()`. You're responsible for managing the connection lifecycle.
+</Callout>
+
+### `pragmas`
+
+SQLite pragmas to apply when creating the database. Only used with `filename`.
+
+```ts
+new SqliteDb({
+  filename: './data.db',
+  pragmas: [
+    'journal_mode = WAL',
+    'synchronous = NORMAL',
+    'cache_size = -64000',
+  ],
+});
+```
+
+Default: `['journal_mode = WAL']`
+
+### `materializer`
+
+Factory function that returns a materializer configuration. Called with `{ db }` containing the SQLite database instance.
+
+```ts
+new SqliteDb({
+  filename: './data.db',
+  materializer: ({ db }) => ({
+    tableMap: { todos: 'todos' },
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    executor: createSyncSqlExecutor(/* ... */),
+  }),
+});
+```
+
+## Internal Tables
+
+SqliteDb automatically creates these tables:
+
+```sql
+-- Change log
+CREATE TABLE converge_changes (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  stream TEXT NOT NULL,
+  change_json TEXT NOT NULL
+);
+
+-- Idempotency tracking
+CREATE TABLE converge_idempotency (
+  stream TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL,
+  last_seq INTEGER NOT NULL,
+  PRIMARY KEY (stream, idempotency_key)
+);
+```
+
+## Using with Drizzle
+
+You can use `db-sqlite` with Drizzle for your domain queries while Converge manages the sync:
+
+```ts
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { SqliteDb } from '@converge/db-sqlite';
+import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+
+// Create the underlying SQLite connection
+const sqlite = new Database('./data.db');
+
+// Create tables
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER);
+  CREATE TABLE IF NOT EXISTS converge_tags (...);
+`);
+
+// Use Drizzle for queries
+const drizzleDb = drizzle(sqlite);
+
+// Use SqliteDb for Converge sync
+const convergeDb = new SqliteDb<MySchema>({
+  db: sqlite,  // Share the connection
+  materializer: ({ db }) =>
+    createDrizzleSyncMaterializerConfig(drizzleDb, {
+      tableMap: { todos: todosTable },
+      tagsTableDef: tagsTable,
+      // ...
+    }),
+});
+
+// Now you can use drizzleDb for queries and convergeDb for sync
+const todos = drizzleDb.select().from(todosTable).all();
+```
+
+## Performance Tips
+
+1. **Enable WAL mode** (default): Improves concurrent read performance
+2. **Use prepared statements**: SqliteDb pre-prepares all statements
+3. **Batch changes**: Append multiple changes in one call to reduce transaction overhead
+
+## Type Safety
+
+SqliteDb is generic over your schema:
+
+```ts
+type MySchema = {
+  todos: { id: string; title: string; done: boolean };
+  users: { id: string; name: string };
+};
+
+const db = new SqliteDb<MySchema>({ filename: './data.db' });
+
+// Changes are typed
+await db.append({
+  stream: 'user-123',
+  changes: [{
+    entity: 'todos',  // Must be 'todos' | 'users'
+    entityId: 'todo-1',
+    kind: 'upsert',
+    patch: { title: 'Buy milk' },  // Typed based on entity
+    tags: { title: hlc() },
+    hlc: hlc(),
+  }],
+});
+```
+
+## Related
+
+- [materialize-db](/docs/adapters/materialize-db) — SQL-based materializer
+- [materialize-drizzle](/docs/adapters/materialize-drizzle) — Drizzle-based materializer
+- [Server Reference](/docs/reference/server) — Full Db interface

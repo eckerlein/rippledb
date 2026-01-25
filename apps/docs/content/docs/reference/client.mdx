@@ -1,0 +1,261 @@
+---
+title: "@converge/client"
+description: Client-side sync orchestration and Store interface
+---
+
+# @converge/client
+
+Client-side sync orchestration including the Store interface, outbox, and replicator.
+
+## Installation
+
+```bash
+pnpm add @converge/client
+```
+
+## Store Interface
+
+The contract for client-side local storage:
+
+```ts
+interface Store<S extends ConvergeSchema, ListQuery = unknown> {
+  applyChanges(changes: Change<S>[]): Promise<void>;
+  getRow<E extends EntityName<S>>(entity: E, id: string): Promise<S[E] | null>;
+  listRows(query: ListQuery): Promise<Array<S[EntityName<S>]>>;
+  onEvent?(cb: (event: DbEvent<S>) => void): () => void;
+}
+```
+
+### `applyChanges(changes: Change<S>[]): Promise<void>`
+
+Apply changes to local storage transactionally.
+
+```ts
+await store.applyChanges([
+  makeUpsert({ ... }),
+  makeDelete({ ... }),
+]);
+```
+
+### `getRow<E>(entity: E, id: string): Promise<S[E] | null>`
+
+Fetch a single entity by primary key.
+
+```ts
+const todo = await store.getRow('todos', 'todo-1');
+```
+
+### `listRows(query: ListQuery): Promise<Array<...>>`
+
+Run an arbitrary query. Shape is store-specific.
+
+```ts
+// Example with SQL store
+const todos = await store.listRows('SELECT * FROM todos WHERE done = 0');
+```
+
+### `onEvent?(cb: (event: DbEvent<S>) => void): () => void`
+
+Subscribe to write events. Used for UI invalidation.
+
+```ts
+const unsubscribe = store.onEvent?.((event) => {
+  console.log(event.entity, event.kind, event.id);
+  // Invalidate UI caches
+});
+```
+
+## DbEvent
+
+```ts
+type DbEventKind = 'insert' | 'update' | 'delete';
+
+type DbEvent<S extends ConvergeSchema, E extends EntityName<S>> = {
+  entity: E;
+  kind: DbEventKind;
+  id?: string;
+};
+```
+
+## Remote Interface
+
+The contract for server communication:
+
+```ts
+type Remote<S extends ConvergeSchema> = {
+  pull(req: {
+    stream: string;
+    cursor: string | null;
+    limit?: number;
+  }): Promise<{
+    changes: Change<S>[];
+    nextCursor: string | null;
+  }>;
+
+  append(req: {
+    stream: string;
+    idempotencyKey?: string;
+    changes: Change<S>[];
+  }): Promise<{ accepted: number }>;
+};
+```
+
+Use `@converge/remote-http` for the HTTP implementation.
+
+## Outbox
+
+Buffer for local changes waiting to be pushed:
+
+```ts
+interface Outbox<S extends ConvergeSchema> {
+  push(entry: OutboxEntry<S>): void;
+  drain(stream: string): OutboxEntry<S>[];
+  size(stream?: string): number;
+}
+
+type OutboxEntry<S extends ConvergeSchema> = {
+  stream: string;
+  change: Change<S>;
+};
+```
+
+### InMemoryOutbox
+
+Built-in in-memory implementation:
+
+```ts
+import { InMemoryOutbox } from '@converge/client';
+
+const outbox = new InMemoryOutbox<MySchema>();
+
+// Add a local change
+outbox.push({
+  stream: 'user-123',
+  change: makeUpsert({ ... }),
+});
+
+// Get pending changes for a stream
+const pending = outbox.drain('user-123');
+```
+
+## syncOnce
+
+Single sync cycle: pull → apply → push.
+
+```ts
+import { syncOnce } from '@converge/client';
+
+const result = await syncOnce({
+  stream: 'user-123',
+  store,
+  remote,
+  cursor: lastCursor,
+  outbox,
+  limit: 100,
+  idempotencyKey: 'sync-abc',
+});
+
+console.log(result.pulled);     // Changes pulled from server
+console.log(result.pushed);     // Changes pushed to server
+console.log(result.nextCursor); // Save for next sync
+```
+
+**Options:**
+
+```ts
+type SyncOnceOptions<S extends ConvergeSchema> = {
+  stream: string;
+  store: Store<S>;
+  remote: Remote<S>;
+  cursor: string | null;
+  outbox: Outbox<S>;
+  limit?: number;
+  idempotencyKey?: string;
+};
+```
+
+**Result:**
+
+```ts
+type SyncOnceResult = {
+  nextCursor: string | null;
+  pulled: number;
+  pushed: number;
+};
+```
+
+## Replicator
+
+Convenience wrapper managing cursor and outbox:
+
+```ts
+import { createReplicator } from '@converge/client';
+
+const replicator = createReplicator({
+  stream: 'user-123',
+  store,
+  remote,
+  cursor: null,
+});
+
+// Local write
+await replicator.pushLocal(makeUpsert({ ... }));
+
+// Sync with server
+const result = await replicator.sync();
+
+// Get current cursor
+const cursor = replicator.getCursor();
+```
+
+**Interface:**
+
+```ts
+type Replicator<S extends ConvergeSchema> = {
+  pushLocal(change: Change<S>): Promise<void>;
+  sync(): Promise<SyncOnceResult>;
+  getCursor(): string | null;
+};
+```
+
+**Options:**
+
+```ts
+type ReplicatorOptions<S extends ConvergeSchema> = {
+  stream: string;
+  store: Store<S>;
+  remote: Remote<S>;
+  outbox?: Outbox<S>;  // Default: InMemoryOutbox
+  cursor?: string | null;
+  limit?: number;
+  idempotencyKey?: string;
+};
+```
+
+## Sync Flow
+
+The canonical sync order is **Pull → Apply → Push**:
+
+```
+┌─────────┐    pull     ┌─────────┐
+│ Server  │────────────▶│ Client  │
+└─────────┘             └────┬────┘
+                             │
+                        apply changes
+                             │
+                             ▼
+┌─────────┐    push     ┌─────────┐
+│ Server  │◀────────────│ Outbox  │
+└─────────┘             └─────────┘
+```
+
+This ensures:
+1. Remote truth is incorporated first
+2. Local changes are reapplied
+3. Conflicts resolve deterministically
+
+## Related
+
+- [Remote HTTP](/docs/reference/remote-http) — HTTP transport
+- [Core Reference](/docs/reference/core) — Change types
+- [Server Reference](/docs/reference/server) — Db interface

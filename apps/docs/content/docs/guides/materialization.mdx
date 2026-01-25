@@ -1,0 +1,248 @@
+---
+title: Materialization
+description: Project changes into queryable domain tables
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Materialization
+
+Materialization projects your change log into domain tables for fast queries.
+
+<Callout type="info">
+This guide covers **server-side** materialization. On the client, the `Store` interface 
+handles applying changes to local state. See [Client Sync](/docs/guides/client-sync) for client patterns.
+</Callout>
+
+## Why Materialize?
+
+Without materialization, reading current state requires replaying all changes:
+
+```ts
+// Slow: scan entire change log
+const changes = await db.pull({ stream, cursor: null });
+const currentState = changes.reduce((acc, change) => {
+  // Apply each change with LWW...
+}, {});
+```
+
+With materialization, queries are instant:
+
+```sql
+-- Fast: direct table lookup
+SELECT * FROM todos WHERE id = 'todo-1';
+```
+
+## How It Works
+
+```
+┌──────────────┐
+│  db.append() │
+└──────┬───────┘
+       │
+       ▼
+┌───────────────────────────┐
+│  1. Load existing tags    │  ◀── converge_tags table
+└───────────────────────────┘
+       │
+       ▼
+┌───────────────────────────┐
+│  2. Apply field-level LWW │
+│  (compare HLC timestamps) │
+└───────────────────────────┘
+       │
+       ▼
+┌───────────────────────────┐
+│  3. Update domain table   │  ──▶ todos table
+└───────────────────────────┘
+       │
+       ▼
+┌───────────────────────────┐
+│  4. Update tags table     │  ──▶ converge_tags table
+└───────────────────────────┘
+```
+
+## Configuration
+
+### tableMap
+
+Maps entity names to database tables:
+
+```ts
+{
+  tableMap: {
+    todos: 'todos',        // Entity 'todos' → table 'todos'
+    users: 'app_users',    // Entity 'users' → table 'app_users'
+  }
+}
+```
+
+### fieldMap
+
+Maps schema fields to database columns:
+
+```ts
+{
+  fieldMap: {
+    todos: {
+      id: 'id',
+      title: 'title',
+      done: 'is_completed',  // Schema 'done' → column 'is_completed'
+    }
+  }
+}
+```
+
+<Callout type="info">
+**Without fieldMap**, only the `converge_tags` table is updated. The domain table is unchanged.
+
+**With fieldMap**, both `converge_tags` and the domain table are updated.
+</Callout>
+
+## Field-Level LWW in Action
+
+When a change arrives, each field is compared independently:
+
+```ts
+// Incoming change
+{
+  entity: 'todos',
+  entityId: 'todo-1',
+  patch: { title: 'New Title', done: true },
+  tags: { title: '1001:0:client-A', done: '1002:0:client-B' }
+}
+
+// Existing state (from converge_tags)
+{
+  values: { title: 'Old Title', done: false },
+  tags: { title: '1000:0:server', done: '1003:0:client-C' }
+}
+
+// Result after LWW:
+// - title: '1001:0:client-A' > '1000:0:server' → accept 'New Title'
+// - done: '1002:0:client-B' < '1003:0:client-C' → keep false
+
+// Final state
+{
+  values: { title: 'New Title', done: false },
+  tags: { title: '1001:0:client-A', done: '1003:0:client-C' }
+}
+```
+
+## Choosing a Materializer
+
+| If you use... | Materializer |
+|--------------|--------------|
+| `db-sqlite` | `materialize-db` |
+| `db-turso` | `materialize-db` |
+| `db-drizzle` | `materialize-drizzle` |
+
+### materialize-db Example
+
+```ts
+import { SqliteDb } from '@converge/db-sqlite';
+import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+
+const db = new SqliteDb<MySchema>({
+  filename: './data.db',
+  materializer: ({ db }) => createMaterializerConfig({
+    db,
+    dialect: SqliteDialect,
+    tableMap: { todos: 'todos' },
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+  }),
+});
+```
+
+### materialize-drizzle Example
+
+```ts
+import { SqliteDb } from '@converge/db-sqlite';
+import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+
+const db = new SqliteDb<MySchema>({
+  filename: './data.db',
+  materializer: ({ db }) => {
+    const drizzleDb = drizzle(db);
+    return createDrizzleSyncMaterializerConfig(drizzleDb, {
+      tableMap: { todos: todosTable },
+      tagsTableDef: tagsTable,
+      getTableConfig,
+      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    });
+  },
+});
+```
+
+## Tags Table
+
+The materializer maintains a `converge_tags` table:
+
+```sql
+CREATE TABLE converge_tags (
+  entity TEXT NOT NULL,
+  id TEXT NOT NULL,
+  data TEXT NOT NULL,       -- JSON: current field values
+  tags TEXT NOT NULL,       -- JSON: field → HLC timestamp
+  deleted INTEGER NOT NULL, -- Tombstone flag
+  deleted_tag TEXT,         -- Delete timestamp
+  PRIMARY KEY (entity, id)
+);
+```
+
+## Custom Materializers
+
+For advanced cases, implement a custom executor:
+
+```ts
+const db = new SqliteDb<MySchema>({
+  filename: './data.db',
+  materializer: ({ db }) => ({
+    tableMap: { todos: 'todos' },
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    executor: {
+      ensureTagsTable: async () => {
+        // Create tags table
+      },
+      loadTags: async (entity, id) => {
+        // Return TagsRow or null
+      },
+      saveTags: async (entity, id, dataJson, tagsJson) => {
+        // Upsert tags row
+      },
+      removeTags: async (entity, id, dataJson, tagsJson, deletedTag) => {
+        // Upsert with deleted flag
+      },
+      saveEntity: async (tableName, id, columns, values, updates) => {
+        // Upsert domain table
+      },
+    },
+  }),
+});
+```
+
+## Atomicity
+
+All materialization happens in the same transaction as `db.append()`:
+
+1. Insert change to log
+2. Load existing tags
+3. Apply LWW
+4. Update domain table
+5. Update tags table
+6. Commit
+
+If any step fails, everything rolls back.
+
+## Performance Tips
+
+1. **Index the tags table** on `(entity, id)`
+2. **Use fieldMap sparingly** — only for entities you query directly
+3. **Batch changes** — append multiple changes in one call
+
+## Related
+
+- [materialize-db](/docs/adapters/materialize-db) — SQL-based materializer
+- [materialize-drizzle](/docs/adapters/materialize-drizzle) — Drizzle materializer
+- [Core Concepts](/docs/getting-started/concepts) — Understand LWW

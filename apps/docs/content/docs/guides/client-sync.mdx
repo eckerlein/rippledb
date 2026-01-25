@@ -1,0 +1,318 @@
+---
+title: Client Sync
+description: Implement client-side sync with offline support
+---
+
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Client Sync
+
+This guide shows how to set up client-side sync with a Converge server.
+
+## Architecture
+
+```
+┌─────────────────┐
+│   Client App    │
+│  ┌───────────┐  │         ┌─────────────┐
+│  │   Store   │◀─┼── sync ─│   Server    │
+│  │  (local)  │  │         │   (Db)      │
+│  └───────────┘  │         └─────────────┘
+│  ┌───────────┐  │
+│  │  Outbox   │  │
+│  │ (pending) │  │
+│  └───────────┘  │
+└─────────────────┘
+```
+
+## Setup
+
+<Steps>
+
+<Step>
+### Install Dependencies
+
+```bash
+npm install @converge/core @converge/client @converge/remote-http
+```
+</Step>
+
+<Step>
+### Create the Remote
+
+```ts title="src/remote.ts"
+import { createHttpRemote } from '@converge/remote-http';
+import type { AppSchema } from './schema';
+
+export const remote = createHttpRemote<AppSchema>({
+  baseUrl: process.env.API_URL ?? 'http://localhost:3000',
+  headers: {
+    'Authorization': `Bearer ${getAuthToken()}`,
+  },
+});
+```
+</Step>
+
+<Step>
+### Implement a Store
+
+The Store interface manages local state:
+
+```ts title="src/store.ts"
+import type { Store, DbEvent } from '@converge/client';
+import type { Change, EntityName } from '@converge/core';
+import type { AppSchema } from './schema';
+
+export class InMemoryStore implements Store<AppSchema> {
+  private data: Map<string, Map<string, unknown>> = new Map();
+  private listeners: Set<(event: DbEvent<AppSchema>) => void> = new Set();
+
+  async applyChanges(changes: Change<AppSchema>[]): Promise<void> {
+    for (const change of changes) {
+      const entityMap = this.data.get(change.entity) ?? new Map();
+      
+      if (change.kind === 'delete') {
+        entityMap.delete(change.entityId);
+        this.emit({ entity: change.entity, kind: 'delete', id: change.entityId });
+      } else {
+        const existing = entityMap.get(change.entityId) ?? {};
+        const updated = { ...existing, ...change.patch };
+        entityMap.set(change.entityId, updated);
+        this.data.set(change.entity, entityMap);
+        this.emit({ 
+          entity: change.entity, 
+          kind: existing ? 'update' : 'insert', 
+          id: change.entityId 
+        });
+      }
+    }
+  }
+
+  async getRow<E extends EntityName<AppSchema>>(
+    entity: E, 
+    id: string
+  ): Promise<AppSchema[E] | null> {
+    return (this.data.get(entity)?.get(id) as AppSchema[E]) ?? null;
+  }
+
+  async listRows<E extends EntityName<AppSchema>>(
+    entity: E
+  ): Promise<AppSchema[E][]> {
+    const entityMap = this.data.get(entity);
+    if (!entityMap) return [];
+    return Array.from(entityMap.values()) as AppSchema[E][];
+  }
+
+  onEvent(cb: (event: DbEvent<AppSchema>) => void): () => void {
+    this.listeners.add(cb);
+    return () => this.listeners.delete(cb);
+  }
+
+  private emit(event: DbEvent<AppSchema>): void {
+    for (const listener of this.listeners) {
+      listener(event);
+    }
+  }
+}
+```
+</Step>
+
+<Step>
+### Create the Replicator
+
+```ts title="src/sync.ts"
+import { createReplicator, InMemoryOutbox } from '@converge/client';
+import { createHlcState, tickHlc, makeUpsert, makeDelete } from '@converge/core';
+import { remote } from './remote';
+import { InMemoryStore } from './store';
+import type { AppSchema } from './schema';
+
+// Initialize components
+const store = new InMemoryStore();
+const outbox = new InMemoryOutbox<AppSchema>();
+const hlcState = createHlcState(`client-${crypto.randomUUID().slice(0, 8)}`);
+
+export const replicator = createReplicator<AppSchema>({
+  stream: `user-${getCurrentUserId()}`,
+  store,
+  remote,
+  outbox,
+});
+
+// Helper to generate HLCs
+export function hlc() {
+  return tickHlc(hlcState, Date.now());
+}
+
+// Helper to create and push a todo
+export async function createTodo(id: string, title: string) {
+  const change = makeUpsert<AppSchema>({
+    stream: replicator.stream,
+    entity: 'todos',
+    entityId: id,
+    patch: { id, title, done: false, createdAt: new Date().toISOString() },
+    hlc: hlc(),
+  });
+  await replicator.pushLocal(change);
+}
+
+// Helper to update a todo
+export async function updateTodo(id: string, patch: Partial<AppSchema['todos']>) {
+  const change = makeUpsert<AppSchema>({
+    stream: replicator.stream,
+    entity: 'todos',
+    entityId: id,
+    patch,
+    hlc: hlc(),
+  });
+  await replicator.pushLocal(change);
+}
+
+// Helper to delete a todo
+export async function deleteTodo(id: string) {
+  const change = makeDelete<AppSchema>({
+    stream: replicator.stream,
+    entity: 'todos',
+    entityId: id,
+    hlc: hlc(),
+  });
+  await replicator.pushLocal(change);
+}
+
+export { store };
+```
+</Step>
+
+<Step>
+### Sync Periodically
+
+```ts title="src/app.ts"
+import { replicator, store } from './sync';
+
+// Initial sync
+await replicator.sync();
+
+// Periodic sync (every 30 seconds)
+setInterval(async () => {
+  try {
+    const result = await replicator.sync();
+    console.log(`Synced: pulled ${result.pulled}, pushed ${result.pushed}`);
+  } catch (error) {
+    console.error('Sync failed:', error);
+  }
+}, 30000);
+
+// Subscribe to changes for UI updates
+store.onEvent((event) => {
+  console.log(`${event.kind} ${event.entity} ${event.id}`);
+  // Trigger UI re-render
+});
+```
+</Step>
+
+</Steps>
+
+## Offline Support
+
+The replicator handles offline gracefully:
+
+1. **Local writes** go to the store immediately
+2. **Outbox** queues changes for later push
+3. **Sync** retries when connection is restored
+
+```ts
+// Check if online before syncing
+async function syncWhenOnline() {
+  if (!navigator.onLine) {
+    console.log('Offline, skipping sync');
+    return;
+  }
+  
+  try {
+    await replicator.sync();
+  } catch (error) {
+    console.error('Sync failed, will retry');
+  }
+}
+
+// Listen for online/offline events
+window.addEventListener('online', syncWhenOnline);
+```
+
+## React Integration
+
+```tsx
+import { useEffect, useState, useCallback } from 'react';
+import { replicator, store, createTodo, updateTodo } from './sync';
+import type { AppSchema } from './schema';
+
+function useTodos() {
+  const [todos, setTodos] = useState<AppSchema['todos'][]>([]);
+
+  useEffect(() => {
+    // Load initial data
+    store.listRows('todos').then(setTodos);
+
+    // Subscribe to changes
+    return store.onEvent((event) => {
+      if (event.entity === 'todos') {
+        store.listRows('todos').then(setTodos);
+      }
+    });
+  }, []);
+
+  return todos;
+}
+
+function TodoApp() {
+  const todos = useTodos();
+
+  const handleAdd = async () => {
+    await createTodo(crypto.randomUUID(), 'New todo');
+  };
+
+  const handleToggle = async (todo: AppSchema['todos']) => {
+    await updateTodo(todo.id, { done: !todo.done });
+  };
+
+  return (
+    <div>
+      <button onClick={handleAdd}>Add Todo</button>
+      <ul>
+        {todos.map(todo => (
+          <li key={todo.id} onClick={() => handleToggle(todo)}>
+            {todo.done ? '✓' : '○'} {todo.title}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## Conflict Resolution
+
+Conflicts are resolved automatically via field-level LWW:
+
+```ts
+// Client A: Update title
+await updateTodo('todo-1', { title: 'A title' });
+
+// Client B: Update done (concurrently)
+await updateTodo('todo-1', { done: true });
+
+// After sync, both see:
+// { title: 'A title', done: true }
+// Each field resolves independently based on HLC timestamps
+```
+
+<Callout type="info">
+No manual conflict resolution needed. Converge's field-level LWW ensures consistent, deterministic merges across all clients.
+</Callout>
+
+## Next Steps
+
+- [Server Setup](/docs/guides/server-setup) — Build the server
+- [Core Concepts](/docs/getting-started/concepts) — Understand the sync model
+- [Remote HTTP](/docs/reference/remote-http) — HTTP transport options

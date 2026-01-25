@@ -1,0 +1,14 @@
+{
+  "title": "Adapters",
+  "pages": [
+    "index",
+    "---Database Adapters---",
+    "db-sqlite",
+    "db-turso",
+    "db-drizzle",
+    "db-memory",
+    "---Materializers---",
+    "materialize-db",
+    "materialize-drizzle"
+  ]
+}
