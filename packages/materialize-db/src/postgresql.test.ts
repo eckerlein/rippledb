@@ -2,9 +2,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@converge/core';
 import { materializeChange, type MaterializerAdapter } from '@converge/materialize-core';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import pg from 'pg';
 import { createCustomMaterializer, createSqlExecutor } from './adapter';
 import type { Db } from './types';
 import { createPostgresDb, type TestSchema } from './test-helpers';
+
+// Each test suite gets its own database for complete isolation
+const TEST_DB_NAME = 'test_materialize_db';
 
 describe('createCustomMaterializer - PostgreSQL dialect', () => {
   let container: StartedPostgreSqlContainer | null = null;
@@ -17,6 +21,13 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
       container = await new PostgreSqlContainer('postgres:16-alpine')
         .withReuse()
         .start();
+
+      // Create isolated database for this test suite
+      const adminClient = new pg.Client({ connectionString: container.getConnectionUri() });
+      await adminClient.connect();
+      await adminClient.query(`DROP DATABASE IF EXISTS ${TEST_DB_NAME}`);
+      await adminClient.query(`CREATE DATABASE ${TEST_DB_NAME}`);
+      await adminClient.end();
     } catch {
       throw new Error('PostgreSQL testcontainer failed to start');
     }
@@ -25,10 +36,17 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
   afterAll(async () => {
     if (dbClose) {
       await dbClose();
+      dbClose = null;
     }
+    // Drop the test database
     if (container) {
-      await container.stop();
+      const adminClient = new pg.Client({ connectionString: container.getConnectionUri() });
+      await adminClient.connect();
+      await adminClient.query(`DROP DATABASE IF EXISTS ${TEST_DB_NAME}`);
+      await adminClient.end();
     }
+    // Don't call container.stop() - with .withReuse(), the container stays
+    // running for fast reuse across test runs. Ryuk will clean up after idle timeout.
   });
 
   beforeEach(async () => {
@@ -39,14 +57,16 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
     if (dbClose) {
       await dbClose();
     }
-    const dbWrapper = createPostgresDb(container.getConnectionUri());
+    // Connect to our isolated database
+    const baseUri = container.getConnectionUri();
+    const dbUri = baseUri.replace(/\/[^/]+$/, `/${TEST_DB_NAME}`);
+    const dbWrapper = createPostgresDb(dbUri);
     db = dbWrapper.db;
     dbClose = dbWrapper.close;
-    // Create entity table
-    await db.run(
-      'CREATE TABLE IF NOT EXISTS todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)',
-      [],
-    );
+    // Create fresh tables
+    await db.run('DROP TABLE IF EXISTS todos', []);
+    await db.run('DROP TABLE IF EXISTS converge_tags', []);
+    await db.run('CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)', []);
     const sqlConfig = {
       dialect: 'postgresql',
       tableMap: { todos: 'todos' },

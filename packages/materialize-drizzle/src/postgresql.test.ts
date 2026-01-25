@@ -31,6 +31,9 @@ const tagsTable = pgTable('converge_tags', {
   deleted_tag: text('deleted_tag'),
 });
 
+// Each test suite gets its own database for complete isolation
+const TEST_DB_NAME = 'test_drizzle';
+
 describe('materialize-drizzle (postgresql)', () => {
   let container: StartedPostgreSqlContainer | null = null;
   let client: Client | null = null;
@@ -39,15 +42,29 @@ describe('materialize-drizzle (postgresql)', () => {
     container = await new PostgreSqlContainer('postgres:16-alpine')
       .withReuse()
       .start();
+
+    // Create isolated database for this test suite
+    const adminClient = new Client({ connectionString: container.getConnectionUri() });
+    await adminClient.connect();
+    await adminClient.query(`DROP DATABASE IF EXISTS ${TEST_DB_NAME}`);
+    await adminClient.query(`CREATE DATABASE ${TEST_DB_NAME}`);
+    await adminClient.end();
   }, 30000);
 
   afterAll(async () => {
     if (client) {
       await client.end();
+      client = null;
     }
+    // Drop the test database
     if (container) {
-      await container.stop();
+      const adminClient = new Client({ connectionString: container.getConnectionUri() });
+      await adminClient.connect();
+      await adminClient.query(`DROP DATABASE IF EXISTS ${TEST_DB_NAME}`);
+      await adminClient.end();
     }
+    // Don't call container.stop() - with .withReuse(), the container stays
+    // running for fast reuse across test runs. Ryuk will clean up after idle timeout.
   });
 
   beforeEach(async () => {
@@ -57,10 +74,16 @@ describe('materialize-drizzle (postgresql)', () => {
     if (client) {
       await client.end();
     }
-    client = new Client({ connectionString: container.getConnectionUri() });
+    // Connect to our isolated database
+    const baseUri = container.getConnectionUri();
+    const dbUri = baseUri.replace(/\/[^/]+$/, `/${TEST_DB_NAME}`);
+    client = new Client({ connectionString: dbUri });
     await client.connect();
-    await client.query('CREATE TABLE IF NOT EXISTS todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)');
-    await client.query(`CREATE TABLE IF NOT EXISTS converge_tags (
+    // Create fresh tables
+    await client.query('DROP TABLE IF EXISTS todos');
+    await client.query('DROP TABLE IF EXISTS converge_tags');
+    await client.query('CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)');
+    await client.query(`CREATE TABLE converge_tags (
       entity TEXT NOT NULL,
       id TEXT NOT NULL,
       data TEXT NOT NULL,
