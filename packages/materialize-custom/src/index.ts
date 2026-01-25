@@ -30,13 +30,141 @@ export type Db = {
 
 /**
  * Entity field mapping configuration.
- * Maps schema field names to SQL column names.
+ * Maps schema field names to database column/field names.
  */
 export type EntityFieldMap = Record<string, string>;
 
 /**
+ * Dialect configuration for a specific database.
+ */
+export type Dialect = {
+  /**
+   * Command to create the tags table/collection.
+   * Receives: (tagsTable) and should create the storage for tags.
+   */
+  createTagsTable: (tagsTable: string) => string;
+
+  /**
+   * Command for loading entity state.
+   * Receives: (tagsTable) and should return command with placeholders for entity and id.
+   * The command should return columns: data, tags, deleted, deleted_tag
+   */
+  loadCommand: (tagsTable: string) => string;
+
+  /**
+   * Command for saving entity state.
+   * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson.
+   * Should handle upsert.
+   */
+  saveCommand: (tagsTable: string) => string;
+
+  /**
+   * Command for removing (tombstoning) entity state.
+   * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson, deletedTag.
+   * Should handle upsert with deleted flag.
+   */
+  removeCommand: (tagsTable: string) => string;
+
+  /**
+   * Command for saving entity values to actual table columns (when fieldMap is provided).
+   * Receives: (tableName, id, columns, values, updates) and should handle upsert.
+   */
+  saveEntityCommand: (
+    tableName: string,
+    id: string,
+    columns: string[],
+    values: unknown[],
+    updates: string[],
+  ) => { sql: string; params: unknown[] };
+};
+
+/**
+ * Built-in database dialects.
+ */
+export const dialects: Record<string, Dialect> = {
+  sqlite: {
+    createTagsTable: (tagsTable) =>
+      `CREATE TABLE IF NOT EXISTS ${tagsTable} (
+        entity TEXT NOT NULL,
+        id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        tags TEXT NOT NULL,
+        deleted INTEGER NOT NULL DEFAULT 0,
+        deleted_tag TEXT,
+        PRIMARY KEY (entity, id)
+      )`,
+    loadCommand: (tagsTable) =>
+      `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = ? AND id = ?`,
+    saveCommand: (tagsTable) =>
+      `INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
+       VALUES (?, ?, ?, ?, 0, NULL)
+       ON CONFLICT(entity, id) DO UPDATE SET
+         data = excluded.data,
+         tags = excluded.tags,
+         deleted = 0,
+         deleted_tag = NULL`,
+    removeCommand: (tagsTable) =>
+      `INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
+       VALUES (?, ?, ?, ?, 1, ?)
+       ON CONFLICT(entity, id) DO UPDATE SET
+         data = excluded.data,
+         tags = excluded.tags,
+         deleted = 1,
+         deleted_tag = excluded.deleted_tag`,
+    saveEntityCommand: (tableName, id, columns, values, updates) => ({
+      sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')})
+            VALUES (?, ${columns.map(() => '?').join(', ')})
+            ON CONFLICT(id) DO UPDATE SET
+              ${updates.join(', ')}`,
+      params: [id, ...values, ...values],
+    }),
+  },
+  postgresql: {
+    createTagsTable: (tagsTable) =>
+      `CREATE TABLE IF NOT EXISTS ${tagsTable} (
+        entity TEXT NOT NULL,
+        id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        tags TEXT NOT NULL,
+        deleted INTEGER NOT NULL DEFAULT 0,
+        deleted_tag TEXT,
+        PRIMARY KEY (entity, id)
+      )`,
+    loadCommand: (tagsTable) =>
+      `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = $1 AND id = $2`,
+    saveCommand: (tagsTable) =>
+      `INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
+       VALUES ($1, $2, $3, $4, 0, NULL)
+       ON CONFLICT (entity, id) DO UPDATE SET
+         data = EXCLUDED.data,
+         tags = EXCLUDED.tags,
+         deleted = 0,
+         deleted_tag = NULL`,
+    removeCommand: (tagsTable) =>
+      `INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
+       VALUES ($1, $2, $3, $4, 1, $5)
+       ON CONFLICT (entity, id) DO UPDATE SET
+         data = EXCLUDED.data,
+         tags = EXCLUDED.tags,
+         deleted = 1,
+         deleted_tag = EXCLUDED.deleted_tag`,
+    saveEntityCommand: (tableName, id, columns, values, updates) => {
+      const insertPlaceholders = columns.map((_, i) => `$${i + 2}`).join(', ');
+      const updateClauses = updates.map((u, i) => u.replace('?', `$${i + 2 + columns.length}`));
+      return {
+        sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')})
+              VALUES ($1, ${insertPlaceholders})
+              ON CONFLICT (id) DO UPDATE SET
+                ${updateClauses.join(', ')}`,
+        params: [id, ...values, ...values],
+      };
+    },
+  },
+};
+
+/**
  * Configuration for custom materialization adapter.
- * Works with any database by providing custom query/command strings.
+ * Works with any database by providing a dialect name or custom query/command strings.
  */
 export type CustomMaterializerConfig<
   S extends ConvergeSchema = ConvergeSchema,
@@ -47,50 +175,59 @@ export type CustomMaterializerConfig<
   db: Db;
 
   /**
-   * Table name for storing entity tags/metadata.
+   * Table/collection name for storing entity tags/metadata.
    * Default: 'converge_tags'
    */
   tagsTable?: string;
 
   /**
-   * Map entity names to their SQL table names.
-   * These tables must already exist in your database.
+   * Map entity names to their database table/collection names.
+   * These must already exist in your database.
    */
   tableMap: Record<EntityName<S>, string>;
 
   /**
    * Map entity names to their field-to-column mappings.
-   * If omitted, field names are used as column names.
-   * The columns must already exist in the corresponding tables.
+   * If omitted, field names are used as column/field names.
+   * The columns/fields must already exist in the corresponding tables/collections.
    */
   fieldMap?: Partial<Record<EntityName<S>, EntityFieldMap>>;
 
   /**
-   * Custom SQL for loading entity state.
-   * Receives: (tableName, id) and should return columns: id, data (JSON), tags (JSON), deleted (0/1), deleted_tag (TEXT or NULL)
-   * If omitted, uses default pattern.
+   * Database dialect name (e.g., 'sqlite', 'postgresql').
+   * If provided, uses pre-configured SQL for that dialect.
+   * If omitted, you must provide custom hooks.
    */
-  loadSql?: (tableName: string, id: string) => string;
+  dialect?: keyof typeof dialects;
 
   /**
-   * Custom SQL for saving entity state.
-   * Receives: (tableName, id, dataJson, tagsJson) and should handle INSERT ... ON CONFLICT DO UPDATE.
-   * If omitted, uses default pattern.
+   * Custom command for loading entity state.
+   * Overrides dialect default if provided.
+   * Receives: (tagsTable, entity, id) and should return command with placeholders.
    */
-  saveSql?: (
-    tableName: string,
+  loadCommand?: (tagsTable: string, entity: string, id: string) => string;
+
+  /**
+   * Custom command for saving entity state.
+   * Overrides dialect default if provided.
+   * Receives: (tagsTable, entity, id, dataJson, tagsJson) and should return command with placeholders.
+   */
+  saveCommand?: (
+    tagsTable: string,
+    entity: string,
     id: string,
     dataJson: string,
     tagsJson: string,
   ) => string;
 
   /**
-   * Custom SQL for removing (tombstoning) entity state.
-   * Receives: (tableName, id, dataJson, tagsJson, deletedTag) and should handle INSERT ... ON CONFLICT DO UPDATE.
-   * If omitted, uses default pattern.
+   * Custom command for removing (tombstoning) entity state.
+   * Overrides dialect default if provided.
+   * Receives: (tagsTable, entity, id, dataJson, tagsJson, deletedTag) and should return command with placeholders.
    */
-  removeSql?: (
-    tableName: string,
+  removeCommand?: (
+    tagsTable: string,
+    entity: string,
     id: string,
     dataJson: string,
     tagsJson: string,
@@ -98,14 +235,10 @@ export type CustomMaterializerConfig<
   ) => string;
 
   /**
-   * Custom SQL for saving entity values to actual table columns (when fieldMap is provided).
-   * Receives: (tableName, id, columns, values, updates) where:
-   * - columns: array of column names
-   * - values: array of values (same length as columns)
-   * - updates: array of "column = ?" strings for UPDATE clause
-   * If omitted, uses SQLite-compatible INSERT ... ON CONFLICT DO UPDATE pattern.
+   * Custom command for saving entity values to actual table columns (when fieldMap is provided).
+   * Overrides dialect default if provided.
    */
-  saveEntitySql?: (
+  saveEntityCommand?: (
     tableName: string,
     id: string,
     columns: string[],
@@ -125,7 +258,7 @@ type TagsRow = {
 /**
  * Create a custom materialization adapter.
  *
- * This adapter works with any database by letting you provide custom
+ * This adapter works with any database by using a dialect name or custom
  * query/command strings. It stores entity values in actual database
  * structures (via fieldMap) and stores tags/metadata separately.
  *
@@ -134,32 +267,38 @@ type TagsRow = {
  *   The materializer does NOT create or maintain them.
  * - Entity structures only need data fields. They do NOT need tag fields.
  *   Tags are stored separately in a tags table/collection.
- * - The tags table/collection is auto-created on first use (via default SQL).
- *   For non-SQL databases, provide custom `saveSql`/`removeSql` hooks.
+ * - The tags table/collection is auto-created on first use (via dialect or custom hook).
  * - The materializer assumes entity structures match the schema defined by
  *   `tableMap` and `fieldMap`.
- * - **Default implementations are SQLite-compatible** (`ON CONFLICT ... DO UPDATE`).
- *   For other databases, provide custom hooks (`saveSql`/`removeSql`/`saveEntitySql`).
+ * - Provide a `dialect` name (e.g., 'sqlite', 'postgresql') OR custom hooks.
+ *   Custom hooks override dialect defaults.
  *
- * Example (SQLite):
+ * Example (SQLite with dialect):
  * ```ts
  * await db.run('CREATE TABLE todos (id TEXT PRIMARY KEY, todo_title TEXT, is_done INTEGER)');
  * const adapter = createCustomMaterializer({
  *   db: myDb,
+ *   dialect: 'sqlite',
  *   tableMap: { todos: 'todos' },
  *   fieldMap: { todos: { title: 'todo_title', done: 'is_done' } }
  * });
  * ```
  *
- * Example (PostgreSQL):
+ * Example (PostgreSQL with dialect):
  * ```ts
  * const adapter = createCustomMaterializer({
- *   db: myDb, // must map ? to $1, $2, etc. in run()/get()
+ *   db: myDb, // must handle $1, $2, etc. in run()/get()
+ *   dialect: 'postgresql',
+ *   tableMap: { todos: 'todos' }
+ * });
+ * ```
+ *
+ * Example (Custom hooks):
+ * ```ts
+ * const adapter = createCustomMaterializer({
+ *   db: myDb,
  *   tableMap: { todos: 'todos' },
- *   saveSql: (table, id, dataJson, tagsJson) =>
- *     `INSERT INTO converge_tags (entity, id, data, tags, deleted, deleted_tag)
- *      VALUES (?, ?, ?, ?, 0, NULL)
- *      ON CONFLICT (entity, id) DO UPDATE SET ...`
+ *   saveCommand: (tagsTable, entity, id, dataJson, tagsJson) => `...`
  * });
  * ```
  */
@@ -168,20 +307,28 @@ export function createCustomMaterializer<
 >(config: CustomMaterializerConfig<S>): MaterializerAdapter<S> {
   const tagsTable = config.tagsTable ?? 'converge_tags';
 
+  // Resolve dialect: use provided dialect, or default to 'sqlite' if no custom hooks
+  const dialectName =
+    config.dialect ??
+    (config.loadCommand || config.saveCommand || config.removeCommand || config.saveEntityCommand
+      ? undefined
+      : 'sqlite');
+
+  const dialect = dialectName ? dialects[dialectName] : undefined;
+
+  if (!dialect && !config.loadCommand && !config.saveCommand && !config.removeCommand) {
+    throw new Error(
+      'Either provide a dialect name or custom hooks (loadCommand, saveCommand, removeCommand)',
+    );
+  }
+
   // Ensure tags table exists
   const ensureTagsTable = async () => {
-    await config.db.run(
-      `CREATE TABLE IF NOT EXISTS ${tagsTable} (
-        entity TEXT NOT NULL,
-        id TEXT NOT NULL,
-        data TEXT NOT NULL,
-        tags TEXT NOT NULL,
-        deleted INTEGER NOT NULL DEFAULT 0,
-        deleted_tag TEXT,
-        PRIMARY KEY (entity, id)
-      )`,
-      [],
-    );
+    if (dialect) {
+      const sql = dialect.createTagsTable(tagsTable);
+      await config.db.run(sql, []);
+    }
+    // If no dialect and no custom create, assume table exists or user handles it
   };
 
   // Initialize tags table on first use
@@ -207,51 +354,45 @@ export function createCustomMaterializer<
     return (config.fieldMap?.[entity] as EntityFieldMap | undefined) ?? null;
   };
 
-  const loadSql = (tableName: string, id: string): string => {
-    if (config.loadSql) {
-      return config.loadSql(tableName, id);
+  const loadCommand = (entity: string, id: string): string => {
+    if (config.loadCommand) {
+      return config.loadCommand(tagsTable, entity, id);
     }
-    // Default: load from tags table
-    return `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = ? AND id = ?`;
+    if (dialect) {
+      return dialect.loadCommand(tagsTable);
+    }
+    throw new Error('No loadCommand provided and no dialect specified');
   };
 
-  const saveSql = (
-    tableName: string,
+  const saveCommand = (
+    entity: string,
     id: string,
     dataJson: string,
     tagsJson: string,
   ): string => {
-    if (config.saveSql) {
-      return config.saveSql(tableName, id, dataJson, tagsJson);
+    if (config.saveCommand) {
+      return config.saveCommand(tagsTable, entity, id, dataJson, tagsJson);
     }
-    // Default: upsert into tags table
-    return `INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
-            VALUES (?, ?, ?, ?, 0, NULL)
-            ON CONFLICT(entity, id) DO UPDATE SET
-              data = excluded.data,
-              tags = excluded.tags,
-              deleted = 0,
-              deleted_tag = NULL`;
+    if (dialect) {
+      return dialect.saveCommand(tagsTable);
+    }
+    throw new Error('No saveCommand provided and no dialect specified');
   };
 
-  const removeSql = (
-    tableName: string,
+  const removeCommand = (
+    entity: string,
     id: string,
     dataJson: string,
     tagsJson: string,
     deletedTag: string,
   ): string => {
-    if (config.removeSql) {
-      return config.removeSql(tableName, id, dataJson, tagsJson, deletedTag);
+    if (config.removeCommand) {
+      return config.removeCommand(tagsTable, entity, id, dataJson, tagsJson, deletedTag);
     }
-    // Default: upsert into tags table with deleted flag
-    return `INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
-            VALUES (?, ?, ?, ?, 1, ?)
-            ON CONFLICT(entity, id) DO UPDATE SET
-              data = excluded.data,
-              tags = excluded.tags,
-              deleted = 1,
-              deleted_tag = excluded.deleted_tag`;
+    if (dialect) {
+      return dialect.removeCommand(tagsTable);
+    }
+    throw new Error('No removeCommand provided and no dialect specified');
   };
 
   return {
@@ -260,9 +401,8 @@ export function createCustomMaterializer<
       id: string,
     ): Promise<MaterializerState<S, E> | null> {
       await initTagsTable();
-      const tableName = getTableName(entity);
-      const sql = loadSql(tableName, id);
-      const row = await config.db.get<TagsRow>(sql, [entity, id]);
+      const command = loadCommand(entity, id);
+      const row = await config.db.get<TagsRow>(command, [entity, id]);
 
       if (!row) return null;
 
@@ -286,8 +426,8 @@ export function createCustomMaterializer<
       const tagsJson = JSON.stringify(state.tags);
 
       // Save to tags table
-      const sql = saveSql(tableName, id, dataJson, tagsJson);
-      await config.db.run(sql, [entity, id, dataJson, tagsJson]);
+      const command = saveCommand(entity, id, dataJson, tagsJson);
+      await config.db.run(command, [entity, id, dataJson, tagsJson]);
 
       // Optionally save values to actual table columns if fieldMap is provided
       if (fieldMap && Object.keys(state.values).length > 0) {
@@ -303,23 +443,22 @@ export function createCustomMaterializer<
         }
 
         if (columns.length > 0) {
-          let sql: string;
+          let command: string;
           let params: unknown[];
 
-          if (config.saveEntitySql) {
-            const result = config.saveEntitySql(tableName, id, columns, values, updates);
-            sql = result.sql;
+          if (config.saveEntityCommand) {
+            const result = config.saveEntityCommand(tableName, id, columns, values, updates);
+            command = result.sql;
+            params = result.params;
+          } else if (dialect) {
+            const result = dialect.saveEntityCommand(tableName, id, columns, values, updates);
+            command = result.sql;
             params = result.params;
           } else {
-            // Default: SQLite-compatible INSERT ... ON CONFLICT DO UPDATE
-            sql = `INSERT INTO ${tableName} (id, ${columns.join(', ')})
-                   VALUES (?, ${columns.map(() => '?').join(', ')})
-                   ON CONFLICT(id) DO UPDATE SET
-                     ${updates.join(', ')}`;
-            params = [id, ...values, ...values];
+            throw new Error('No saveEntityCommand provided and no dialect specified');
           }
 
-          await config.db.run(sql, params);
+          await config.db.run(command, params);
         }
       }
     },
@@ -330,13 +469,12 @@ export function createCustomMaterializer<
       state: MaterializerState<S, E>,
     ): Promise<void> {
       await initTagsTable();
-      const tableName = getTableName(entity);
       const dataJson = JSON.stringify(state.values);
       const tagsJson = JSON.stringify(state.tags);
       const deletedTag = state.deletedTag ?? '';
 
-      const sql = removeSql(tableName, id, dataJson, tagsJson, deletedTag);
-      await config.db.run(sql, [entity, id, dataJson, tagsJson, deletedTag]);
+      const command = removeCommand(entity, id, dataJson, tagsJson, deletedTag);
+      await config.db.run(command, [entity, id, dataJson, tagsJson, deletedTag]);
     },
   };
 }
