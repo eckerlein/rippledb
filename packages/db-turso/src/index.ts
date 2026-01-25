@@ -27,6 +27,7 @@ type SqlStatement = {
 /**
  * SQL-collecting Db implementation for materialization.
  * Collects run() calls and executes get() immediately.
+ * Table creation SQL is executed immediately (not collected).
  */
 class CollectingDb implements MaterializerDb {
   private statements: SqlStatement[] = [];
@@ -46,8 +47,17 @@ class CollectingDb implements MaterializerDb {
   }
 
   async run(command: string, params: unknown[]): Promise<void> {
-    // Collect SQL - don't execute yet
-    this.statements.push({ sql: command, args: params });
+    // Execute table creation SQL immediately (CREATE TABLE)
+    // Collect other SQL statements for batch execution
+    if (command.trim().toUpperCase().startsWith('CREATE TABLE')) {
+      await this.client.execute({
+        sql: command,
+        args: params as string[] | number[] | null[] | boolean[] | Uint8Array[],
+      });
+    } else {
+      // Collect SQL - don't execute yet
+      this.statements.push({ sql: command, args: params });
+    }
   }
 
   getStatements(): SqlStatement[] {
@@ -161,7 +171,8 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
       }
 
       // Collect materialization SQL statements
-      transactionStatements.push(...collectingDb.getStatements());
+      const materializationStatements = collectingDb.getStatements();
+      transactionStatements.push(...materializationStatements);
     }
 
     // Update idempotency with last sequence (we'll get it from the last insert)
@@ -176,17 +187,17 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
       });
     }
 
-    // Execute all statements in one transaction
-    // Note: libSQL client's batch() executes statements sequentially but not in a transaction.
-    // For true transactions, we need to use execute() with BEGIN/COMMIT or use transaction() method.
-    // For now, we'll use batch() which should work for most cases, but isn't truly atomic.
-    // TODO: Investigate if libSQL client supports proper transactions via transaction() method.
-    await this.client.batch(
-      transactionStatements.map((stmt) => ({
-        sql: stmt.sql,
-        args: stmt.args as string[] | number[] | null[] | boolean[] | Uint8Array[],
-      })),
-    );
+    // Execute all statements in one batch
+    // Note: libSQL client's batch() automatically runs in a transaction (atomic).
+    // This works for both file: protocol (local SQLite) and remote Turso.
+    if (transactionStatements.length > 0) {
+      await this.client.batch(
+        transactionStatements.map((stmt) => ({
+          sql: stmt.sql,
+          args: stmt.args as string[] | number[] | null[] | boolean[] | Uint8Array[],
+        })),
+      );
+    }
 
     return { accepted: req.changes.length };
   }
