@@ -14,8 +14,36 @@ A **local-first sync engine** that treats local storage as the source of truth. 
 - **Local-first**: Your app works offline. Local writes are instant.
 - **Field-level LWW**: Conflicts resolve per-field, not per-row. No data loss.
 - **Append-only log**: Simple, auditable replication primitive.
-- **Bring your own database**: SQLite, Turso, Drizzle, or write your own adapter.
+- **Modular & headless**: Core logic has zero dependencies — bring your own database.
 - **Framework agnostic**: Works with any UI framework or backend.
+
+## Architecture
+
+Converge follows a **headless, adapter-based architecture**:
+
+- **Core packages** define interfaces and pure logic — no I/O, no dependencies
+- **Adapter packages** provide battle-tested implementations for specific databases and ORMs
+- **You pick what you need** — use our adapters or write your own
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                     Your Application                     │
+├─────────────────────────────────────────────────────────┤
+│   @converge/server          @converge/client            │
+│   (Db interface)            (Store interface)           │
+├─────────────────────────────────────────────────────────┤
+│   db-sqlite    db-turso    db-drizzle    db-memory      │
+│   (adapters implement the interfaces)                   │
+├─────────────────────────────────────────────────────────┤
+│                     @converge/core                       │
+│              (HLC, Change, pure merge logic)             │
+└─────────────────────────────────────────────────────────┘
+```
+
+This means:
+- **Swap databases** without changing application code
+- **Test with in-memory** adapters, deploy with SQLite or Turso
+- **Integrate with existing ORMs** like Drizzle seamlessly
 
 ## Quick Example
 
@@ -76,13 +104,26 @@ await db.append('my-stream', [{
 
 ## Packages
 
+**Core** (interfaces & pure logic):
+
 | Package | Description |
 |---------|-------------|
 | `@converge/core` | HLC, Change types, pure merge logic |
 | `@converge/server` | Db interface, append/pull contracts |
-| `@converge/client` | Client-side sync orchestration |
-| `@converge/db-sqlite` | SQLite database adapter |
-| `@converge/db-turso` | Turso (libSQL) database adapter |
-| `@converge/db-drizzle` | Drizzle ORM database adapter |
-| `@converge/materialize-db` | SQL-based state materializer |
-| `@converge/materialize-drizzle` | Drizzle-based state materializer |
+| `@converge/client` | Store interface, sync orchestration |
+
+**Database Adapters** (server-side persistence):
+
+| Package | Best For |
+|---------|----------|
+| `@converge/db-sqlite` | Local servers, Electron, tests |
+| `@converge/db-turso` | Edge deployments, serverless |
+| `@converge/db-drizzle` | Existing Drizzle projects (any DB) |
+| `@converge/db-memory` | Unit tests, prototyping |
+
+**Materializers** (project changes → queryable tables):
+
+| Package | Best For |
+|---------|----------|
+| `@converge/materialize-db` | Raw SQL projects |
+| `@converge/materialize-drizzle` | Drizzle projects (type-safe) |
