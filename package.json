@@ -12,7 +12,7 @@
     "check:packages": "node scripts/verify-packages.mjs",
     "clean": "turbo clean",
     "format": "prettier -w .",
-    "test": "turbo test",
+    "test": "vitest run",
     "test:watch": "vitest --watch"
   },
   "devDependencies": {
