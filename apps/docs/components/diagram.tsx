@@ -35,6 +35,8 @@ type EdgeDef = {
   label?: string;
   dashed?: boolean;
   animated?: boolean;
+  /** Use orthogonal (axis-aligned) routing with 90° bends */
+  orthogonal?: boolean;
 };
 
 type DiagramProps = {
@@ -258,6 +260,132 @@ function Node({ node }: { node: ResolvedNode }) {
   );
 }
 
+// Calculate orthogonal path points (L-shape or straight)
+function getOrthogonalPath(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  fromSide: 'top' | 'bottom' | 'left' | 'right',
+  toSide: 'top' | 'bottom' | 'left' | 'right'
+): { x: number; y: number }[] {
+  // If already aligned, just return straight line
+  const isHorizontal = fromSide === 'left' || fromSide === 'right';
+  const isVertical = fromSide === 'top' || fromSide === 'bottom';
+  
+  if (isVertical && Math.abs(start.x - end.x) < 2) {
+    // Already vertically aligned
+    return [start, end];
+  }
+  if (isHorizontal && Math.abs(start.y - end.y) < 2) {
+    // Already horizontally aligned
+    return [start, end];
+  }
+  
+  // Create L-shaped or step path
+  const points: { x: number; y: number }[] = [start];
+  
+  if (fromSide === 'bottom' && toSide === 'top') {
+    // Vertical flow with horizontal offset
+    const midY = (start.y + end.y) / 2;
+    points.push({ x: start.x, y: midY });
+    points.push({ x: end.x, y: midY });
+    points.push(end);
+  } else if (fromSide === 'top' && toSide === 'bottom') {
+    const midY = (start.y + end.y) / 2;
+    points.push({ x: start.x, y: midY });
+    points.push({ x: end.x, y: midY });
+    points.push(end);
+  } else if (fromSide === 'right' && toSide === 'left') {
+    // Horizontal flow
+    const midX = (start.x + end.x) / 2;
+    points.push({ x: midX, y: start.y });
+    points.push({ x: midX, y: end.y });
+    points.push(end);
+  } else if (fromSide === 'left' && toSide === 'right') {
+    const midX = (start.x + end.x) / 2;
+    points.push({ x: midX, y: start.y });
+    points.push({ x: midX, y: end.y });
+    points.push(end);
+  } else if (fromSide === 'right' && toSide === 'top') {
+    // Exit right, enter top: L-shape going right then down
+    points.push({ x: end.x, y: start.y });
+    points.push(end);
+  } else if (fromSide === 'bottom' && toSide === 'left') {
+    // Exit bottom, enter left: L-shape going down then right
+    points.push({ x: start.x, y: end.y });
+    points.push(end);
+  } else if (fromSide === 'left' && toSide === 'top') {
+    // Exit left, enter top
+    points.push({ x: end.x, y: start.y });
+    points.push(end);
+  } else if (fromSide === 'bottom' && toSide === 'right') {
+    // Exit bottom, enter right
+    points.push({ x: start.x, y: end.y });
+    points.push(end);
+  } else {
+    // Fallback: simple L-shape based on direction
+    if (isVertical) {
+      points.push({ x: start.x, y: end.y });
+      points.push(end);
+    } else {
+      points.push({ x: end.x, y: start.y });
+      points.push(end);
+    }
+  }
+  
+  return points;
+}
+
+// Build SVG path string from points with optional rounded corners
+function buildPathString(points: { x: number; y: number }[], rounded = true): string {
+  if (points.length < 2) return '';
+  
+  const RADIUS = 6; // Corner radius
+  
+  if (!rounded || points.length === 2) {
+    // Simple polyline
+    return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  }
+  
+  // Build path with rounded corners
+  let d = `M ${points[0].x} ${points[0].y}`;
+  
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+    
+    // Direction vectors
+    const d1x = curr.x - prev.x;
+    const d1y = curr.y - prev.y;
+    const d2x = next.x - curr.x;
+    const d2y = next.y - curr.y;
+    
+    // Lengths
+    const len1 = Math.sqrt(d1x * d1x + d1y * d1y);
+    const len2 = Math.sqrt(d2x * d2x + d2y * d2y);
+    
+    // How much to shorten each segment for the curve
+    const r1 = Math.min(RADIUS, len1 / 2);
+    const r2 = Math.min(RADIUS, len2 / 2);
+    
+    // Start of curve (on line from prev to curr)
+    const startX = curr.x - (d1x / len1) * r1;
+    const startY = curr.y - (d1y / len1) * r1;
+    
+    // End of curve (on line from curr to next)
+    const endX = curr.x + (d2x / len2) * r2;
+    const endY = curr.y + (d2y / len2) * r2;
+    
+    // Line to curve start, then quadratic curve
+    d += ` L ${startX} ${startY} Q ${curr.x} ${curr.y} ${endX} ${endY}`;
+  }
+  
+  // Final point
+  d += ` L ${points[points.length - 1].x} ${points[points.length - 1].y}`;
+  
+  return d;
+}
+
 function Edge({ edge, nodes }: { edge: EdgeDef; nodes: ResolvedNode[] }) {
   const fromNode = nodes.find(n => n.id === edge.from);
   const toNode = nodes.find(n => n.id === edge.to);
@@ -270,10 +398,22 @@ function Edge({ edge, nodes }: { edge: EdgeDef; nodes: ResolvedNode[] }) {
   const start = getAnchorPoint(fromNode, fromSide);
   const end = getAnchorPoint(toNode, toSide);
   
-  // Calculate arrow direction
-  const angle = Math.atan2(end.y - start.y, end.x - start.x);
+  const strokeDasharray = edge.dashed ? '4 4' : undefined;
+  
+  // Get path points (orthogonal or direct)
+  const pathPoints = edge.orthogonal 
+    ? getOrthogonalPath(start, end, fromSide, toSide)
+    : [start, end];
+  
+  // Calculate arrow direction from last segment
+  const lastPoint = pathPoints[pathPoints.length - 1];
+  const secondLastPoint = pathPoints[pathPoints.length - 2];
+  const angle = Math.atan2(lastPoint.y - secondLastPoint.y, lastPoint.x - secondLastPoint.x);
+  
+  // Shorten path to make room for arrow
   const arrowX = end.x - ARROW_SIZE * Math.cos(angle);
   const arrowY = end.y - ARROW_SIZE * Math.sin(angle);
+  pathPoints[pathPoints.length - 1] = { x: arrowX, y: arrowY };
   
   // Arrow points
   const arrowAngle1 = angle + Math.PI * 0.8;
@@ -283,19 +423,23 @@ function Edge({ edge, nodes }: { edge: EdgeDef; nodes: ResolvedNode[] }) {
   const arrow2X = end.x + ARROW_SIZE * Math.cos(arrowAngle2);
   const arrow2Y = end.y + ARROW_SIZE * Math.sin(arrowAngle2);
   
-  const strokeDasharray = edge.dashed ? '4 4' : undefined;
+  // Build path string
+  const pathD = buildPathString(pathPoints, edge.orthogonal);
   
-  // Label position (midpoint)
-  const labelX = (start.x + end.x) / 2;
-  const labelY = (start.y + end.y) / 2;
+  // Label position (midpoint of middle segment for orthogonal, or just midpoint)
+  const midIdx = Math.floor(pathPoints.length / 2);
+  const labelX = pathPoints.length > 2 
+    ? (pathPoints[midIdx - 1].x + pathPoints[midIdx].x) / 2 
+    : (start.x + end.x) / 2;
+  const labelY = pathPoints.length > 2
+    ? (pathPoints[midIdx - 1].y + pathPoints[midIdx].y) / 2
+    : (start.y + end.y) / 2;
   
   return (
     <g className="stroke-neutral-400 fill-neutral-400 dark:stroke-neutral-500 dark:fill-neutral-500">
-      <line
-        x1={start.x}
-        y1={start.y}
-        x2={arrowX}
-        y2={arrowY}
+      <path
+        d={pathD}
+        fill="none"
         strokeWidth={1}
         strokeDasharray={strokeDasharray}
         className={edge.animated ? 'animate-diagram-dash' : ''}
