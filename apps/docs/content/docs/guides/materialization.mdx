@@ -35,32 +35,28 @@ SELECT * FROM todos WHERE id = 'todo-1';
 
 ## How It Works
 
-```
-┌──────────────┐
-│  db.append() │
-└──────┬───────┘
-       │
-       ▼
-┌───────────────────────────┐
-│  1. Load existing tags    │  ◀── converge_tags table
-└───────────────────────────┘
-       │
-       ▼
-┌───────────────────────────┐
-│  2. Apply field-level LWW │
-│  (compare HLC timestamps) │
-└───────────────────────────┘
-       │
-       ▼
-┌───────────────────────────┐
-│  3. Update domain table   │  ──▶ todos table
-└───────────────────────────┘
-       │
-       ▼
-┌───────────────────────────┐
-│  4. Update tags table     │  ──▶ converge_tags table
-└───────────────────────────┘
-```
+<Diagram
+  height={380}
+  nodes={[
+    { id: 'append', x: 20, y: 10, label: 'db.append()' },
+    { id: 'load', x: 20, y: 70, label: '1. Load existing tags' },
+    { id: 'lww', x: 20, y: 140, label: ['2. Apply field-level LWW', '(compare HLC timestamps)'] },
+    { id: 'domain', x: 20, y: 220, label: '3. Update domain table' },
+    { id: 'tags', x: 20, y: 290, label: '4. Update tags table' },
+    { id: 'tags-read', x: 300, y: 70, variant: 'label', label: 'converge_tags' },
+    { id: 'todos', x: 300, y: 220, variant: 'label', label: 'todos' },
+    { id: 'tags-write', x: 300, y: 290, variant: 'label', label: 'converge_tags' },
+  ]}
+  edges={[
+    { from: 'append', to: 'load' },
+    { from: 'load', to: 'lww' },
+    { from: 'lww', to: 'domain' },
+    { from: 'domain', to: 'tags' },
+    { from: 'tags-read', to: 'load', fromSide: 'left', toSide: 'right', dashed: true, animated: true },
+    { from: 'domain', to: 'todos', fromSide: 'right', toSide: 'left', dashed: true, animated: true },
+    { from: 'tags', to: 'tags-write', fromSide: 'right', toSide: 'left', dashed: true, animated: true },
+  ]}
+/>
 
 ## Configuration
 
