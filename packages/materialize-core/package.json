@@ -23,8 +23,8 @@
   },
   "scripts": {
     "build": "tsup && tsc -p tsconfig.build.json",
-    "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest --passWithNoTests",
+    "test": "vitest run --pool=threads --passWithNoTests",
+    "test:watch": "vitest --pool=threads --passWithNoTests",
     "lint": "eslint ."
   },
   "tsup": {
