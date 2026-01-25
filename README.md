@@ -15,7 +15,7 @@ Converge treats local storage as the source of truth. Changes replicate via an a
 
 ## Documentation
 
-Full documentation available at [converge.dev](https://converge.dev) (or run `pnpm dev` in `apps/docs`).
+Full documentation available [here](https://jan-eckerlein.github.io/converge/docs/). or self host with `pnpm dev`
 
 ## Install
 
