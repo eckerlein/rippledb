@@ -55,11 +55,11 @@ The dependency graph is strictly enforced:
   height={300}
   nodes={[
     { id: 'core', x: 220, y: 10, label: ['core', '(pure logic)'] },
-    { id: 'server', x: 60, y: 110, label: ['server', '(Db interface)'] },
-    { id: 'client', x: 220, y: 110, label: ['client', '(Store/Sync)'] },
-    { id: 'materialize', x: 380, y: 110, label: ['materialize', '(projectors)'] },
-    { id: 'db', x: 60, y: 210, label: ['db-*', '(adapters)'] },
-    { id: 'store', x: 220, y: 210, label: ['store-*', '(adapters)'] },
+    { id: 'server', relativeTo: 'core', anchor: 'bottom', offset: { y: 50, x: -160 }, label: ['server', '(Db interface)'] },
+    { id: 'client', relativeTo: 'core', anchor: 'bottom', offset: { y: 50 }, alignX: 'center', label: ['client', '(Store/Sync)'] },
+    { id: 'materialize', relativeTo: 'core', anchor: 'bottom', offset: { y: 50, x: 160 }, label: ['materialize', '(projectors)'] },
+    { id: 'db', relativeTo: 'server', anchor: 'bottom', offset: { y: 40 }, alignX: 'center', label: ['db-*', '(adapters)'] },
+    { id: 'store', relativeTo: 'client', anchor: 'bottom', offset: { y: 40 }, alignX: 'center', label: ['store-*', '(adapters)'] },
   ]}
   edges={[
     { from: 'core', to: 'server', orthogonal: true },
