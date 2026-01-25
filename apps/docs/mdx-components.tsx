@@ -2,6 +2,7 @@ import defaultMdxComponents from 'fumadocs-ui/mdx';
 import type { MDXComponents } from 'mdx/types';
 import { AdrBento } from '@/components/adr/adr-bento';
 import { ArchitectureBento } from '@/components/architecture/architecture-bento';
+import { ArchitectureStack } from '@/components/architecture-stack';
 import { Diagram } from '@/components/diagram';
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
@@ -9,6 +10,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     ...defaultMdxComponents,
     AdrBento,
     ArchitectureBento,
+    ArchitectureStack,
     Diagram,
     ...components,
   };

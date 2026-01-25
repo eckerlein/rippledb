@@ -25,20 +25,7 @@ Converge follows a **headless, adapter-based architecture**:
 - **Adapter packages** provide battle-tested implementations for specific databases and ORMs
 - **You pick what you need** — use our adapters or write your own
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     Your Application                     │
-├─────────────────────────────────────────────────────────┤
-│   @converge/server          @converge/client            │
-│   (Db interface)            (Store interface)           │
-├─────────────────────────────────────────────────────────┤
-│   db-sqlite    db-turso    db-drizzle    db-memory      │
-│   (adapters implement the interfaces)                   │
-├─────────────────────────────────────────────────────────┤
-│                     @converge/core                       │
-│              (HLC, Change, pure merge logic)             │
-└─────────────────────────────────────────────────────────┘
-```
+<ArchitectureStack />
 
 This means:
 - **Swap databases** without changing application code
