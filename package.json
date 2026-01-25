@@ -13,7 +13,7 @@
     "clean": "turbo clean",
     "format": "prettier -w .",
     "test": "turbo test",
-    "test:watch": "turbo test:watch"
+    "test:watch": "turbo test:watch --concurrency=15"
   },
   "devDependencies": {
     "create-fumadocs-app": "^16.0.42",
