@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeUpsert, tickHlc } from '@converge/core';
+import { createHlcState, makeUpsert, tickHlc, type Change } from '@converge/core';
 import { SqliteDb } from './index';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -32,6 +32,157 @@ describe('SqliteDb', () => {
     } catch {
       // Ignore if file doesn't exist
     }
+  });
+
+  it('appends changes and pulls them back', async () => {
+    const hlc = tickHlc(createHlcState('node-1'), 100);
+    const change = makeUpsert<TestSchema>({
+      stream: 'test',
+      entity: 'todos',
+      entityId: 'todo-1',
+      patch: { id: 'todo-1', title: 'Buy milk', done: false },
+      hlc,
+    });
+
+    const appendResult = await db.append({
+      stream: 'test',
+      changes: [change],
+    });
+
+    expect(appendResult.accepted).toBe(1);
+
+    const pullResult = await db.pull({
+      stream: 'test',
+      cursor: null,
+      limit: 10,
+    });
+
+    expect(pullResult.changes).toHaveLength(1);
+    expect(pullResult.changes[0].entity).toBe('todos');
+    expect(pullResult.changes[0].entityId).toBe('todo-1');
+    expect(pullResult.nextCursor).toBeTruthy();
+  });
+
+  it('handles idempotency keys', async () => {
+    const hlc = tickHlc(createHlcState('node-1'), 100);
+    const change = makeUpsert<TestSchema>({
+      stream: 'test',
+      entity: 'todos',
+      entityId: 'todo-1',
+      patch: { id: 'todo-1', title: 'Buy milk', done: false },
+      hlc,
+    });
+
+    const firstAppend = await db.append({
+      stream: 'test',
+      idempotencyKey: 'key-1',
+      changes: [change],
+    });
+
+    expect(firstAppend.accepted).toBe(1);
+
+    // Same idempotency key should be rejected
+    const secondAppend = await db.append({
+      stream: 'test',
+      idempotencyKey: 'key-1',
+      changes: [change],
+    });
+
+    expect(secondAppend.accepted).toBe(0);
+  });
+
+  it('materializes changes when materializer is configured', async () => {
+    // Create entity table and tags table first
+    db.close();
+    const setupDb = new SqliteDb<TestSchema>({ filename: dbPath });
+    setupDb['db'].exec(`
+      CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER);
+    `);
+    setupDb.close();
+
+    const dbWithMaterializer = new SqliteDb<TestSchema>({
+      filename: dbPath,
+      materializer: {
+        dialect: 'sqlite',
+        tableMap: { todos: 'todos' },
+        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      },
+    });
+
+    const hlc = tickHlc(createHlcState('node-1'), 100);
+    const change = makeUpsert<TestSchema>({
+      stream: 'test',
+      entity: 'todos',
+      entityId: 'todo-1',
+      patch: { id: 'todo-1', title: 'Buy milk', done: false },
+      hlc,
+    });
+
+    await dbWithMaterializer.append({
+      stream: 'test',
+      changes: [change],
+    });
+
+    // Verify materialization: check that the todo was saved to the todos table
+    const verifyDb = new SqliteDb<TestSchema>({ filename: dbPath });
+    const todos = verifyDb['db']
+      .prepare('SELECT id, title, done FROM todos WHERE id = ?')
+      .all('todo-1') as Array<{ id: string; title: string; done: number }>;
+    verifyDb.close();
+
+    expect(todos).toHaveLength(1);
+    expect(todos[0].id).toBe('todo-1');
+    expect(todos[0].title).toBe('Buy milk');
+    expect(todos[0].done).toBe(0); // SQLite stores booleans as integers
+
+    dbWithMaterializer.close();
+  });
+
+  it('handles cursor pagination', async () => {
+    const changes = Array.from({ length: 5 }, (_, i) => {
+      const hlc = tickHlc(createHlcState('node-1'), 100 + i);
+      return makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: `todo-${i}`,
+        patch: { id: `todo-${i}`, title: `Todo ${i}`, done: false },
+        hlc,
+      });
+    });
+
+    await db.append({
+      stream: 'test',
+      changes,
+    });
+
+    // Pull first 2
+    const firstPull = await db.pull({
+      stream: 'test',
+      cursor: null,
+      limit: 2,
+    });
+
+    expect(firstPull.changes).toHaveLength(2);
+    expect(firstPull.nextCursor).toBeTruthy();
+
+    // Pull next 2 using cursor
+    const secondPull = await db.pull({
+      stream: 'test',
+      cursor: firstPull.nextCursor,
+      limit: 2,
+    });
+
+    expect(secondPull.changes).toHaveLength(2);
+    expect(secondPull.nextCursor).toBeTruthy();
+
+    // Pull remaining
+    const thirdPull = await db.pull({
+      stream: 'test',
+      cursor: secondPull.nextCursor,
+      limit: 2,
+    });
+
+    expect(thirdPull.changes).toHaveLength(1);
   });
 
   it('rolls back all writes when materialization fails (atomicity)', async () => {
@@ -99,13 +250,16 @@ describe('SqliteDb', () => {
     });
 
     // This will violate the CHECK constraint (done = 2 is not allowed)
-    const invalidChange = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-invalid',
-      patch: { id: 'todo-invalid', title: 'Invalid', done: 2 as any },
-      hlc: tickHlc(createHlcState('node-1'), 102),
-    });
+    const invalidChange = {
+      ...makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-invalid',
+        patch: { id: 'todo-invalid', title: 'Invalid', done: false },
+        hlc: tickHlc(createHlcState('node-1'), 102),
+      }),
+      patch: { id: 'todo-invalid', title: 'Invalid', done: 2 }, // Violates CHECK constraint
+    } as unknown as Change<TestSchema>;
 
     // Try to append both - the invalid one should cause the whole transaction to fail
     await expect(

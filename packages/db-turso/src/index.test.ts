@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeUpsert, tickHlc } from '@converge/core';
+import { createHlcState, makeUpsert, tickHlc, type Change } from '@converge/core';
 import { TursoDb } from './index';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -159,11 +159,11 @@ describe('TursoDb', () => {
     });
     verifyClient.close();
 
-    const rows = result.rows as unknown as Array<{ id: string; title: string; done: number }>;
-    expect(rows).toHaveLength(1);
-    expect(rows[0].id).toBe('todo-1');
-    expect(rows[0].title).toBe('Buy milk');
-    expect(rows[0].done).toBe(0); // SQLite stores booleans as integers
+    expect(result.rows).toHaveLength(1);
+    const row = result.rows[0];
+    expect(row.id).toBe('todo-1');
+    expect(row.title).toBe('Buy milk');
+    expect(row.done).toBe(0); // SQLite stores booleans as integers
 
     dbWithMaterializer.close();
   });
@@ -275,7 +275,7 @@ describe('TursoDb', () => {
       args: ['test'],
     });
     verifyClient1.close();
-    expect((count1.rows[0] as unknown as { count: number }).count).toBe(1);
+    expect(count1.rows[0]?.count).toBe(1);
 
     // Now try to append two changes: one valid, one that will violate CHECK constraint
     const setupClient2 = createClient({
@@ -302,13 +302,16 @@ describe('TursoDb', () => {
     });
 
     // Create a change that violates the CHECK constraint (done = 2)
-    const invalidChange = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-invalid',
-      patch: { id: 'todo-invalid', title: 'Invalid', done: 2 as unknown as boolean }, // Violates CHECK constraint
-      hlc: tickHlc(createHlcState('node-1'), 103),
-    });
+    const invalidChange = {
+      ...makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-invalid',
+        patch: { id: 'todo-invalid', title: 'Invalid', done: false },
+        hlc: tickHlc(createHlcState('node-1'), 103),
+      }),
+      patch: { id: 'todo-invalid', title: 'Invalid', done: 2 }, // Violates CHECK constraint
+    } as unknown as Change<TestSchema>;
 
     // Try to append both - the invalid one should cause the whole batch to fail
     await expect(
@@ -330,7 +333,7 @@ describe('TursoDb', () => {
     verifyClient2.close();
 
     // Should still be 1 (only the first change from before)
-    const changeCount = (changeLogResult.rows[0] as unknown as { count: number }).count;
+    const changeCount = changeLogResult.rows[0]?.count;
     expect(changeCount).toBe(1); // Only the first change should exist
 
     // Verify that the new todos were NOT materialized
@@ -434,7 +437,7 @@ describe('TursoDb', () => {
     });
     verifyClient.close();
 
-    const changeCount = (changeLogResult.rows[0] as unknown as { count: number }).count;
+    const changeCount = changeLogResult.rows[0]?.count;
     expect(changeCount).toBe(0); // No changes should be persisted
 
     // Verify that NEITHER todo was materialized
