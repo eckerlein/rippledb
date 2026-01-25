@@ -37,16 +37,42 @@ function getTextLines(label: string | string[]): string[] {
   return Array.isArray(label) ? label : [label];
 }
 
-function getNodeDimensions(label: string | string[]) {
-  const lines = getTextLines(label);
+function getNodeDimensions(node: NodeDef) {
+  const lines = getTextLines(node.label);
   const maxLineLength = Math.max(...lines.map(l => l.length));
+  
+  if (node.variant === 'label') {
+    // Text label: no padding, just text dimensions
+    const width = maxLineLength * 7.5; // monospace char width
+    const height = lines.length * LINE_HEIGHT;
+    return { width, height };
+  }
+  
+  // Box node: includes padding
   const width = maxLineLength * 8 + NODE_PADDING_X * 2;
   const height = lines.length * LINE_HEIGHT + NODE_PADDING_Y * 2;
   return { width, height };
 }
 
 function getAnchorPoint(node: NodeDef, side: 'top' | 'bottom' | 'left' | 'right') {
-  const { width, height } = getNodeDimensions(node.label);
+  const { width, height } = getNodeDimensions(node);
+  
+  if (node.variant === 'label') {
+    // For label nodes, anchor relative to text position
+    // Text is rendered at (node.x, node.y + FONT_SIZE) with baseline alignment
+    const textTop = node.y;
+    const textBottom = node.y + height;
+    const textCenterY = node.y + height / 2;
+    
+    switch (side) {
+      case 'top': return { x: node.x, y: textTop };
+      case 'bottom': return { x: node.x, y: textBottom };
+      case 'left': return { x: node.x, y: textCenterY };
+      case 'right': return { x: node.x + width, y: textCenterY };
+    }
+  }
+  
+  // Box node anchors
   const cx = node.x + width / 2;
   const cy = node.y + height / 2;
   
@@ -60,7 +86,7 @@ function getAnchorPoint(node: NodeDef, side: 'top' | 'bottom' | 'left' | 'right'
 
 function Node({ node }: { node: NodeDef }) {
   const lines = getTextLines(node.label);
-  const { width, height } = getNodeDimensions(node.label);
+  const { width, height } = getNodeDimensions(node);
   
   if (node.variant === 'label') {
     // Simple text label, no box
@@ -178,7 +204,7 @@ export function Diagram({ nodes, edges, width = 500, height = 400 }: DiagramProp
     let maxY = 0;
     
     for (const node of nodes) {
-      const { width: nw, height: nh } = getNodeDimensions(node.label);
+      const { width: nw, height: nh } = getNodeDimensions(node);
       maxX = Math.max(maxX, node.x + nw + 20);
       maxY = Math.max(maxY, node.y + nh + 20);
     }
