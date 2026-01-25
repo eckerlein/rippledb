@@ -1,10 +1,14 @@
 import Database from 'better-sqlite3';
 import type { Change, ConvergeSchema } from '@converge/core';
 import type { AppendRequest, AppendResult, Cursor, Db, PullRequest, PullResponse } from '@converge/server';
+import { applyChangeToState } from '@converge/materialize-core';
+import type { CustomMaterializerConfig, SyncMaterializerAdapter } from '@converge/materialize-db';
+import { createSyncMaterializer } from '@converge/materialize-db';
 
-type SqliteDbOptions = {
+type SqliteDbOptions<S extends ConvergeSchema = ConvergeSchema> = {
   filename: string;
   pragmas?: string[];
+  materializer?: Omit<CustomMaterializerConfig<S>, 'db'>;
 };
 
 type ChangeRow = {
@@ -36,8 +40,9 @@ export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S
   private idempotencyGet: ReturnType<SqliteDatabase['prepare']>;
   private idempotencyInsert: ReturnType<SqliteDatabase['prepare']>;
   private idempotencyUpdate: ReturnType<SqliteDatabase['prepare']>;
+  private materializer: SyncMaterializerAdapter<S> | null = null;
 
-  constructor(opts: SqliteDbOptions) {
+  constructor(opts: SqliteDbOptions<S>) {
     this.db = new Database(opts.filename);
 
     this.db.exec(`
@@ -74,6 +79,11 @@ export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S
     this.idempotencyUpdate = this.db.prepare(
       'UPDATE converge_idempotency SET last_seq = @last_seq WHERE stream = @stream AND idempotency_key = @idempotency_key',
     );
+
+    // Create sync materializer if configured
+    if (opts.materializer) {
+      this.materializer = createSyncMaterializer(this.db, opts.materializer);
+    }
   }
 
   async append(req: AppendRequest<S>): Promise<AppendResult> {
@@ -106,6 +116,22 @@ export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S
           stream: input.stream,
           idempotency_key: input.idempotencyKey,
         });
+      }
+
+      // Materialize changes if materializer is configured
+      if (this.materializer) {
+        for (const change of input.changes) {
+          const current = this.materializer.load(change.entity, change.entityId);
+          const result = applyChangeToState(current, change);
+
+          if (result.changed) {
+            if (result.deleted) {
+              this.materializer.remove(change.entity, change.entityId, result.state);
+            } else {
+              this.materializer.save(change.entity, change.entityId, result.state);
+            }
+          }
+        }
       }
 
       return { accepted: input.changes.length };

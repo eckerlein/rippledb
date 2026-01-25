@@ -149,6 +149,12 @@ importers:
       '@converge/core':
         specifier: workspace:*
         version: link:../core
+      '@converge/materialize-core':
+        specifier: workspace:*
+        version: link:../materialize-core
+      '@converge/materialize-db':
+        specifier: workspace:*
+        version: link:../materialize-db
       '@converge/server':
         specifier: workspace:*
         version: link:../server
