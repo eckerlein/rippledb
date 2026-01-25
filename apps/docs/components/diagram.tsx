@@ -239,8 +239,7 @@ function Node({ node }: { node: ResolvedNode }) {
         width={width}
         height={height}
         rx={4}
-        className="fill-neutral-100 stroke-neutral-300 dark:fill-neutral-800 dark:stroke-neutral-600"
-        strokeWidth={1}
+        className="fill-neutral-100 stroke-neutral-300 dark:fill-neutral-900 dark:stroke-neutral-600 stroke-1 dark:stroke-[0.5px]"
       />
       {lines.map((line, i) => (
         <text
