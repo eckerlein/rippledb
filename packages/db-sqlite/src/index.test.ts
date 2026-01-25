@@ -136,4 +136,81 @@ describe('SqliteDb', () => {
 
     dbWithMaterializer.close();
   });
+
+  it('rolls back all writes when materializer generates invalid SQL (adapter-level test)', async () => {
+    // Create entity table
+    db.close();
+    const setupDb = new SqliteDb<TestSchema>({ filename: dbPath });
+    setupDb['db'].exec(`
+      CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER);
+    `);
+    setupDb.close();
+
+    // Create a materializer with a custom saveEntityCommand that generates invalid SQL
+    // This will cause the transaction to fail, testing atomicity through the adapter
+    const dbWithInvalidMaterializer = new SqliteDb<TestSchema>({
+      filename: dbPath,
+      materializer: {
+        tableMap: { todos: 'todos' },
+        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+        // Custom commands that will generate invalid SQL
+        loadCommand: (tagsTable) =>
+          `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = ? AND id = ?`,
+        saveCommand: (tagsTable) =>
+          `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 0, NULL)`,
+        removeCommand: (tagsTable) =>
+          `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 1, ?)`,
+        // This will generate invalid SQL - trying to insert into a non-existent column
+        saveEntityCommand: (tableName, id, columns, values) => ({
+          sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')}, invalid_column) VALUES (?, ${values.map(() => '?').join(', ')}, ?)`,
+          params: [id, ...values, 'invalid'],
+        }),
+      },
+    });
+
+    // Create two valid changes
+    const change1 = makeUpsert<TestSchema>({
+      stream: 'test',
+      entity: 'todos',
+      entityId: 'todo-1',
+      patch: { id: 'todo-1', title: 'First todo', done: false },
+      hlc: tickHlc(createHlcState('node-1'), 100),
+    });
+
+    const change2 = makeUpsert<TestSchema>({
+      stream: 'test',
+      entity: 'todos',
+      entityId: 'todo-2',
+      patch: { id: 'todo-2', title: 'Second todo', done: false },
+      hlc: tickHlc(createHlcState('node-1'), 101),
+    });
+
+    // Try to append both - the invalid SQL should cause the whole transaction to fail
+    await expect(
+      dbWithInvalidMaterializer.append({
+        stream: 'test',
+        changes: [change1, change2],
+      }),
+    ).rejects.toThrow();
+
+    // Verify that NEITHER change was written to the change log (atomic rollback)
+    const verifyDb = new SqliteDb<TestSchema>({ filename: dbPath });
+    const count = verifyDb['db']
+      .prepare('SELECT COUNT(*) as count FROM converge_changes WHERE stream = ?')
+      .get('test') as { count: number };
+    verifyDb.close();
+
+    expect(count.count).toBe(0); // No changes should be persisted
+
+    // Verify that NEITHER todo was materialized
+    const verifyDb2 = new SqliteDb<TestSchema>({ filename: dbPath });
+    const todos = verifyDb2['db']
+      .prepare('SELECT id FROM todos WHERE id IN (?, ?)')
+      .all('todo-1', 'todo-2') as Array<{ id: string }>;
+    verifyDb2.close();
+
+    expect(todos).toHaveLength(0); // Neither should be materialized
+
+    dbWithInvalidMaterializer.close();
+  });
 });

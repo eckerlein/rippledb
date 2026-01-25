@@ -348,4 +348,108 @@ describe('TursoDb', () => {
 
     dbWithMaterializer.close();
   });
+
+  it('rolls back all writes when materializer generates invalid SQL (adapter-level test)', async () => {
+    // Create entity table
+    const setupClient = createClient({
+      url: `file:${dbPath}`,
+      authToken: '',
+    });
+    await setupClient.batch([
+      {
+        sql: 'CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)',
+        args: [],
+      },
+      {
+        sql: `CREATE TABLE IF NOT EXISTS converge_tags (
+          entity TEXT NOT NULL,
+          id TEXT NOT NULL,
+          data TEXT NOT NULL,
+          tags TEXT NOT NULL,
+          deleted INTEGER NOT NULL DEFAULT 0,
+          deleted_tag TEXT,
+          PRIMARY KEY (entity, id)
+        )`,
+        args: [],
+      },
+    ]);
+    setupClient.close();
+
+    // Create a materializer with a custom saveEntityCommand that generates invalid SQL
+    // This will cause the batch to fail, testing atomicity through the adapter
+    const dbWithInvalidMaterializer = new TursoDb<TestSchema>({
+      url: `file:${dbPath}`,
+      authToken: '',
+      materializer: {
+        tableMap: { todos: 'todos' },
+        fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+        // Custom commands that will generate invalid SQL
+        loadCommand: (tagsTable) =>
+          `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = ? AND id = ?`,
+        saveCommand: (tagsTable) =>
+          `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 0, NULL)`,
+        removeCommand: (tagsTable) =>
+          `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 1, ?)`,
+        // This will generate invalid SQL - trying to insert into a non-existent column
+        saveEntityCommand: (tableName, id, columns, values) => ({
+          sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')}, invalid_column) VALUES (?, ${values.map(() => '?').join(', ')}, ?)`,
+          params: [id, ...values, 'invalid'],
+        }),
+      },
+    });
+
+    // Create two valid changes
+    const change1 = makeUpsert<TestSchema>({
+      stream: 'test',
+      entity: 'todos',
+      entityId: 'todo-1',
+      patch: { id: 'todo-1', title: 'First todo', done: false },
+      hlc: tickHlc(createHlcState('node-1'), 100),
+    });
+
+    const change2 = makeUpsert<TestSchema>({
+      stream: 'test',
+      entity: 'todos',
+      entityId: 'todo-2',
+      patch: { id: 'todo-2', title: 'Second todo', done: false },
+      hlc: tickHlc(createHlcState('node-1'), 101),
+    });
+
+    // Try to append both - the invalid SQL should cause the whole batch to fail
+    await expect(
+      dbWithInvalidMaterializer.append({
+        stream: 'test',
+        changes: [change1, change2],
+      }),
+    ).rejects.toThrow();
+
+    // Verify that NEITHER change was written to the change log (atomic rollback)
+    const verifyClient = createClient({
+      url: `file:${dbPath}`,
+      authToken: '',
+    });
+    const changeLogResult = await verifyClient.execute({
+      sql: 'SELECT COUNT(*) as count FROM converge_changes WHERE stream = ?',
+      args: ['test'],
+    });
+    verifyClient.close();
+
+    const changeCount = (changeLogResult.rows[0] as unknown as { count: number }).count;
+    expect(changeCount).toBe(0); // No changes should be persisted
+
+    // Verify that NEITHER todo was materialized
+    const verifyClient2 = createClient({
+      url: `file:${dbPath}`,
+      authToken: '',
+    });
+    const todosResult = await verifyClient2.execute({
+      sql: 'SELECT id FROM todos WHERE id IN (?, ?)',
+      args: ['todo-1', 'todo-2'],
+    });
+    verifyClient2.close();
+
+    expect(todosResult.rows).toHaveLength(0); // Neither should be materialized
+
+    dbWithInvalidMaterializer.close();
+  });
 });
