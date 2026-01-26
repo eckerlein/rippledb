@@ -15,7 +15,9 @@ RippleDB treats local storage as the source of truth. Changes replicate via an a
 
 ## Documentation
 
-Full documentation available at [rippledb.dev](https://rippledb.dev/docs/) or self-host with `pnpm dev`
+📚 **Full documentation:** [rippledb.dev/docs](https://rippledb.dev/docs/)
+
+To run locally: `pnpm dev` (from `apps/docs`)
 
 ## Install
 
