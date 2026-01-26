@@ -6,13 +6,22 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       title: (
         <div className="flex items-center gap-2 text-md">
-          <Image
-            src="/icon-variations/06-pulse-gradient.svg"
-            alt="RippleDB"
-            width={36}
-            height={36}
-            className=""
-          />
+          <div className="relative w-9 h-9">
+            <Image
+              src="/icon-variations/06-pulse-gradient-light.svg"
+              alt="RippleDB"
+              width={36}
+              height={36}
+              className="dark:hidden"
+            />
+            <Image
+              src="/icon-variations/06-pulse-gradient-dark.svg"
+              alt="RippleDB"
+              width={36}
+              height={36}
+              className="hidden dark:block"
+            />
+          </div>
           <span>RippleDB</span>
         </div>
       ),
