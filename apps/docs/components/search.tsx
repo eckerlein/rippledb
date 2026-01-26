@@ -14,19 +14,12 @@ import {
 } from 'fumadocs-ui/components/dialog/search';
 import { useI18n } from 'fumadocs-ui/contexts/i18n';
 
-function joinBasePath(path: string) {
-  const base = (process.env.NEXT_PUBLIC_BASE_PATH ?? '').replace(/\/$/, '');
-  const next = path.startsWith('/') ? path : `/${path}`;
-  return `${base}${next}`;
-}
-
-export default function StaticSearchDialog(props: SharedProps) {
+export default function SearchDialog(props: SharedProps) {
   const { locale } = useI18n();
 
   const { search, setSearch, query } = useDocsSearch({
-    type: 'static',
-    // GitHub Pages project sites live under a basePath (e.g. /rippledb)
-    from: joinBasePath('/api/search'),
+    type: 'server',
+    from: '/api/search',
     locale,
   });
 
