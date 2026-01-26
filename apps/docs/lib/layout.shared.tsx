@@ -7,11 +7,11 @@ export function baseOptions(): BaseLayoutProps {
       title: (
         <div className="flex items-center gap-2 text-md">
           <Image
-            src="/icon-variations/11-stack-gradient.svg"
+            src="/icon-variations/06-pulse-gradient.svg"
             alt="RippleDB"
             width={36}
             height={36}
-            className="dark:invert"
+            className=""
           />
           <span>RippleDB</span>
         </div>
