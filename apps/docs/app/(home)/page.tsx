@@ -26,6 +26,7 @@ const designs = [
       { name: 'Gradient', file: '03-waves-gradient.svg' },
       { name: 'Bi-Color', file: '03-waves-bicolor.svg' },
       { name: 'Animated', file: '03-waves-animated.svg' },
+      { name: 'Drawing', file: '03-waves-drawing.svg' },
     ],
   },
   {
