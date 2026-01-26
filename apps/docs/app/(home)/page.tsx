@@ -10,7 +10,7 @@ const designs = [
       { name: 'Blue', file: '06-pulse-blue.svg' },
       { name: 'Purple', file: '06-pulse-purple.svg' },
       { name: 'Teal', file: '06-pulse-teal.svg' },
-      { name: 'Gradient', file: '06-pulse-gradient.svg' },
+      { name: 'Gradient', file: '06-pulse-gradient.svg', lightFile: '06-pulse-gradient-light.svg', darkFile: '06-pulse-gradient-dark.svg' },
       { name: 'Bi-Color', file: '06-pulse-bicolor.svg' },
       { name: 'Animated', file: '06-pulse-animated.svg' },
     ],
@@ -90,13 +90,32 @@ export default function HomePage() {
                   key={color.file}
                   className="flex flex-col items-center p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
-                  <div className="w-20 h-20 mb-3 flex items-center justify-center bg-background border rounded">
-                    <img
-                      src={`/icon-variations/${color.file}`}
-                      alt={`${design.name} - ${color.name}`}
-                      width={40}
-                      height={40}
-                    />
+                  <div className="w-20 h-20 mb-3 flex items-center justify-center bg-background border rounded relative">
+                    {color.lightFile && color.darkFile ? (
+                      <>
+                        <img
+                          src={`/icon-variations/${color.lightFile}`}
+                          alt={`${design.name} - ${color.name}`}
+                          width={40}
+                          height={40}
+                          className="dark:hidden"
+                        />
+                        <img
+                          src={`/icon-variations/${color.darkFile}`}
+                          alt={`${design.name} - ${color.name}`}
+                          width={40}
+                          height={40}
+                          className="hidden dark:block"
+                        />
+                      </>
+                    ) : (
+                      <img
+                        src={`/icon-variations/${color.file}`}
+                        alt={`${design.name} - ${color.name}`}
+                        width={40}
+                        height={40}
+                      />
+                    )}
                   </div>
                   <div className="text-sm font-medium">{color.name}</div>
                 </div>
