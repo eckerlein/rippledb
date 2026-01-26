@@ -1,0 +1,7 @@
+{
+	"github-actions.workflows.pinned.workflows": [
+		".github/workflows/verify-packages.yml",
+		".github/workflows/release.yml",
+		".github/workflows/docs-pages.yml"
+	]
+}
