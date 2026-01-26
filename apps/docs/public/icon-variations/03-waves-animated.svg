@@ -1,0 +1,21 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    @keyframes wave {
+      0%, 100% { transform: translateY(0); opacity: 0.4; }
+      50% { transform: translateY(-2px); opacity: 0.8; }
+    }
+    .wave-1 { animation: wave 2s ease-in-out infinite; }
+    .wave-2 { animation: wave 2s ease-in-out infinite 0.3s; }
+    .wave-3 { animation: wave 2s ease-in-out infinite 0.6s; }
+  </style>
+  <g class="wave-1">
+    <path d="M4 16 Q16 8, 28 16 T4 16" stroke="#14b8a6" stroke-width="2" fill="none"/>
+  </g>
+  <g class="wave-2">
+    <path d="M4 20 Q16 12, 28 20 T4 20" stroke="#3b82f6" stroke-width="2" fill="none"/>
+  </g>
+  <g class="wave-3">
+    <path d="M4 24 Q16 16, 28 24 T4 24" stroke="#8b5cf6" stroke-width="2" fill="none"/>
+  </g>
+  <circle cx="16" cy="16" r="2" fill="#3b82f6"/>
+</svg>

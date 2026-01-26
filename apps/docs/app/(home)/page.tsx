@@ -10,6 +10,9 @@ const designs = [
       { name: 'Blue', file: '06-pulse-blue.svg' },
       { name: 'Purple', file: '06-pulse-purple.svg' },
       { name: 'Teal', file: '06-pulse-teal.svg' },
+      { name: 'Gradient', file: '06-pulse-gradient.svg' },
+      { name: 'Bi-Color', file: '06-pulse-bicolor.svg' },
+      { name: 'Animated', file: '06-pulse-animated.svg' },
     ],
   },
   {
@@ -20,6 +23,9 @@ const designs = [
       { name: 'Blue', file: '03-waves-blue.svg' },
       { name: 'Purple', file: '03-waves-purple.svg' },
       { name: 'Teal', file: '03-waves-teal.svg' },
+      { name: 'Gradient', file: '03-waves-gradient.svg' },
+      { name: 'Bi-Color', file: '03-waves-bicolor.svg' },
+      { name: 'Animated', file: '03-waves-animated.svg' },
     ],
   },
   {
@@ -30,6 +36,9 @@ const designs = [
       { name: 'Blue', file: '10-modern-blue.svg' },
       { name: 'Purple', file: '10-modern-purple.svg' },
       { name: 'Teal', file: '10-modern-teal.svg' },
+      { name: 'Gradient', file: '10-modern-gradient.svg' },
+      { name: 'Bi-Color', file: '10-modern-bicolor.svg' },
+      { name: 'Animated', file: '10-modern-animated.svg' },
     ],
   },
   {
@@ -40,6 +49,9 @@ const designs = [
       { name: 'Blue', file: '12-original-blue.svg' },
       { name: 'Purple', file: '12-original-purple.svg' },
       { name: 'Teal', file: '12-original-teal.svg' },
+      { name: 'Gradient', file: '12-original-gradient.svg' },
+      { name: 'Bi-Color', file: '12-original-bicolor.svg' },
+      { name: 'Animated', file: '12-original-animated.svg' },
     ],
   },
   {
@@ -50,6 +62,9 @@ const designs = [
       { name: 'Blue', file: '11-stack-blue.svg' },
       { name: 'Purple', file: '11-stack-purple.svg' },
       { name: 'Teal', file: '11-stack-teal.svg' },
+      { name: 'Gradient', file: '11-stack-gradient.svg' },
+      { name: 'Bi-Color', file: '11-stack-bicolor.svg' },
+      { name: 'Animated', file: '11-stack-animated.svg' },
     ],
   },
 ];
@@ -68,7 +83,7 @@ export default function HomePage() {
         {designs.map((design) => (
           <div key={design.name} className="space-y-4">
             <h2 className="text-xl font-semibold">{design.name}</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
               {design.colors.map((color) => (
                 <div
                   key={color.file}
