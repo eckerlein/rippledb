@@ -1,6 +1,7 @@
 {
   "name": "@rippledb/zod",
   "version": "0.1.2",
+  "license": "MIT",
   "description": "Zod schemas for runtime validation of RippleDB types",
   "private": false,
   "type": "module",
