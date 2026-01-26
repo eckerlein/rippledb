@@ -5,12 +5,12 @@ export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
       title: (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 text-md">
           <Image
-            src="/icon.svg"
+            src="/icon-variations/02-bold.svg"
             alt="RippleDB"
-            width={24}
-            height={24}
+            width={36}
+            height={36}
             className="dark:invert"
           />
           <span>RippleDB</span>
