@@ -1,5 +1,11 @@
 # @rippledb/zod
 
+## 0.1.1
+
+### Patch Changes
+
+- Manual republish after npm registry sync issues
+
 ## 0.1.0
 
 ### Minor Changes
