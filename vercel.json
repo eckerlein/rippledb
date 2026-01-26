@@ -1,5 +1,6 @@
 {
   "installCommand": "pnpm install --filter=docs...",
+  "buildCommand": "turbo build --filter=docs",
   "git": {
     "deploymentEnabled": {
       "changeset-release/*": false
