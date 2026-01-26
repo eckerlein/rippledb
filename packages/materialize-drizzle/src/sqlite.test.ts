@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@converge/core';
-import { materializeChange } from '@converge/materialize-core';
-import { createCustomMaterializer } from '@converge/materialize-db';
+import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@rippledb/core';
+import { materializeChange } from '@rippledb/materialize-core';
+import { createCustomMaterializer } from '@rippledb/materialize-db';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { getTableConfig, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
@@ -24,7 +24,7 @@ const todosTable = sqliteTable('todos', {
   done: integer('done'),
 });
 
-const tagsTable = sqliteTable('converge_tags', {
+const tagsTable = sqliteTable('ripple_tags', {
   entity: text('entity').notNull(),
   id: text('id').notNull(),
   data: text('data').notNull(),
@@ -42,7 +42,7 @@ describe('materialize-drizzle (sqlite)', () => {
     sqlite = new Database(dbPath);
     sqlite.exec(`
       CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER);
-      CREATE TABLE converge_tags (
+      CREATE TABLE ripple_tags (
         entity TEXT NOT NULL,
         id TEXT NOT NULL,
         data TEXT NOT NULL,
@@ -86,7 +86,7 @@ describe('materialize-drizzle (sqlite)', () => {
     await materializeChange(adapter, change);
 
     const tagsRow = sqlite
-      .prepare('SELECT data, tags, deleted FROM converge_tags WHERE entity = ? AND id = ?')
+      .prepare('SELECT data, tags, deleted FROM ripple_tags WHERE entity = ? AND id = ?')
       .get('todos', 'todo-1') as { data: string; tags: string; deleted: number } | undefined;
     expect(tagsRow).toBeTruthy();
     expect(JSON.parse(tagsRow!.data)).toEqual({ id: 'todo-1', title: 'Buy milk', done: false });
@@ -129,7 +129,7 @@ describe('materialize-drizzle (sqlite)', () => {
     await materializeChange(adapter, change2);
 
     const tagsRow = sqlite
-      .prepare('SELECT deleted, deleted_tag FROM converge_tags WHERE entity = ? AND id = ?')
+      .prepare('SELECT deleted, deleted_tag FROM ripple_tags WHERE entity = ? AND id = ?')
       .get('todos', 'todo-1') as { deleted: number; deleted_tag: string | null } | undefined;
     expect(tagsRow).toBeTruthy();
     expect(tagsRow!.deleted).toBe(1);

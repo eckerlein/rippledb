@@ -9,21 +9,21 @@ Accepted
 
 ## Context
 
-Converge must remain runtime-agnostic and framework-agnostic while still offering great DX through optional adapters and integrations.
+RippleDB must remain runtime-agnostic and framework-agnostic while still offering great DX through optional adapters and integrations.
 
 We need clear boundaries so that core logic cannot accidentally depend on UI frameworks or specific databases.
 
 ## Decision
 
-Converge will be organized as a monorepo with layered packages:
+RippleDB will be organized as a monorepo with layered packages:
 
 - **Core primitives**: types, HLC, merge semantics
 - **Client replication orchestration**: outbox / pull / apply / push logic
 - **Server replication orchestration**: change append + cursor pull interfaces and helpers
 - **Persistence implementations**
-  - client truth store implementations: `@converge/store-*`
-  - server persistence implementations: `@converge/db-*`
-- **UI bindings**: optional bindings for cache invalidation and reactivity (`@converge/bind-*`)
+  - client truth store implementations: `@rippledb/store-*`
+  - server persistence implementations: `@rippledb/db-*`
+- **UI bindings**: optional bindings for cache invalidation and reactivity (`@rippledb/bind-*`)
 - **Docs / CRDT**: separate modules (future)
 
 ## Alternatives Considered

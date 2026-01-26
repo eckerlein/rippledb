@@ -1,10 +1,10 @@
 import type {
   ChangeTags,
-  ConvergeSchema,
+  RippleSchema,
   EntityName,
   Hlc,
-} from '@converge/core';
-import type { MaterializerAdapter, MaterializerState } from '@converge/materialize-core';
+} from '@rippledb/core';
+import type { MaterializerAdapter, MaterializerState } from '@rippledb/materialize-core';
 import type {
   CustomMaterializerConfig,
   Db,
@@ -36,9 +36,9 @@ import { dialects } from './dialects';
  * ```
  */
 export function createSqlExecutor<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
 >(config: SqlMaterializerConfig<S>, db: Db): MaterializerExecutor {
-  const tagsTable = config.tagsTable ?? 'converge_tags';
+  const tagsTable = config.tagsTable ?? 'ripple_tags';
   const dialect =
     'dialect' in config && config.dialect ? dialects[config.dialect] : undefined;
 
@@ -138,7 +138,7 @@ export function createSqlExecutor<
 }
 
 export function createCustomMaterializer<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
 >(config: CustomMaterializerConfig<S>): MaterializerAdapter<S> {
   const executor = config.executor;
 

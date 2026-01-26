@@ -1,4 +1,4 @@
-import type { Change, ConvergeSchema } from '@converge/core';
+import type { Change, RippleSchema } from '@rippledb/core';
 import type {
   AppendRequest,
   AppendResult,
@@ -6,8 +6,8 @@ import type {
   Db,
   PullRequest,
   PullResponse,
-} from '@converge/server';
-import { applyChangeToState } from '@converge/materialize-core';
+} from '@rippledb/server';
+import { applyChangeToState } from '@rippledb/materialize-core';
 import { and, eq, gt, asc } from 'drizzle-orm';
 
 // ============================================================================
@@ -66,7 +66,7 @@ export type DrizzleMaterializerExecutor<TDb> = {
 /**
  * Materializer config returned from the factory.
  */
-export type DrizzleMaterializerConfig<S extends ConvergeSchema, TDb> = {
+export type DrizzleMaterializerConfig<S extends RippleSchema, TDb> = {
   tableMap: Partial<Record<keyof S, string>>;
   fieldMap?: Partial<Record<keyof S, Record<string, string>>>;
   executor: DrizzleMaterializerExecutor<TDb>;
@@ -91,7 +91,7 @@ export type IdempotencyTableColumns<TTable extends DrizzleTable> = TTable & {
 };
 
 export type DrizzleDbOptions<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   TDb = unknown,
   TTable extends DrizzleTable = DrizzleTable,
 > = {
@@ -107,7 +107,7 @@ export type DrizzleDbOptions<
    *
    * @example SQLite
    * ```ts
-   * const changesTable = sqliteTable('converge_changes', {
+   * const changesTable = sqliteTable('ripple_changes', {
    *   seq: integer('seq').primaryKey({ autoIncrement: true }),
    *   stream: text('stream').notNull(),
    *   change_json: text('change_json').notNull(),
@@ -116,7 +116,7 @@ export type DrizzleDbOptions<
    *
    * @example PostgreSQL
    * ```ts
-   * const changesTable = pgTable('converge_changes', {
+   * const changesTable = pgTable('ripple_changes', {
    *   seq: serial('seq').primaryKey(),
    *   stream: text('stream').notNull(),
    *   change_json: text('change_json').notNull(),
@@ -320,13 +320,13 @@ async function runInsertReturning(query: QueryResult): Promise<unknown | null> {
  * import { drizzle } from 'drizzle-orm/better-sqlite3';
  * import { sqliteTable, text, integer, getTableConfig } from 'drizzle-orm/sqlite-core';
  *
- * const changesTable = sqliteTable('converge_changes', {
+ * const changesTable = sqliteTable('ripple_changes', {
  *   seq: integer('seq').primaryKey({ autoIncrement: true }),
  *   stream: text('stream').notNull(),
  *   change_json: text('change_json').notNull(),
  * });
  *
- * const idempotencyTable = sqliteTable('converge_idempotency', {
+ * const idempotencyTable = sqliteTable('ripple_idempotency', {
  *   stream: text('stream').notNull(),
  *   idempotency_key: text('idempotency_key').notNull(),
  *   last_seq: integer('last_seq').notNull(),
@@ -348,13 +348,13 @@ async function runInsertReturning(query: QueryResult): Promise<unknown | null> {
  * import { drizzle } from 'drizzle-orm/node-postgres';
  * import { pgTable, text, serial, integer, primaryKey, getTableConfig } from 'drizzle-orm/pg-core';
  *
- * const changesTable = pgTable('converge_changes', {
+ * const changesTable = pgTable('ripple_changes', {
  *   seq: serial('seq').primaryKey(),
  *   stream: text('stream').notNull(),
  *   change_json: text('change_json').notNull(),
  * });
  *
- * const idempotencyTable = pgTable('converge_idempotency', {
+ * const idempotencyTable = pgTable('ripple_idempotency', {
  *   stream: text('stream').notNull(),
  *   idempotency_key: text('idempotency_key').notNull(),
  *   last_seq: integer('last_seq').notNull(),
@@ -369,7 +369,7 @@ async function runInsertReturning(query: QueryResult): Promise<unknown | null> {
  * ```
  */
 export class DrizzleDb<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   TDb = unknown,
   TTable extends DrizzleTable = DrizzleTable,
 > implements Db<S>

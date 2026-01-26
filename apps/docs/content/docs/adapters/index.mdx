@@ -139,7 +139,7 @@ With `db-drizzle`, set `isSync: true` for synchronous drivers like `better-sqlit
 You can implement your own adapters by following the `Db` interface:
 
 ```ts
-interface Db<S extends ConvergeSchema> {
+interface Db<S extends RippleSchema> {
   append(stream: string, changes: Change<S>[]): Promise<{ accepted: number }>;
   pull(stream: string, cursor: number | null): Promise<{ changes: Change<S>[]; cursor: number }>;
   close(): void;

@@ -13,7 +13,7 @@ Normalized data access patterns cause many point reads (N+1 problem). Using clie
 
 ## Decision
 
-Converge introduces a **batch loader** abstraction:
+RippleDB introduces a **batch loader** abstraction:
 
 - reads are collected per tick/RAF
 - executed as a single bulk query

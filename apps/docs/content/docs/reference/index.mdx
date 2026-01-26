@@ -14,22 +14,22 @@ Complete API documentation for all Converge packages.
 
 <Cards>
   <Card 
-    title="@converge/core" 
+    title="@rippledb/core" 
     description="HLC timestamps, Change types, and pure merge logic"
     href="/docs/reference/core"
   />
   <Card 
-    title="@converge/server" 
+    title="@rippledb/server" 
     description="Db interface and server contracts"
     href="/docs/reference/server"
   />
   <Card 
-    title="@converge/client" 
+    title="@rippledb/client" 
     description="Client-side sync orchestration"
     href="/docs/reference/client"
   />
   <Card 
-    title="@converge/remote-http" 
+    title="@rippledb/remote-http" 
     description="HTTP transport for client-server sync"
     href="/docs/reference/remote-http"
   />
@@ -39,13 +39,13 @@ Complete API documentation for all Converge packages.
 
 | Package | Depends On | Purpose |
 |---------|------------|---------|
-| `@converge/core` | nothing | HLC, Change types, merge helpers |
-| `@converge/server` | core | Db interface for server persistence |
-| `@converge/client` | core | Store interface, sync orchestration |
-| `@converge/remote-http` | client | HTTP transport layer |
-| `@converge/db-*` | server | Database adapters |
-| `@converge/materialize-*` | core | State materializers |
-| `@converge/store-*` | client | Client-side stores |
+| `@rippledb/core` | nothing | HLC, Change types, merge helpers |
+| `@rippledb/server` | core | Db interface for server persistence |
+| `@rippledb/client` | core | Store interface, sync orchestration |
+| `@rippledb/remote-http` | client | HTTP transport layer |
+| `@rippledb/db-*` | server | Database adapters |
+| `@rippledb/materialize-*` | core | State materializers |
+| `@rippledb/store-*` | client | Client-side stores |
 
 ## Dependency Rules
 
@@ -78,7 +78,7 @@ The dependency graph is strictly enforced:
 
 ## Type Safety
 
-All packages export TypeScript types. Use the `ConvergeSchema` generic for type-safe changes:
+All packages export TypeScript types. Use the `RippleSchema` generic for type-safe changes:
 
 ```ts
 type MySchema = {

@@ -1,18 +1,18 @@
 ---
-title: "@converge/core"
+title: "@rippledb/core"
 description: HLC timestamps, Change types, and pure merge logic
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
-# @converge/core
+# @rippledb/core
 
 The foundation package containing HLC timestamps, Change types, and pure merge logic. Has zero dependencies.
 
 ## Installation
 
 ```bash
-pnpm add @converge/core
+pnpm add @rippledb/core
 ```
 
 ## Hybrid Logical Clocks (HLC)
@@ -43,7 +43,7 @@ type HlcState = {
 Create a new HLC state for a node.
 
 ```ts
-import { createHlcState } from '@converge/core';
+import { createHlcState } from '@rippledb/core';
 
 const state = createHlcState('server-abc123');
 // { lastWallMs: 0, counter: 0, nodeId: 'server-abc123' }
@@ -54,7 +54,7 @@ const state = createHlcState('server-abc123');
 Generate a new HLC timestamp. Mutates `state` to ensure monotonicity.
 
 ```ts
-import { createHlcState, tickHlc } from '@converge/core';
+import { createHlcState, tickHlc } from '@rippledb/core';
 
 const state = createHlcState('node-1');
 const ts1 = tickHlc(state, Date.now());
@@ -67,7 +67,7 @@ const ts2 = tickHlc(state, Date.now());
 Update local state after observing a remote HLC. Ensures local clock stays ahead.
 
 ```ts
-import { createHlcState, observeHlc } from '@converge/core';
+import { createHlcState, observeHlc } from '@rippledb/core';
 
 const state = createHlcState('node-1');
 const remoteTs = '1706123456789:5:node-2';
@@ -80,7 +80,7 @@ const localTs = observeHlc(state, remoteTs, Date.now());
 Parse an HLC string into its components.
 
 ```ts
-import { parseHlc } from '@converge/core';
+import { parseHlc } from '@rippledb/core';
 
 const parsed = parseHlc('1706123456789:5:node-1');
 // { wallMs: 1706123456789, counter: 5, nodeId: 'node-1' }
@@ -91,7 +91,7 @@ const parsed = parseHlc('1706123456789:5:node-1');
 Format ParsedHlc back to string.
 
 ```ts
-import { formatHlc } from '@converge/core';
+import { formatHlc } from '@rippledb/core';
 
 const hlc = formatHlc({ wallMs: 1706123456789, counter: 5, nodeId: 'node-1' });
 // '1706123456789:5:node-1'
@@ -102,7 +102,7 @@ const hlc = formatHlc({ wallMs: 1706123456789, counter: 5, nodeId: 'node-1' });
 Compare two HLCs. Returns -1, 0, or 1.
 
 ```ts
-import { compareHlc } from '@converge/core';
+import { compareHlc } from '@rippledb/core';
 
 compareHlc('1000:0:a', '1001:0:b'); // -1 (a < b)
 compareHlc('1000:0:a', '1000:0:a'); // 0 (equal)
@@ -116,9 +116,9 @@ compareHlc('1000:1:a', '1000:0:a'); // 1 (a > b)
 ```ts
 type ChangeKind = 'upsert' | 'delete';
 
-type ConvergeSchema = Record<string, Record<string, unknown>>;
+type RippleSchema = Record<string, Record<string, unknown>>;
 
-type Change<S extends ConvergeSchema, E extends EntityName<S>> = {
+type Change<S extends RippleSchema, E extends EntityName<S>> = {
   stream: string;
   entity: E;
   entityId: string;
@@ -136,7 +136,7 @@ type Change<S extends ConvergeSchema, E extends EntityName<S>> = {
 Create an upsert change. Auto-generates tags if not provided.
 
 ```ts
-import { makeUpsert } from '@converge/core';
+import { makeUpsert } from '@rippledb/core';
 
 type MySchema = { todos: { id: string; title: string; done: boolean } };
 
@@ -176,7 +176,7 @@ type UpsertChangeInput<S, E> = {
 Create a delete change (tombstone).
 
 ```ts
-import { makeDelete } from '@converge/core';
+import { makeDelete } from '@rippledb/core';
 
 const change = makeDelete<MySchema>({
   stream: 'user-123',

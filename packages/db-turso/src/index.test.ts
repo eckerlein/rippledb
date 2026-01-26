@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeUpsert, tickHlc, type Change } from '@converge/core';
+import { createHlcState, makeUpsert, tickHlc, type Change } from '@rippledb/core';
 import { TursoDb } from './index';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { unlinkSync } from 'node:fs';
 import { createClient } from '@libsql/client';
-import { createSqlExecutor } from '@converge/materialize-db';
+import { createSqlExecutor } from '@rippledb/materialize-db';
 
 type TestSchema = {
   todos: {
@@ -108,7 +108,7 @@ describe('TursoDb', () => {
         args: [],
       },
       {
-        sql: `CREATE TABLE IF NOT EXISTS converge_tags (
+        sql: `CREATE TABLE IF NOT EXISTS ripple_tags (
           entity TEXT NOT NULL,
           id TEXT NOT NULL,
           data TEXT NOT NULL,
@@ -235,7 +235,7 @@ describe('TursoDb', () => {
         args: [],
       },
       {
-        sql: `CREATE TABLE IF NOT EXISTS converge_tags (
+        sql: `CREATE TABLE IF NOT EXISTS ripple_tags (
           entity TEXT NOT NULL,
           id TEXT NOT NULL,
           data TEXT NOT NULL,
@@ -286,7 +286,7 @@ describe('TursoDb', () => {
       authToken: '',
     });
     const count1 = await verifyClient1.execute({
-      sql: 'SELECT COUNT(*) as count FROM converge_changes WHERE stream = ?',
+      sql: 'SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?',
       args: ['test'],
     });
     verifyClient1.close();
@@ -342,7 +342,7 @@ describe('TursoDb', () => {
       authToken: '',
     });
     const changeLogResult = await verifyClient2.execute({
-      sql: 'SELECT COUNT(*) as count FROM converge_changes WHERE stream = ?',
+      sql: 'SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?',
       args: ['test'],
     });
     verifyClient2.close();
@@ -379,7 +379,7 @@ describe('TursoDb', () => {
         args: [],
       },
       {
-        sql: `CREATE TABLE IF NOT EXISTS converge_tags (
+        sql: `CREATE TABLE IF NOT EXISTS ripple_tags (
           entity TEXT NOT NULL,
           id TEXT NOT NULL,
           data TEXT NOT NULL,
@@ -454,7 +454,7 @@ describe('TursoDb', () => {
       authToken: '',
     });
     const changeLogResult = await verifyClient.execute({
-      sql: 'SELECT COUNT(*) as count FROM converge_changes WHERE stream = ?',
+      sql: 'SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?',
       args: ['test'],
     });
     verifyClient.close();

@@ -1,10 +1,10 @@
-import type { Change, ChangeTags, ConvergeSchema, EntityName, Hlc } from '@converge/core';
-import { compareHlc } from '@converge/core';
+import type { Change, ChangeTags, RippleSchema, EntityName, Hlc } from '@rippledb/core';
+import { compareHlc } from '@rippledb/core';
 
 type FieldKey<T extends Record<string, unknown>> = Extract<keyof T, string>;
 
 export type MaterializerState<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 > = {
   values: Partial<S[E]>;
@@ -13,13 +13,13 @@ export type MaterializerState<
   deletedTag: Hlc | null;
 };
 
-export type MaterializerAdapter<S extends ConvergeSchema = ConvergeSchema> = {
+export type MaterializerAdapter<S extends RippleSchema = RippleSchema> = {
   load<E extends EntityName<S>>(entity: E, id: string): Promise<MaterializerState<S, E> | null>;
   save<E extends EntityName<S>>(entity: E, id: string, state: MaterializerState<S, E>): Promise<void>;
   remove<E extends EntityName<S>>(entity: E, id: string, state: MaterializerState<S, E>): Promise<void>;
 };
 
-type ApplyResult<S extends ConvergeSchema, E extends EntityName<S>> = {
+type ApplyResult<S extends RippleSchema, E extends EntityName<S>> = {
   state: MaterializerState<S, E>;
   changed: boolean;
   deleted: boolean;
@@ -30,7 +30,7 @@ function isNewer(incoming: Hlc, existing: Hlc | undefined | null) {
   return compareHlc(incoming, existing) > 0;
 }
 
-function newestTag<S extends ConvergeSchema, E extends EntityName<S>>(tags: ChangeTags<S, E>): Hlc | null {
+function newestTag<S extends RippleSchema, E extends EntityName<S>>(tags: ChangeTags<S, E>): Hlc | null {
   let latest: Hlc | null = null;
   for (const tag of Object.values(tags)) {
     if (!tag) continue;
@@ -50,7 +50,7 @@ function newestTag<S extends ConvergeSchema, E extends EntityName<S>>(tags: Chan
  * const { state: next } = applyChangeToState(state, change)
  */
 export function applyChangeToState<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 >(current: MaterializerState<S, E> | null, change: Change<S, E>): ApplyResult<S, E> {
   const state: MaterializerState<S, E> =
@@ -94,7 +94,7 @@ export function applyChangeToState<
 }
 
 export async function materializeChange<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 >(
   adapter: MaterializerAdapter<S>,
@@ -114,7 +114,7 @@ export async function materializeChange<
 }
 
 export async function materializeChanges<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
 >(adapter: MaterializerAdapter<S>, changes: Change<S>[]): Promise<void> {
   for (const change of changes) {
     await materializeChange(adapter, change);

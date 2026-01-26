@@ -15,7 +15,7 @@ State-based sync (sending full snapshots) complicates conflict resolution and re
 
 ## Decision
 
-Converge uses an **append-only change log** as the replication primitive.
+RippleDB uses an **append-only change log** as the replication primitive.
 
 Clients pull changes using a cursor and push local changes via an outbox.
 

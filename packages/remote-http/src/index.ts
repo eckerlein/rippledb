@@ -1,5 +1,5 @@
-import type { ConvergeSchema } from '@converge/core';
-import type { Remote } from '@converge/client';
+import type { RippleSchema } from '@rippledb/core';
+import type { Remote } from '@rippledb/client';
 
 export type HttpRemoteOptions = {
   baseUrl: string;
@@ -7,7 +7,7 @@ export type HttpRemoteOptions = {
   headers?: Record<string, string>;
 };
 
-export function createHttpRemote<S extends ConvergeSchema = ConvergeSchema>(
+export function createHttpRemote<S extends RippleSchema = RippleSchema>(
   opts: HttpRemoteOptions,
 ): Remote<S> {
   const baseUrl = opts.baseUrl.replace(/\/$/, '');

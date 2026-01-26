@@ -17,35 +17,35 @@ Recommended initial package set:
 
 ### Foundation
 
-- `@converge/core` — HLC, tags, Change types, merge/compare, utilities (**pure**)
+- `@rippledb/core` — HLC, tags, Change types, merge/compare, utilities (**pure**)
 
 ### Client side
 
-- `@converge/client` — sync orchestration (outbox, pull/apply/push), policies, stream handling (**no DB deps**)
+- `@rippledb/client` — sync orchestration (outbox, pull/apply/push), policies, stream handling (**no DB deps**)
 
 ### Server side
 
-- `@converge/server` — server interfaces and helpers for append + cursor pull (**no DB deps**)
+- `@rippledb/server` — server interfaces and helpers for append + cursor pull (**no DB deps**)
 
 ### Client truth stores
 
-- `@converge/store-sqlite` — client truth store implementation (+ batch loader hooks)
-- `@converge/store-indexeddb` — later (browser-only)
-- `@converge/store-memory` — tests
+- `@rippledb/store-sqlite` — client truth store implementation (+ batch loader hooks)
+- `@rippledb/store-indexeddb` — later (browser-only)
+- `@rippledb/store-memory` — tests
 
 ### Server persistence
 
-- `@converge/db-postgres` — cursorable change history + append + optional materialization helpers
-- `@converge/db-sqlite` — dev / tests
-- `@converge/db-dynamodb` — later
+- `@rippledb/db-postgres` — cursorable change history + append + optional materialization helpers
+- `@rippledb/db-sqlite` — dev / tests
+- `@rippledb/db-dynamodb` — later
 
 ### UI bindings
 
-- `@converge/bind-tanstack` — invalidation wiring + list registry + coalescing
+- `@rippledb/bind-tanstack` — invalidation wiring + list registry + coalescing
 
 ### Future (not v0)
 
-- `@converge/transport-ws` — optional realtime helpers
+- `@rippledb/transport-ws` — optional realtime helpers
 - CRDT/doc controller modules (separate scope)
 
 ## Alternatives Considered

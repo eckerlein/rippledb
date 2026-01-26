@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeUpsert, tickHlc, type Change } from '@converge/core';
-import { createSyncSqlExecutor } from '@converge/materialize-db';
-import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+import { createHlcState, makeUpsert, tickHlc, type Change } from '@rippledb/core';
+import { createSyncSqlExecutor } from '@rippledb/materialize-db';
+import { createDrizzleSyncMaterializerConfig } from '@rippledb/materialize-drizzle';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { getTableConfig, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
@@ -24,7 +24,7 @@ const todosTable = sqliteTable('todos', {
   done: integer('done'),
 });
 
-const tagsTable = sqliteTable('converge_tags', {
+const tagsTable = sqliteTable('ripple_tags', {
   entity: text('entity').notNull(),
   id: text('id').notNull(),
   data: text('data').notNull(),
@@ -273,7 +273,7 @@ describe('SqliteDb', () => {
     // Verify it was written
     const verifyDb1 = new SqliteDb<TestSchema>({ filename: dbPath });
     const count1 = verifyDb1['db']
-      .prepare('SELECT COUNT(*) as count FROM converge_changes WHERE stream = ?')
+      .prepare('SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?')
       .get('test') as { count: number };
     verifyDb1.close();
     expect(count1.count).toBe(1);
@@ -310,7 +310,7 @@ describe('SqliteDb', () => {
     // Verify that NEITHER change was written to the change log (atomic rollback)
     const verifyDb2 = new SqliteDb<TestSchema>({ filename: dbPath });
     const count2 = verifyDb2['db']
-      .prepare('SELECT COUNT(*) as count FROM converge_changes WHERE stream = ?')
+      .prepare('SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?')
       .get('test') as { count: number };
     verifyDb2.close();
 
@@ -338,7 +338,7 @@ describe('SqliteDb', () => {
         title TEXT,
         done INTEGER CHECK (done IN (0, 1))
       );
-      CREATE TABLE converge_tags (
+      CREATE TABLE ripple_tags (
         entity TEXT NOT NULL,
         id TEXT NOT NULL,
         data TEXT NOT NULL,
@@ -361,7 +361,7 @@ describe('SqliteDb', () => {
           fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
           normalizeValue: (value) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
           ensureTagsTable: () => {
-            db.exec(`CREATE TABLE IF NOT EXISTS converge_tags (
+            db.exec(`CREATE TABLE IF NOT EXISTS ripple_tags (
               entity TEXT NOT NULL,
               id TEXT NOT NULL,
               data TEXT NOT NULL,
@@ -404,7 +404,7 @@ describe('SqliteDb', () => {
 
     const verifyDb = new SqliteDb<TestSchema>({ filename: dbPath });
     const count = verifyDb['db']
-      .prepare('SELECT COUNT(*) as count FROM converge_changes WHERE stream = ?')
+      .prepare('SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?')
       .get('test') as { count: number };
     const todos = verifyDb['db']
       .prepare('SELECT id FROM todos WHERE id IN (?, ?)')
@@ -482,7 +482,7 @@ describe('SqliteDb', () => {
     // Verify that NEITHER change was written to the change log (atomic rollback)
     const verifyDb = new SqliteDb<TestSchema>({ filename: dbPath });
     const count = verifyDb['db']
-      .prepare('SELECT COUNT(*) as count FROM converge_changes WHERE stream = ?')
+      .prepare('SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?')
       .get('test') as { count: number };
     verifyDb.close();
 
@@ -505,7 +505,7 @@ describe('SqliteDb', () => {
     const sqlite = new Database(dbPath);
     sqlite.exec(`
       CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER);
-      CREATE TABLE converge_tags (
+      CREATE TABLE ripple_tags (
         entity TEXT NOT NULL,
         id TEXT NOT NULL,
         data TEXT NOT NULL,

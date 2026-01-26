@@ -1,5 +1,5 @@
 {
-  "name": "@converge/materialize-drizzle",
+  "name": "@rippledb/materialize-drizzle",
   "version": "0.0.0",
   "private": false,
   "type": "module",
@@ -12,12 +12,12 @@
   },
   "files": ["dist"],
   "dependencies": {
-    "@converge/core": "workspace:*",
-    "@converge/materialize-db": "workspace:*",
+    "@rippledb/core": "workspace:*",
+    "@rippledb/materialize-db": "workspace:*",
     "drizzle-orm": "^0.36.4"
   },
   "devDependencies": {
-    "@converge/materialize-core": "workspace:*",
+    "@rippledb/materialize-core": "workspace:*",
     "@testcontainers/postgresql": "^11.11.0",
     "@types/better-sqlite3": "^7.6.11",
     "@types/pg": "^8.11.10",

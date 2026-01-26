@@ -15,16 +15,16 @@ Concrete implementations require dependencies (SQLite driver, Postgres client, e
 
 All runtime-/backend-specific dependencies live in persistence packages, for example:
 
-- `@converge/store-sqlite`
-- `@converge/db-postgres`
+- `@rippledb/store-sqlite`
+- `@rippledb/db-postgres`
 
 Core/orchestration packages depend only on interfaces, never on implementations:
 
-- `@converge/core`, `@converge/client`, `@converge/server` **must not** depend on any `store-*` or `db-*` package.
+- `@rippledb/core`, `@rippledb/client`, `@rippledb/server` **must not** depend on any `store-*` or `db-*` package.
 
 ## Alternatives Considered
 
-- A single `@converge/adapters` package
+- A single `@rippledb/adapters` package
 - Core selecting implementations via optional dependencies
 
 ## Consequences

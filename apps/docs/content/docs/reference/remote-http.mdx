@@ -1,23 +1,23 @@
 ---
-title: "@converge/remote-http"
+title: "@rippledb/remote-http"
 description: HTTP transport for client-server sync
 ---
 
-# @converge/remote-http
+# @rippledb/remote-http
 
 HTTP transport implementation of the `Remote` interface. Connects clients to Converge servers over HTTP.
 
 ## Installation
 
 ```bash
-pnpm add @converge/remote-http
+pnpm add @rippledb/remote-http
 ```
 
 ## Usage
 
 ```ts
-import { createHttpRemote } from '@converge/remote-http';
-import { createReplicator } from '@converge/client';
+import { createHttpRemote } from '@rippledb/remote-http';
+import { createReplicator } from '@rippledb/client';
 
 const remote = createHttpRemote<MySchema>({
   baseUrl: 'https://api.example.com',
@@ -36,7 +36,7 @@ await replicator.sync();
 ## createHttpRemote
 
 ```ts
-function createHttpRemote<S extends ConvergeSchema>(
+function createHttpRemote<S extends RippleSchema>(
   opts: HttpRemoteOptions
 ): Remote<S>
 ```
@@ -132,7 +132,7 @@ Here's a minimal Express server that works with the HTTP remote:
 
 ```ts
 import express from 'express';
-import { SqliteDb } from '@converge/db-sqlite';
+import { SqliteDb } from '@rippledb/db-sqlite';
 
 const app = express();
 app.use(express.json());

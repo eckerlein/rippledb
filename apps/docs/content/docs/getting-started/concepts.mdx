@@ -1,13 +1,13 @@
 ---
 title: Core Concepts
-description: Understand the mental model behind Converge — HLCs, Changes, Streams, and Materialization
+description: Understand the mental model behind RippleDB — HLCs, Changes, Streams, and Materialization
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
 # Core Concepts
 
-Converge is built on a few key ideas. Understanding them will help you use the library effectively.
+RippleDB is built on a few key ideas. Understanding them will help you use the library effectively.
 
 ## The Mental Model
 
@@ -35,7 +35,7 @@ Example: `1706123456789:0:server-abc123`
 ### Usage
 
 ```ts
-import { createHlcState, tickHlc, compareHlc } from '@converge/core';
+import { createHlcState, tickHlc, compareHlc } from '@rippledb/core';
 
 // Create state for this node
 const state = createHlcState('my-node-id');
@@ -80,7 +80,7 @@ type Change = {
 ### Creating Changes
 
 ```ts
-import { makeUpsert, makeDelete } from '@converge/core';
+import { makeUpsert, makeDelete } from '@rippledb/core';
 
 // Create or update
 const change = makeUpsert({
@@ -124,7 +124,7 @@ A **stream** is a partition of changes. All changes in a stream are:
 
 ## Field-Level LWW
 
-Converge uses **Last-Writer-Wins (LWW)** at the field level, not the row level.
+RippleDB uses **Last-Writer-Wins (LWW)** at the field level, not the row level.
 
 ### How It Works
 
@@ -183,7 +183,7 @@ You'd need to replay all changes to compute current state:
 
 ```sql
 -- Expensive query to get current todo state
-SELECT * FROM converge_changes 
+SELECT * FROM ripple_changes 
 WHERE entity = 'todos' AND entity_id = 'todo-1'
 ORDER BY seq;
 -- Then apply LWW in code...
@@ -201,10 +201,10 @@ SELECT * FROM todos WHERE id = 'todo-1';
 ### How It Works
 
 1. Change arrives via `db.append()`
-2. Materializer reads existing tags from `converge_tags`
+2. Materializer reads existing tags from `ripple_tags`
 3. For each field, compare tags and apply LWW
 4. Update the `todos` table with winning values
-5. Update `converge_tags` with new timestamps
+5. Update `ripple_tags` with new timestamps
 
 <Callout type="info">
 Server-side materialization is optional. It's useful if your server also serves 
@@ -219,7 +219,7 @@ On the client, the `Store` handles applying changes to local state.
 Changes are stored in an immutable, ordered log:
 
 ```sql
-converge_changes (
+ripple_changes (
   seq        INTEGER PRIMARY KEY,  -- Auto-incrementing
   stream     TEXT,
   change_json TEXT  -- Serialized Change
@@ -250,4 +250,4 @@ This ensures conflicts are resolved deterministically.
 
 - [Server Setup Guide](/docs/guides/server-setup) — Build a production sync server
 - [Adapters](/docs/adapters) — Choose the right database and materializer
-- [API Reference](/docs/reference/core) — Full `@converge/core` API
+- [API Reference](/docs/reference/core) — Full `@rippledb/core` API

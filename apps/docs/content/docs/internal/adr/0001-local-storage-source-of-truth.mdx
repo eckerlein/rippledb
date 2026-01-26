@@ -9,7 +9,7 @@ Accepted
 
 ## Context
 
-Converge is intended to support offline-first and multi-user applications. The system must remain correct when the network is unavailable and must converge deterministically across replicas.
+RippleDB is intended to support offline-first and multi-user applications. The system must remain correct when the network is unavailable and must converge deterministically across replicas.
 
 A decision is required on whether canonical state lives:
 
@@ -19,7 +19,7 @@ A decision is required on whether canonical state lives:
 
 ## Decision
 
-Converge treats **durable local storage as the source of truth** on the client.
+RippleDB treats **durable local storage as the source of truth** on the client.
 
 All UI state is derived from local storage. In-memory caches (e.g. UI caches) are explicitly non-authoritative.
 

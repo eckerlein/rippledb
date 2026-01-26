@@ -1,6 +1,6 @@
-import type { Change, ConvergeSchema, EntityName, Hlc } from '@converge/core';
-import { compareHlc } from '@converge/core';
-import type { DbEvent, Store } from '@converge/client';
+import type { Change, RippleSchema, EntityName, Hlc } from '@rippledb/core';
+import { compareHlc } from '@rippledb/core';
+import type { DbEvent, Store } from '@rippledb/client';
 
 export type MemoryListQuery<E extends string = string> = {
   entity: E;
@@ -18,7 +18,7 @@ function isNewer(incoming: Hlc, existing: Hlc | undefined | null) {
   return compareHlc(incoming, existing) > 0;
 }
 
-export class MemoryStore<S extends ConvergeSchema = ConvergeSchema> implements Store<S, MemoryListQuery<EntityName<S>>> {
+export class MemoryStore<S extends RippleSchema = RippleSchema> implements Store<S, MemoryListQuery<EntityName<S>>> {
   private entities = new Map<string, Map<string, RecordState>>();
   private subscribers = new Set<(event: DbEvent<S>) => void>();
 

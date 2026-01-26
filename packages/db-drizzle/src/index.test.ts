@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeUpsert, tickHlc, type Change } from '@converge/core';
+import { createHlcState, makeUpsert, tickHlc, type Change } from '@rippledb/core';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { sqliteTable, text, integer, getTableConfig } from 'drizzle-orm/sqlite-core';
@@ -19,20 +19,20 @@ type TestSchema = {
 
 // Define Drizzle tables for the internal converge tables
 // Note: Composite primary keys are defined in the raw SQL, not in the Drizzle schema
-const changesTable = sqliteTable('converge_changes', {
+const changesTable = sqliteTable('ripple_changes', {
   seq: integer('seq').primaryKey({ autoIncrement: true }),
   stream: text('stream').notNull(),
   change_json: text('change_json').notNull(),
 });
 
-const idempotencyTable = sqliteTable('converge_idempotency', {
+const idempotencyTable = sqliteTable('ripple_idempotency', {
   stream: text('stream').notNull(),
   idempotency_key: text('idempotency_key').notNull(),
   last_seq: integer('last_seq').notNull(),
 });
 
 // Tags table for materialization tests
-const tagsTable = sqliteTable('converge_tags', {
+const tagsTable = sqliteTable('ripple_tags', {
   entity: text('entity').notNull(),
   id: text('id').notNull(),
   data: text('data').notNull(),
@@ -51,12 +51,12 @@ describe('DrizzleDb with SQLite', () => {
 
     // Create internal tables (user's responsibility in production)
     sqlite.exec(`
-      CREATE TABLE converge_changes (
+      CREATE TABLE ripple_changes (
         seq INTEGER PRIMARY KEY AUTOINCREMENT,
         stream TEXT NOT NULL,
         change_json TEXT NOT NULL
       );
-      CREATE TABLE converge_idempotency (
+      CREATE TABLE ripple_idempotency (
         stream TEXT NOT NULL,
         idempotency_key TEXT NOT NULL,
         last_seq INTEGER NOT NULL,
@@ -201,7 +201,7 @@ describe('DrizzleDb with SQLite', () => {
   it('supports materialization with Drizzle executor', async () => {
     // Create tags table
     sqlite.exec(`
-      CREATE TABLE converge_tags (
+      CREATE TABLE ripple_tags (
         entity TEXT NOT NULL,
         id TEXT NOT NULL,
         data TEXT NOT NULL,
@@ -283,7 +283,7 @@ describe('DrizzleDb with SQLite', () => {
 
     // Verify materialized data
     const tagsRow = sqlite
-      .prepare('SELECT data, tags, deleted FROM converge_tags WHERE entity = ? AND id = ?')
+      .prepare('SELECT data, tags, deleted FROM ripple_tags WHERE entity = ? AND id = ?')
       .get('todos', 'todo-1') as { data: string; tags: string; deleted: number };
 
     expect(tagsRow).toBeTruthy();
@@ -296,7 +296,7 @@ describe('DrizzleDb with SQLite', () => {
   it('rolls back transaction on error (atomicity)', async () => {
     // Create tags table with a CHECK constraint
     sqlite.exec(`
-      CREATE TABLE converge_tags (
+      CREATE TABLE ripple_tags (
         entity TEXT NOT NULL,
         id TEXT NOT NULL,
         data TEXT NOT NULL,
@@ -319,7 +319,7 @@ describe('DrizzleDb with SQLite', () => {
         executor: {
           loadTags(txDb, entity, id): TagsRow | null {
             const row = sqlite
-              .prepare('SELECT id, data, tags, deleted, deleted_tag FROM converge_tags WHERE entity = ? AND id = ?')
+              .prepare('SELECT id, data, tags, deleted, deleted_tag FROM ripple_tags WHERE entity = ? AND id = ?')
               .get(entity, id) as TagsRow | undefined;
             return row ?? null;
           },
@@ -327,7 +327,7 @@ describe('DrizzleDb with SQLite', () => {
             // This will cause a CHECK constraint failure with deleted = 2
             sqlite
               .prepare(
-                'INSERT OR REPLACE INTO converge_tags (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 2, NULL)',
+                'INSERT OR REPLACE INTO ripple_tags (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 2, NULL)',
               )
               .run(entity, id, JSON.stringify(data), JSON.stringify(tags));
           },
@@ -351,11 +351,11 @@ describe('DrizzleDb with SQLite', () => {
     await expect(convergeDb.append({ stream: 'test', changes: [change] })).rejects.toThrow();
 
     // Verify no changes were persisted (transaction rolled back)
-    const changeCount = sqlite.prepare('SELECT COUNT(*) as count FROM converge_changes').get() as { count: number };
+    const changeCount = sqlite.prepare('SELECT COUNT(*) as count FROM ripple_changes').get() as { count: number };
     expect(changeCount.count).toBe(0);
 
     // Verify no tags were persisted
-    const tagsCount = sqlite.prepare('SELECT COUNT(*) as count FROM converge_tags').get() as { count: number };
+    const tagsCount = sqlite.prepare('SELECT COUNT(*) as count FROM ripple_tags').get() as { count: number };
     expect(tagsCount.count).toBe(0);
 
     convergeDb.close();

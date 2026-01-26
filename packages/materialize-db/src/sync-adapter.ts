@@ -1,11 +1,11 @@
 import type Database from 'better-sqlite3';
 import type {
   ChangeTags,
-  ConvergeSchema,
+  RippleSchema,
   EntityName,
   Hlc,
-} from '@converge/core';
-import type { MaterializerState } from '@converge/materialize-core';
+} from '@rippledb/core';
+import type { MaterializerState } from '@rippledb/materialize-core';
 import type {
   EntityFieldMap,
   MaterializerConfigBase,
@@ -18,7 +18,7 @@ import { dialects } from './dialects';
  * Synchronous materializer adapter for SQLite.
  * All methods are synchronous and use the same SQLite connection.
  */
-export type SyncMaterializerAdapter<S extends ConvergeSchema = ConvergeSchema> = {
+export type SyncMaterializerAdapter<S extends RippleSchema = RippleSchema> = {
   load<E extends EntityName<S>>(entity: E, id: string): MaterializerState<S, E> | null;
   save<E extends EntityName<S>>(entity: E, id: string, state: MaterializerState<S, E>): void;
   remove<E extends EntityName<S>>(entity: E, id: string, state: MaterializerState<S, E>): void;
@@ -48,9 +48,9 @@ export type SyncMaterializerExecutor = {
  * Create a synchronous SQL executor for SQLite using dialect/custom commands.
  */
 export function createSyncSqlExecutor<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
 >(db: Database.Database, config: SqlMaterializerConfig<S>): SyncMaterializerExecutor {
-  const tagsTable = config.tagsTable ?? 'converge_tags';
+  const tagsTable = config.tagsTable ?? 'ripple_tags';
   const dialect =
     'dialect' in config && config.dialect ? dialects[config.dialect] : undefined;
 
@@ -169,7 +169,7 @@ export function createSyncSqlExecutor<
  * ```
  */
 export function createSyncMaterializer<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
 >(
   config: MaterializerConfigBase<S> & { executor: SyncMaterializerExecutor },
 ): SyncMaterializerAdapter<S> {

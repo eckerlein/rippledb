@@ -6,7 +6,7 @@ description: Type-safe materializer using Drizzle ORM schemas
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
-# @converge/materialize-drizzle
+# @rippledb/materialize-drizzle
 
 A type-safe materializer that uses [Drizzle ORM](https://orm.drizzle.team/) table definitions. No raw SQL needed.
 
@@ -15,17 +15,17 @@ A type-safe materializer that uses [Drizzle ORM](https://orm.drizzle.team/) tabl
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
 ```bash
-pnpm add @converge/materialize-drizzle drizzle-orm
+pnpm add @rippledb/materialize-drizzle drizzle-orm
 ```
   </Tab>
   <Tab value="npm">
 ```bash
-npm install @converge/materialize-drizzle drizzle-orm
+npm install @rippledb/materialize-drizzle drizzle-orm
 ```
   </Tab>
   <Tab value="yarn">
 ```bash
-yarn add @converge/materialize-drizzle drizzle-orm
+yarn add @rippledb/materialize-drizzle drizzle-orm
 ```
   </Tab>
 </Tabs>
@@ -46,8 +46,8 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
-import { SqliteDb } from '@converge/db-sqlite';
-import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+import { SqliteDb } from '@rippledb/db-sqlite';
+import { createDrizzleSyncMaterializerConfig } from '@rippledb/materialize-drizzle';
 
 // Define your domain table
 const todosTable = sqliteTable('todos', {
@@ -57,7 +57,7 @@ const todosTable = sqliteTable('todos', {
 });
 
 // Define the tags table (required)
-const tagsTable = sqliteTable('converge_tags', {
+const tagsTable = sqliteTable('ripple_tags', {
   entity: text('entity').notNull(),
   id: text('id').notNull(),
   data: text('data').notNull(),
@@ -90,10 +90,10 @@ Use the right function based on your database driver:
 
 ```ts
 // Synchronous (SQLite with better-sqlite3)
-import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+import { createDrizzleSyncMaterializerConfig } from '@rippledb/materialize-drizzle';
 
 // Asynchronous (PostgreSQL, MySQL, Turso)
-import { createDrizzleMaterializerConfig } from '@converge/materialize-drizzle';
+import { createDrizzleMaterializerConfig } from '@rippledb/materialize-drizzle';
 ```
 
 ## Configuration
@@ -153,7 +153,7 @@ createDrizzleSyncMaterializerConfig(drizzleDb, {
 ```
 
 <Callout type="info">
-Without `fieldMap`, only the `converge_tags` table is updated. Add `fieldMap` to also write to domain tables.
+Without `fieldMap`, only the `ripple_tags` table is updated. Add `fieldMap` to also write to domain tables.
 </Callout>
 
 ### `normalizeValue`
@@ -182,7 +182,7 @@ createDrizzleSyncMaterializerConfig(drizzleDb, {
   // ...
   ensureTagsTable: () => {
     db.exec(`
-      CREATE TABLE IF NOT EXISTS converge_tags (
+      CREATE TABLE IF NOT EXISTS ripple_tags (
         entity TEXT NOT NULL,
         id TEXT NOT NULL,
         data TEXT NOT NULL,
@@ -203,7 +203,7 @@ import { Client } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { pgTable, text, integer, primaryKey } from 'drizzle-orm/pg-core';
 import { getTableConfig } from 'drizzle-orm/pg-core';
-import { createDrizzleMaterializerConfig } from '@converge/materialize-drizzle';
+import { createDrizzleMaterializerConfig } from '@rippledb/materialize-drizzle';
 
 const todosTable = pgTable('todos', {
   id: text('id').primaryKey(),
@@ -211,7 +211,7 @@ const todosTable = pgTable('todos', {
   done: integer('done'),
 });
 
-const tagsTable = pgTable('converge_tags', {
+const tagsTable = pgTable('ripple_tags', {
   entity: text('entity').notNull(),
   id: text('id').notNull(),
   data: text('data').notNull(),
@@ -246,8 +246,8 @@ const convergeDb = new DrizzleDb({
 When using `db-sqlite`, you must use the sync version:
 
 ```ts
-import { SqliteDb } from '@converge/db-sqlite';
-import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+import { SqliteDb } from '@rippledb/db-sqlite';
+import { createDrizzleSyncMaterializerConfig } from '@rippledb/materialize-drizzle';
 
 const db = new SqliteDb<MySchema>({
   filename: './data.db',
@@ -268,8 +268,8 @@ const db = new SqliteDb<MySchema>({
 For the most integrated experience, use both `db-drizzle` and `materialize-drizzle`:
 
 ```ts
-import { DrizzleDb } from '@converge/db-drizzle';
-import { createDrizzleMaterializerConfig } from '@converge/materialize-drizzle';
+import { DrizzleDb } from '@rippledb/db-drizzle';
+import { createDrizzleMaterializerConfig } from '@rippledb/materialize-drizzle';
 
 const db = new DrizzleDb<MySchema, typeof drizzleDb>({
   db: drizzleDb,

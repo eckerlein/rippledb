@@ -1,18 +1,18 @@
-import type { Change, ConvergeSchema } from '@converge/core';
+import type { Change, RippleSchema } from '@rippledb/core';
 import type { Store } from './contracts';
 
-export type OutboxEntry<S extends ConvergeSchema = ConvergeSchema> = {
+export type OutboxEntry<S extends RippleSchema = RippleSchema> = {
   stream: string;
   change: Change<S>;
 };
 
-export interface Outbox<S extends ConvergeSchema = ConvergeSchema> {
+export interface Outbox<S extends RippleSchema = RippleSchema> {
   push(entry: OutboxEntry<S>): void;
   drain(stream: string): OutboxEntry<S>[];
   size(stream?: string): number;
 }
 
-export class InMemoryOutbox<S extends ConvergeSchema = ConvergeSchema> implements Outbox<S> {
+export class InMemoryOutbox<S extends RippleSchema = RippleSchema> implements Outbox<S> {
   private items: OutboxEntry<S>[] = [];
 
   push(entry: OutboxEntry<S>) {
@@ -36,7 +36,7 @@ export class InMemoryOutbox<S extends ConvergeSchema = ConvergeSchema> implement
   }
 }
 
-export type SyncOnceOptions<S extends ConvergeSchema = ConvergeSchema> = {
+export type SyncOnceOptions<S extends RippleSchema = RippleSchema> = {
   stream: string;
   store: Store<S>;
   remote: Remote<S>;
@@ -52,7 +52,7 @@ export type SyncOnceResult = {
   pushed: number;
 };
 
-export type ReplicatorOptions<S extends ConvergeSchema = ConvergeSchema> = {
+export type ReplicatorOptions<S extends RippleSchema = RippleSchema> = {
   stream: string;
   store: Store<S>;
   remote: Remote<S>;
@@ -62,13 +62,13 @@ export type ReplicatorOptions<S extends ConvergeSchema = ConvergeSchema> = {
   idempotencyKey?: string;
 };
 
-export type Replicator<S extends ConvergeSchema = ConvergeSchema> = {
+export type Replicator<S extends RippleSchema = RippleSchema> = {
   pushLocal(change: Change<S>): Promise<void>;
   sync(): Promise<SyncOnceResult>;
   getCursor(): string | null;
 };
 
-export type Remote<S extends ConvergeSchema = ConvergeSchema> = {
+export type Remote<S extends RippleSchema = RippleSchema> = {
   pull(req: { stream: string; cursor: string | null; limit?: number }): Promise<{
     changes: Change<S>[];
     nextCursor: string | null;
@@ -82,7 +82,7 @@ export type Remote<S extends ConvergeSchema = ConvergeSchema> = {
  * - Apply to local store
  * - Push outbox changes
  */
-export async function syncOnce<S extends ConvergeSchema = ConvergeSchema>(opts: SyncOnceOptions<S>): Promise<SyncOnceResult> {
+export async function syncOnce<S extends RippleSchema = RippleSchema>(opts: SyncOnceOptions<S>): Promise<SyncOnceResult> {
   const { stream, store, remote, cursor, outbox } = opts;
 
   const pulled = await remote.pull({ stream, cursor, limit: opts.limit });
@@ -103,7 +103,7 @@ export async function syncOnce<S extends ConvergeSchema = ConvergeSchema>(opts: 
 /**
  * Convenience wrapper that manages cursor + outbox for a single stream.
  */
-export function createReplicator<S extends ConvergeSchema = ConvergeSchema>(opts: ReplicatorOptions<S>): Replicator<S> {
+export function createReplicator<S extends RippleSchema = RippleSchema>(opts: ReplicatorOptions<S>): Replicator<S> {
   let cursor = opts.cursor ?? null;
   const outbox = opts.outbox ?? new InMemoryOutbox<S>();
 

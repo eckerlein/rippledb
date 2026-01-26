@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeDelete, makeUpsert, type ChangeTags } from '@converge/core';
+import { makeDelete, makeUpsert, type ChangeTags } from '@rippledb/core';
 import { applyChangeToState } from './index';
 
 type Schema = {

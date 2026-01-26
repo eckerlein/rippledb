@@ -1,8 +1,8 @@
-# Converge
+# RippleDB
 
 A **local-first sync engine** with field-level conflict resolution.
 
-Converge treats local storage as the source of truth. Changes replicate via an append-only log, and conflicts resolve deterministically at the field level using hybrid logical clocks (HLC).
+RippleDB treats local storage as the source of truth. Changes replicate via an append-only log, and conflicts resolve deterministically at the field level using hybrid logical clocks (HLC).
 
 ## Features
 
@@ -20,14 +20,14 @@ Full documentation available [here](https://jan-eckerlein.github.io/converge/doc
 ## Install
 
 ```bash
-pnpm add @converge/core @converge/server @converge/db-sqlite
+pnpm add @rippledb/core @rippledb/server @rippledb/db-sqlite
 ```
 
 ## Quick Example
 
 ```typescript
-import { SqliteDb } from '@converge/db-sqlite';
-import { createMaterializerConfig } from '@converge/materialize-db';
+import { SqliteDb } from '@rippledb/db-sqlite';
+import { createMaterializerConfig } from '@rippledb/materialize-db';
 
 const db = new SqliteDb({
   filename: './data.db',
@@ -54,25 +54,25 @@ const { changes } = await db.pull({ streams: ['my-stream'], since: 0 });
 
 | Package | Description |
 |---------|-------------|
-| `@converge/core` | HLC, Change types, pure merge logic |
-| `@converge/server` | Db interface, append/pull contracts |
-| `@converge/client` | Store interface, sync orchestration |
+| `@rippledb/core` | HLC, Change types, pure merge logic |
+| `@rippledb/server` | Db interface, append/pull contracts |
+| `@rippledb/client` | Store interface, sync orchestration |
 
 **Database Adapters**:
 
 | Package | Description |
 |---------|-------------|
-| `@converge/db-sqlite` | SQLite via better-sqlite3 |
-| `@converge/db-turso` | Turso (libSQL) with batching |
-| `@converge/db-drizzle` | Any Drizzle-supported database |
-| `@converge/db-memory` | In-memory (for testing) |
+| `@rippledb/db-sqlite` | SQLite via better-sqlite3 |
+| `@rippledb/db-turso` | Turso (libSQL) with batching |
+| `@rippledb/db-drizzle` | Any Drizzle-supported database |
+| `@rippledb/db-memory` | In-memory (for testing) |
 
 **Materializers**:
 
 | Package | Description |
 |---------|-------------|
-| `@converge/materialize-db` | SQL-based state projection |
-| `@converge/materialize-drizzle` | Drizzle ORM state projection |
+| `@rippledb/materialize-db` | SQL-based state projection |
+| `@rippledb/materialize-drizzle` | Drizzle ORM state projection |
 
 ## Development
 
@@ -83,6 +83,4 @@ pnpm test
 pnpm dev        # Start docs site
 ```
 
-## License
-
-MIT
+## LicenseMIT

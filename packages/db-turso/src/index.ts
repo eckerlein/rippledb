@@ -1,5 +1,5 @@
 import { createClient, type Client } from '@libsql/client';
-import type { Change, ConvergeSchema } from '@converge/core';
+import type { Change, RippleSchema } from '@rippledb/core';
 import type {
   AppendRequest,
   AppendResult,
@@ -7,13 +7,13 @@ import type {
   Db,
   PullRequest,
   PullResponse,
-} from '@converge/server';
-import { applyChangeToState } from '@converge/materialize-core';
-import type { CustomMaterializerConfig } from '@converge/materialize-db';
-import { createCustomMaterializer } from '@converge/materialize-db';
-import type { Db as MaterializerDb } from '@converge/materialize-db';
+} from '@rippledb/server';
+import { applyChangeToState } from '@rippledb/materialize-core';
+import type { CustomMaterializerConfig } from '@rippledb/materialize-db';
+import { createCustomMaterializer } from '@rippledb/materialize-db';
+import type { Db as MaterializerDb } from '@rippledb/materialize-db';
 
-type TursoDbOptions<S extends ConvergeSchema = ConvergeSchema> = {
+type TursoDbOptions<S extends RippleSchema = RippleSchema> = {
   url: string;
   authToken: string;
   materializer?: (ctx: { db: MaterializerDb }) => CustomMaterializerConfig<S>;
@@ -80,7 +80,7 @@ function decodeCursor(cursor: Cursor | null): number {
   return Math.floor(n);
 }
 
-export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S> {
+export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
   private client: Client;
   private materializerFactory: TursoDbOptions<S>['materializer'];
 
@@ -100,7 +100,7 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
   private async initTables(): Promise<void> {
     await this.client.batch([
       {
-        sql: `CREATE TABLE IF NOT EXISTS converge_changes (
+        sql: `CREATE TABLE IF NOT EXISTS ripple_changes (
           seq INTEGER PRIMARY KEY AUTOINCREMENT,
           stream TEXT NOT NULL,
           change_json TEXT NOT NULL
@@ -108,7 +108,7 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
         args: [],
       },
       {
-        sql: `CREATE TABLE IF NOT EXISTS converge_idempotency (
+        sql: `CREATE TABLE IF NOT EXISTS ripple_idempotency (
           stream TEXT NOT NULL,
           idempotency_key TEXT NOT NULL,
           last_seq INTEGER NOT NULL,
@@ -126,7 +126,7 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
     // Check idempotency if provided
     if (req.idempotencyKey) {
       const existing = await this.client.execute({
-        sql: 'SELECT last_seq FROM converge_idempotency WHERE stream = ? AND idempotency_key = ?',
+        sql: 'SELECT last_seq FROM ripple_idempotency WHERE stream = ? AND idempotency_key = ?',
         args: [req.stream, req.idempotencyKey],
       });
 
@@ -135,7 +135,7 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
       }
 
       transactionStatements.push({
-        sql: 'INSERT INTO converge_idempotency (stream, idempotency_key, last_seq) VALUES (?, ?, 0)',
+        sql: 'INSERT INTO ripple_idempotency (stream, idempotency_key, last_seq) VALUES (?, ?, 0)',
         args: [req.stream, req.idempotencyKey],
       });
     }
@@ -143,7 +143,7 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
     // Generate SQL for change log inserts
     for (const change of req.changes) {
       transactionStatements.push({
-        sql: 'INSERT INTO converge_changes (stream, change_json) VALUES (?, ?)',
+        sql: 'INSERT INTO ripple_changes (stream, change_json) VALUES (?, ?)',
         args: [req.stream, JSON.stringify(change)],
       });
     }
@@ -180,7 +180,7 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
       // For now, we'll use a subquery or handle it differently.
       // This is a limitation - we might need to execute in two phases or use a different approach.
       transactionStatements.push({
-        sql: 'UPDATE converge_idempotency SET last_seq = (SELECT MAX(seq) FROM converge_changes WHERE stream = ?) WHERE stream = ? AND idempotency_key = ?',
+        sql: 'UPDATE ripple_idempotency SET last_seq = (SELECT MAX(seq) FROM ripple_changes WHERE stream = ?) WHERE stream = ? AND idempotency_key = ?',
         args: [req.stream, req.stream, req.idempotencyKey],
       });
     }
@@ -205,7 +205,7 @@ export class TursoDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S>
     const limit = req.limit ?? 500;
 
     const result = await this.client.execute({
-      sql: 'SELECT seq, change_json FROM converge_changes WHERE stream = ? AND seq > ? ORDER BY seq ASC LIMIT ?',
+      sql: 'SELECT seq, change_json FROM ripple_changes WHERE stream = ? AND seq > ? ORDER BY seq ASC LIMIT ?',
       args: [req.stream, afterSeq, limit],
     });
 

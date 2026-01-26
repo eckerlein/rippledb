@@ -1,13 +1,13 @@
 {
-  "name": "@converge/test-e2e-http",
+  "name": "@rippledb/test-e2e-http",
   "private": true,
   "type": "module",
   "devDependencies": {
-    "@converge/client": "workspace:*",
-    "@converge/core": "workspace:*",
-    "@converge/db-memory": "workspace:*",
-    "@converge/remote-http": "workspace:*",
-    "@converge/store-memory": "workspace:*",
+    "@rippledb/client": "workspace:*",
+    "@rippledb/core": "workspace:*",
+    "@rippledb/db-memory": "workspace:*",
+    "@rippledb/remote-http": "workspace:*",
+    "@rippledb/store-memory": "workspace:*",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },

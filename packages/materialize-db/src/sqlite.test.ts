@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@converge/core';
-import { materializeChange, materializeChanges, type MaterializerAdapter } from '@converge/materialize-core';
+import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@rippledb/core';
+import { materializeChange, materializeChanges, type MaterializerAdapter } from '@rippledb/materialize-core';
 import { createCustomMaterializer, createSqlExecutor } from './adapter';
 import type { Db } from './types';
 import { createSqliteDb, type TestSchema } from './test-helpers';
@@ -40,7 +40,7 @@ describe('createCustomMaterializer - SQLite dialect', () => {
 
     // Verify tags table exists and has data
     const row = await db.get<{ data: string; tags: string; deleted: number }>(
-      'SELECT data, tags, deleted FROM converge_tags WHERE entity = ? AND id = ?',
+      'SELECT data, tags, deleted FROM ripple_tags WHERE entity = ? AND id = ?',
       ['todos', 'todo-1'],
     );
     expect(row).toBeTruthy();

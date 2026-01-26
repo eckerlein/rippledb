@@ -6,7 +6,7 @@ description: SQLite database adapter using better-sqlite3
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
-# @converge/db-sqlite
+# @rippledb/db-sqlite
 
 A production-ready SQLite adapter for Converge using [better-sqlite3](https://github.com/WiseLibs/better-sqlite3).
 
@@ -15,17 +15,17 @@ A production-ready SQLite adapter for Converge using [better-sqlite3](https://gi
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
 ```bash
-pnpm add @converge/db-sqlite better-sqlite3
+pnpm add @rippledb/db-sqlite better-sqlite3
 ```
   </Tab>
   <Tab value="npm">
 ```bash
-npm install @converge/db-sqlite better-sqlite3
+npm install @rippledb/db-sqlite better-sqlite3
 ```
   </Tab>
   <Tab value="yarn">
 ```bash
-yarn add @converge/db-sqlite better-sqlite3
+yarn add @rippledb/db-sqlite better-sqlite3
 ```
   </Tab>
 </Tabs>
@@ -33,7 +33,7 @@ yarn add @converge/db-sqlite better-sqlite3
 ## Basic Usage
 
 ```ts
-import { SqliteDb } from '@converge/db-sqlite';
+import { SqliteDb } from '@rippledb/db-sqlite';
 
 const db = new SqliteDb({
   filename: './data.db',
@@ -60,8 +60,8 @@ db.close();
 To project changes into domain tables, add a materializer:
 
 ```ts
-import { SqliteDb } from '@converge/db-sqlite';
-import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+import { SqliteDb } from '@rippledb/db-sqlite';
+import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
 
 const db = new SqliteDb<MySchema>({
   filename: './data.db',
@@ -143,14 +143,14 @@ SqliteDb automatically creates these tables:
 
 ```sql
 -- Change log
-CREATE TABLE converge_changes (
+CREATE TABLE ripple_changes (
   seq INTEGER PRIMARY KEY AUTOINCREMENT,
   stream TEXT NOT NULL,
   change_json TEXT NOT NULL
 );
 
 -- Idempotency tracking
-CREATE TABLE converge_idempotency (
+CREATE TABLE ripple_idempotency (
   stream TEXT NOT NULL,
   idempotency_key TEXT NOT NULL,
   last_seq INTEGER NOT NULL,
@@ -165,8 +165,8 @@ You can use `db-sqlite` with Drizzle for your domain queries while Converge mana
 ```ts
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { SqliteDb } from '@converge/db-sqlite';
-import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+import { SqliteDb } from '@rippledb/db-sqlite';
+import { createDrizzleSyncMaterializerConfig } from '@rippledb/materialize-drizzle';
 
 // Create the underlying SQLite connection
 const sqlite = new Database('./data.db');
@@ -174,7 +174,7 @@ const sqlite = new Database('./data.db');
 // Create tables
 sqlite.exec(`
   CREATE TABLE IF NOT EXISTS todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER);
-  CREATE TABLE IF NOT EXISTS converge_tags (...);
+  CREATE TABLE IF NOT EXISTS ripple_tags (...);
 `);
 
 // Use Drizzle for queries

@@ -1,5 +1,5 @@
 {
-  "name": "@converge/client",
+  "name": "@rippledb/client",
   "version": "0.0.0",
   "private": false,
   "type": "module",
@@ -12,7 +12,7 @@
   },
   "files": ["dist"],
   "dependencies": {
-    "@converge/core": "workspace:*"
+    "@rippledb/core": "workspace:*"
   },
   "devDependencies": {
     "eslint": "^9.37.0",

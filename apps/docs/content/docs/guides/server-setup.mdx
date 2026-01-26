@@ -1,6 +1,6 @@
 ---
 title: Server Setup
-description: Build a production-ready Converge server
+description: Build a production-ready RippleDB server
 ---
 
 import { Steps, Step } from 'fumadocs-ui/components/steps';
@@ -9,7 +9,7 @@ import { Callout } from 'fumadocs-ui/components/callout';
 
 # Server Setup
 
-This guide walks through setting up a Converge server with HTTP endpoints for sync.
+This guide walks through setting up a RippleDB server with HTTP endpoints for sync.
 
 ## What You'll Build
 
@@ -25,19 +25,19 @@ This guide walks through setting up a Converge server with HTTP endpoints for sy
 <Tabs items={['SQLite', 'Turso', 'Drizzle']}>
   <Tab value="SQLite">
 ```bash
-npm install @converge/core @converge/db-sqlite @converge/materialize-db better-sqlite3 express
+npm install @rippledb/core @rippledb/db-sqlite @rippledb/materialize-db better-sqlite3 express
 npm install -D typescript @types/better-sqlite3 @types/express tsx
 ```
   </Tab>
   <Tab value="Turso">
 ```bash
-npm install @converge/core @converge/db-turso @converge/materialize-db @libsql/client express
+npm install @rippledb/core @rippledb/db-turso @rippledb/materialize-db @libsql/client express
 npm install -D typescript @types/express tsx
 ```
   </Tab>
   <Tab value="Drizzle">
 ```bash
-npm install @converge/core @converge/db-drizzle @converge/materialize-drizzle drizzle-orm better-sqlite3 express
+npm install @rippledb/core @rippledb/db-drizzle @rippledb/materialize-drizzle drizzle-orm better-sqlite3 express
 npm install -D typescript @types/better-sqlite3 @types/express tsx
 ```
   </Tab>
@@ -68,7 +68,7 @@ export type AppSchema = {
 ### Set Up HLC Generator
 
 ```ts title="src/hlc.ts"
-import { createHlcState, tickHlc } from '@converge/core';
+import { createHlcState, tickHlc } from '@rippledb/core';
 import { randomUUID } from 'crypto';
 
 const nodeId = process.env.NODE_ID ?? `server-${randomUUID().slice(0, 8)}`;
@@ -90,8 +90,8 @@ In a distributed setup, each server instance needs a unique `NODE_ID`.
 <Tabs items={['SQLite', 'Turso', 'Drizzle']}>
   <Tab value="SQLite">
 ```ts title="src/db.ts"
-import { SqliteDb } from '@converge/db-sqlite';
-import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+import { SqliteDb } from '@rippledb/db-sqlite';
+import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
 import type { AppSchema } from './schema';
 
 // Create domain tables
@@ -133,8 +133,8 @@ export { db };
   </Tab>
   <Tab value="Turso">
 ```ts title="src/db.ts"
-import { TursoDb } from '@converge/db-turso';
-import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+import { TursoDb } from '@rippledb/db-turso';
+import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
 import type { AppSchema } from './schema';
 
 const db = new TursoDb<AppSchema>({
@@ -163,8 +163,8 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
-import { DrizzleDb } from '@converge/db-drizzle';
-import { createDrizzleMaterializerConfig } from '@converge/materialize-drizzle';
+import { DrizzleDb } from '@rippledb/db-drizzle';
+import { createDrizzleMaterializerConfig } from '@rippledb/materialize-drizzle';
 import type { AppSchema } from './schema';
 
 // Drizzle table definitions
@@ -175,19 +175,19 @@ export const todosTable = sqliteTable('todos', {
   createdAt: text('createdAt'),
 });
 
-const changesTable = sqliteTable('converge_changes', {
+const changesTable = sqliteTable('ripple_changes', {
   seq: integer('seq').primaryKey({ autoIncrement: true }),
   stream: text('stream').notNull(),
   change_json: text('change_json').notNull(),
 });
 
-const idempotencyTable = sqliteTable('converge_idempotency', {
+const idempotencyTable = sqliteTable('ripple_idempotency', {
   stream: text('stream').notNull(),
   idempotency_key: text('idempotency_key').notNull(),
   last_seq: integer('last_seq').notNull(),
 });
 
-const tagsTable = sqliteTable('converge_tags', {
+const tagsTable = sqliteTable('ripple_tags', {
   entity: text('entity').notNull(),
   id: text('id').notNull(),
   data: text('data').notNull(),
@@ -199,9 +199,9 @@ const tagsTable = sqliteTable('converge_tags', {
 // Initialize SQLite
 const sqlite = new Database(process.env.DB_PATH ?? './data.db');
 sqlite.exec(`
-  CREATE TABLE IF NOT EXISTS converge_changes (...);
-  CREATE TABLE IF NOT EXISTS converge_idempotency (...);
-  CREATE TABLE IF NOT EXISTS converge_tags (...);
+  CREATE TABLE IF NOT EXISTS ripple_changes (...);
+  CREATE TABLE IF NOT EXISTS ripple_idempotency (...);
+  CREATE TABLE IF NOT EXISTS ripple_tags (...);
   CREATE TABLE IF NOT EXISTS todos (...);
 `);
 

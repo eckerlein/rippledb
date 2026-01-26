@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@converge/core';
-import { materializeChange, type MaterializerAdapter } from '@converge/materialize-core';
+import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@rippledb/core';
+import { materializeChange, type MaterializerAdapter } from '@rippledb/materialize-core';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import pg from 'pg';
 import { createCustomMaterializer, createSqlExecutor } from './adapter';
@@ -65,7 +65,7 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
     dbClose = dbWrapper.close;
     // Create fresh tables
     await db.run('DROP TABLE IF EXISTS todos', []);
-    await db.run('DROP TABLE IF EXISTS converge_tags', []);
+    await db.run('DROP TABLE IF EXISTS ripple_tags', []);
     await db.run('CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)', []);
     const sqlConfig = {
       dialect: 'postgresql',
@@ -110,7 +110,7 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
 
     // Verify tags table exists and has data
     const row = await db.get<{ data: string; tags: string; deleted: number }>(
-      'SELECT data, tags, deleted FROM converge_tags WHERE entity = $1 AND id = $2',
+      'SELECT data, tags, deleted FROM ripple_tags WHERE entity = $1 AND id = $2',
       ['todos', 'todo-1'],
     );
     expect(row).toBeTruthy();

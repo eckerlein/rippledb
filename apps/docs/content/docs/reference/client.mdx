@@ -1,18 +1,18 @@
 ---
-title: "@converge/client"
+title: "@rippledb/client"
 description: Client-side sync orchestration and Store interface
 ---
 
 import { Diagram } from '@/components/diagram';
 
-# @converge/client
+# @rippledb/client
 
 Client-side sync orchestration including the Store interface, outbox, and replicator.
 
 ## Installation
 
 ```bash
-pnpm add @converge/client
+pnpm add @rippledb/client
 ```
 
 ## Store Interface
@@ -20,7 +20,7 @@ pnpm add @converge/client
 The contract for client-side local storage:
 
 ```ts
-interface Store<S extends ConvergeSchema, ListQuery = unknown> {
+interface Store<S extends RippleSchema, ListQuery = unknown> {
   applyChanges(changes: Change<S>[]): Promise<void>;
   getRow<E extends EntityName<S>>(entity: E, id: string): Promise<S[E] | null>;
   listRows(query: ListQuery): Promise<Array<S[EntityName<S>]>>;
@@ -72,7 +72,7 @@ const unsubscribe = store.onEvent?.((event) => {
 ```ts
 type DbEventKind = 'insert' | 'update' | 'delete';
 
-type DbEvent<S extends ConvergeSchema, E extends EntityName<S>> = {
+type DbEvent<S extends RippleSchema, E extends EntityName<S>> = {
   entity: E;
   kind: DbEventKind;
   id?: string;
@@ -84,7 +84,7 @@ type DbEvent<S extends ConvergeSchema, E extends EntityName<S>> = {
 The contract for server communication:
 
 ```ts
-type Remote<S extends ConvergeSchema> = {
+type Remote<S extends RippleSchema> = {
   pull(req: {
     stream: string;
     cursor: string | null;
@@ -102,20 +102,20 @@ type Remote<S extends ConvergeSchema> = {
 };
 ```
 
-Use `@converge/remote-http` for the HTTP implementation.
+Use `@rippledb/remote-http` for the HTTP implementation.
 
 ## Outbox
 
 Buffer for local changes waiting to be pushed:
 
 ```ts
-interface Outbox<S extends ConvergeSchema> {
+interface Outbox<S extends RippleSchema> {
   push(entry: OutboxEntry<S>): void;
   drain(stream: string): OutboxEntry<S>[];
   size(stream?: string): number;
 }
 
-type OutboxEntry<S extends ConvergeSchema> = {
+type OutboxEntry<S extends RippleSchema> = {
   stream: string;
   change: Change<S>;
 };
@@ -126,7 +126,7 @@ type OutboxEntry<S extends ConvergeSchema> = {
 Built-in in-memory implementation:
 
 ```ts
-import { InMemoryOutbox } from '@converge/client';
+import { InMemoryOutbox } from '@rippledb/client';
 
 const outbox = new InMemoryOutbox<MySchema>();
 
@@ -145,7 +145,7 @@ const pending = outbox.drain('user-123');
 Single sync cycle: pull → apply → push.
 
 ```ts
-import { syncOnce } from '@converge/client';
+import { syncOnce } from '@rippledb/client';
 
 const result = await syncOnce({
   stream: 'user-123',
@@ -165,7 +165,7 @@ console.log(result.nextCursor); // Save for next sync
 **Options:**
 
 ```ts
-type SyncOnceOptions<S extends ConvergeSchema> = {
+type SyncOnceOptions<S extends RippleSchema> = {
   stream: string;
   store: Store<S>;
   remote: Remote<S>;
@@ -191,7 +191,7 @@ type SyncOnceResult = {
 Convenience wrapper managing cursor and outbox:
 
 ```ts
-import { createReplicator } from '@converge/client';
+import { createReplicator } from '@rippledb/client';
 
 const replicator = createReplicator({
   stream: 'user-123',
@@ -213,7 +213,7 @@ const cursor = replicator.getCursor();
 **Interface:**
 
 ```ts
-type Replicator<S extends ConvergeSchema> = {
+type Replicator<S extends RippleSchema> = {
   pushLocal(change: Change<S>): Promise<void>;
   sync(): Promise<SyncOnceResult>;
   getCursor(): string | null;
@@ -223,7 +223,7 @@ type Replicator<S extends ConvergeSchema> = {
 **Options:**
 
 ```ts
-type ReplicatorOptions<S extends ConvergeSchema> = {
+type ReplicatorOptions<S extends RippleSchema> = {
   stream: string;
   store: Store<S>;
   remote: Remote<S>;

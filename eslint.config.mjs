@@ -22,7 +22,7 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            '@converge/*',
+            '@rippledb/*',
             '../*',
             '../**',
             '../../*',
@@ -39,9 +39,9 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            '@converge/store-*',
-            '@converge/db-*',
-            '@converge/bind-*',
+            '@rippledb/store-*',
+            '@rippledb/db-*',
+            '@rippledb/bind-*',
           ],
         },
       ],

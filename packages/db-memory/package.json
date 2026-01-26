@@ -1,5 +1,5 @@
 {
-  "name": "@converge/db-memory",
+  "name": "@rippledb/db-memory",
   "version": "0.0.0",
   "private": false,
   "type": "module",
@@ -12,8 +12,8 @@
   },
   "files": ["dist"],
   "dependencies": {
-    "@converge/core": "workspace:*",
-    "@converge/server": "workspace:*"
+    "@rippledb/core": "workspace:*",
+    "@rippledb/server": "workspace:*"
   },
   "devDependencies": {
     "eslint": "^9.37.0",

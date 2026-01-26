@@ -1,15 +1,15 @@
 ---
-title: Converge
+title: RippleDB
 description: A local-first sync engine with field-level conflict resolution
 ---
 
 import { Cards, Card } from 'fumadocs-ui/components/card';
 
-# Converge
+# RippleDB
 
 A **local-first sync engine** that treats local storage as the source of truth. Changes replicate via an append-only log, and conflicts resolve deterministically at the field level using hybrid logical clocks.
 
-## Why Converge?
+## Why RippleDB?
 
 - **Local-first**: Your app works offline. Local writes are instant.
 - **Field-level LWW**: Conflicts resolve per-field, not per-row. No data loss.
@@ -19,7 +19,7 @@ A **local-first sync engine** that treats local storage as the source of truth. 
 
 ## Architecture
 
-Converge follows a **headless, adapter-based architecture**:
+RippleDB follows a **headless, adapter-based architecture**:
 
 - **Core packages** define interfaces and pure logic — no I/O, no dependencies
 - **Adapter packages** provide battle-tested implementations for specific databases and ORMs
@@ -35,8 +35,8 @@ This means:
 ## Quick Example
 
 ```ts
-import { SqliteDb } from '@converge/db-sqlite';
-import { createMaterializerConfig } from '@converge/materialize-db';
+import { SqliteDb } from '@rippledb/db-sqlite';
+import { createMaterializerConfig } from '@rippledb/materialize-db';
 
 const db = new SqliteDb({
   filename: './data.db',
@@ -59,7 +59,7 @@ await db.append('my-stream', [{
 <Cards>
   <Card 
     title="Installation" 
-    description="Install Converge and set up your first project"
+    description="Install RippleDB and set up your first project"
     href="/docs/getting-started"
   />
   <Card 
@@ -95,22 +95,22 @@ await db.append('my-stream', [{
 
 | Package | Description |
 |---------|-------------|
-| `@converge/core` | HLC, Change types, pure merge logic |
-| `@converge/server` | Db interface, append/pull contracts |
-| `@converge/client` | Store interface, sync orchestration |
+| `@rippledb/core` | HLC, Change types, pure merge logic |
+| `@rippledb/server` | Db interface, append/pull contracts |
+| `@rippledb/client` | Store interface, sync orchestration |
 
 **Database Adapters** (server-side persistence):
 
 | Package | Best For |
 |---------|----------|
-| `@converge/db-sqlite` | Local servers, Electron, tests |
-| `@converge/db-turso` | Edge deployments, serverless |
-| `@converge/db-drizzle` | Existing Drizzle projects (any DB) |
-| `@converge/db-memory` | Unit tests, prototyping |
+| `@rippledb/db-sqlite` | Local servers, Electron, tests |
+| `@rippledb/db-turso` | Edge deployments, serverless |
+| `@rippledb/db-drizzle` | Existing Drizzle projects (any DB) |
+| `@rippledb/db-memory` | Unit tests, prototyping |
 
 **Materializers** (project changes → queryable tables):
 
 | Package | Best For |
 |---------|----------|
-| `@converge/materialize-db` | Raw SQL projects |
-| `@converge/materialize-drizzle` | Drizzle projects (type-safe) |
+| `@rippledb/materialize-db` | Raw SQL projects |
+| `@rippledb/materialize-drizzle` | Drizzle projects (type-safe) |

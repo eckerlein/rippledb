@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install Converge packages and set up your project
+description: Install RippleDB packages and set up your project
 ---
 
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
@@ -8,7 +8,7 @@ import { Cards, Card } from 'fumadocs-ui/components/card';
 
 # Installation
 
-Converge is distributed as a set of npm packages. Install what you need based on your use case.
+RippleDB is distributed as a set of npm packages. Install what you need based on your use case.
 
 ## Server-Side Setup
 
@@ -17,17 +17,17 @@ For a backend that stores changes and materializes state:
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
 ```bash
-pnpm add @converge/core @converge/server @converge/db-sqlite @converge/materialize-db
+pnpm add @rippledb/core @rippledb/server @rippledb/db-sqlite @rippledb/materialize-db
 ```
   </Tab>
   <Tab value="npm">
 ```bash
-npm install @converge/core @converge/server @converge/db-sqlite @converge/materialize-db
+npm install @rippledb/core @rippledb/server @rippledb/db-sqlite @rippledb/materialize-db
 ```
   </Tab>
   <Tab value="yarn">
 ```bash
-yarn add @converge/core @converge/server @converge/db-sqlite @converge/materialize-db
+yarn add @rippledb/core @rippledb/server @rippledb/db-sqlite @rippledb/materialize-db
 ```
   </Tab>
 </Tabs>
@@ -39,39 +39,39 @@ If you're already using Drizzle, use the Drizzle-specific packages instead:
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
 ```bash
-pnpm add @converge/core @converge/server @converge/db-drizzle @converge/materialize-drizzle
+pnpm add @rippledb/core @rippledb/server @rippledb/db-drizzle @rippledb/materialize-drizzle
 ```
   </Tab>
   <Tab value="npm">
 ```bash
-npm install @converge/core @converge/server @converge/db-drizzle @converge/materialize-drizzle
+npm install @rippledb/core @rippledb/server @rippledb/db-drizzle @rippledb/materialize-drizzle
 ```
   </Tab>
   <Tab value="yarn">
 ```bash
-yarn add @converge/core @converge/server @converge/db-drizzle @converge/materialize-drizzle
+yarn add @rippledb/core @rippledb/server @rippledb/db-drizzle @rippledb/materialize-drizzle
 ```
   </Tab>
 </Tabs>
 
 ## Client-Side Setup
 
-For a client that syncs with a Converge server:
+For a client that syncs with a RippleDB server:
 
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
 ```bash
-pnpm add @converge/core @converge/client @converge/remote-http
+pnpm add @rippledb/core @rippledb/client @rippledb/remote-http
 ```
   </Tab>
   <Tab value="npm">
 ```bash
-npm install @converge/core @converge/client @converge/remote-http
+npm install @rippledb/core @rippledb/client @rippledb/remote-http
 ```
   </Tab>
   <Tab value="yarn">
 ```bash
-yarn add @converge/core @converge/client @converge/remote-http
+yarn add @rippledb/core @rippledb/client @rippledb/remote-http
 ```
   </Tab>
 </Tabs>
@@ -80,19 +80,19 @@ yarn add @converge/core @converge/client @converge/remote-http
 
 | Package | Purpose |
 |---------|---------|
-| `@converge/core` | HLC timestamps, Change types, merge logic (always required) |
-| `@converge/server` | Db interface and contracts for server persistence |
-| `@converge/client` | Client-side sync orchestration |
-| `@converge/db-sqlite` | SQLite adapter using better-sqlite3 |
-| `@converge/db-turso` | Turso/libSQL adapter |
-| `@converge/db-drizzle` | Database-agnostic Drizzle ORM adapter |
-| `@converge/materialize-db` | SQL-based state materializer |
-| `@converge/materialize-drizzle` | Drizzle-based state materializer |
-| `@converge/remote-http` | HTTP client for sync |
+| `@rippledb/core` | HLC timestamps, Change types, merge logic (always required) |
+| `@rippledb/server` | Db interface and contracts for server persistence |
+| `@rippledb/client` | Client-side sync orchestration |
+| `@rippledb/db-sqlite` | SQLite adapter using better-sqlite3 |
+| `@rippledb/db-turso` | Turso/libSQL adapter |
+| `@rippledb/db-drizzle` | Database-agnostic Drizzle ORM adapter |
+| `@rippledb/materialize-db` | SQL-based state materializer |
+| `@rippledb/materialize-drizzle` | Drizzle-based state materializer |
+| `@rippledb/remote-http` | HTTP client for sync |
 
 ## TypeScript
 
-Converge is written in TypeScript and ships with full type definitions. No additional `@types/*` packages needed.
+RippleDB is written in TypeScript and ships with full type definitions. No additional `@types/*` packages needed.
 
 ## Next Steps
 
@@ -104,7 +104,7 @@ Converge is written in TypeScript and ships with full type definitions. No addit
   />
   <Card 
     title="Core Concepts" 
-    description="Understand the mental model behind Converge"
+    description="Understand the mental model behind RippleDB"
     href="/docs/getting-started/concepts"
   />
 </Cards>

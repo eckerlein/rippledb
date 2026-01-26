@@ -6,7 +6,7 @@ description: SQL-based state materializer for raw SQL projects
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
-# @converge/materialize-db
+# @rippledb/materialize-db
 
 A SQL-based materializer that projects changes into domain tables. Works with `db-sqlite` and `db-turso`.
 
@@ -15,17 +15,17 @@ A SQL-based materializer that projects changes into domain tables. Works with `d
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
 ```bash
-pnpm add @converge/materialize-db
+pnpm add @rippledb/materialize-db
 ```
   </Tab>
   <Tab value="npm">
 ```bash
-npm install @converge/materialize-db
+npm install @rippledb/materialize-db
 ```
   </Tab>
   <Tab value="yarn">
 ```bash
-yarn add @converge/materialize-db
+yarn add @rippledb/materialize-db
 ```
   </Tab>
 </Tabs>
@@ -37,7 +37,7 @@ Materialization is the process of applying changes to your domain tables so you 
 **Without materialization:**
 ```sql
 -- Expensive: replay all changes to compute current state
-SELECT * FROM converge_changes 
+SELECT * FROM ripple_changes 
 WHERE entity = 'todos' AND entity_id = 'todo-1'
 ORDER BY seq;
 -- Then apply LWW in code...
@@ -52,8 +52,8 @@ SELECT * FROM todos WHERE id = 'todo-1';
 ## Basic Usage
 
 ```ts
-import { SqliteDb } from '@converge/db-sqlite';
-import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+import { SqliteDb } from '@rippledb/db-sqlite';
+import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
 
 const db = new SqliteDb<MySchema>({
   filename: './data.db',
@@ -73,7 +73,7 @@ const db = new SqliteDb<MySchema>({
 ## How It Works
 
 1. **Change arrives** via `db.append()`
-2. **Load existing tags** from `converge_tags` table
+2. **Load existing tags** from `ripple_tags` table
 3. **Apply field-level LWW** — compare HLC timestamps per field
 4. **Update domain table** with winning values
 5. **Update tags table** with new timestamps
@@ -89,7 +89,7 @@ Built-in SQL dialect. Currently supported:
 - `SqliteDialect` — For SQLite and Turso
 
 ```ts
-import { SqliteDialect } from '@converge/materialize-db';
+import { SqliteDialect } from '@rippledb/materialize-db';
 
 createMaterializerConfig({
   db,
@@ -135,26 +135,26 @@ createMaterializerConfig({
 ```
 
 <Callout type="info">
-If `fieldMap` is provided for an entity, changes to that entity will update the domain table. Without `fieldMap`, only the `converge_tags` table is updated.
+If `fieldMap` is provided for an entity, changes to that entity will update the domain table. Without `fieldMap`, only the `ripple_tags` table is updated.
 </Callout>
 
 ### `tagsTable`
 
-Name of the table storing entity tags/metadata. Default: `'converge_tags'`
+Name of the table storing entity tags/metadata. Default: `'ripple_tags'`
 
 ```ts
 createMaterializerConfig({
   // ...
-  tagsTable: 'my_converge_tags',
+  tagsTable: 'my_ripple_tags',
 });
 ```
 
 ## Tags Table Schema
 
-The materializer automatically creates a `converge_tags` table:
+The materializer automatically creates a `ripple_tags` table:
 
 ```sql
-CREATE TABLE converge_tags (
+CREATE TABLE ripple_tags (
   entity TEXT NOT NULL,
   id TEXT NOT NULL,
   data TEXT NOT NULL,      -- JSON: current field values
@@ -232,13 +232,13 @@ createMaterializerConfig({
 For SQLite with `better-sqlite3`, use the sync variants:
 
 ```ts
-import { createSyncMaterializer, createSyncSqlExecutor } from '@converge/materialize-db';
+import { createSyncMaterializer, createSyncSqlExecutor } from '@rippledb/materialize-db';
 
 // Sync executor for better-sqlite3
 const executor = createSyncSqlExecutor({
   db,
   dialect: SqliteDialect,
-  tagsTable: 'converge_tags',
+  tagsTable: 'ripple_tags',
   tableMap: { todos: 'todos' },
   fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
 });

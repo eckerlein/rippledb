@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@converge/core';
-import { materializeChange } from '@converge/materialize-core';
-import { createCustomMaterializer } from '@converge/materialize-db';
+import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@rippledb/core';
+import { materializeChange } from '@rippledb/materialize-core';
+import { createCustomMaterializer } from '@rippledb/materialize-db';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Client } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
@@ -22,7 +22,7 @@ const todosTable = pgTable('todos', {
   done: integer('done'),
 });
 
-const tagsTable = pgTable('converge_tags', {
+const tagsTable = pgTable('ripple_tags', {
   entity: text('entity').notNull(),
   id: text('id').notNull(),
   data: text('data').notNull(),
@@ -81,9 +81,9 @@ describe('materialize-drizzle (postgresql)', () => {
     await client.connect();
     // Create fresh tables
     await client.query('DROP TABLE IF EXISTS todos');
-    await client.query('DROP TABLE IF EXISTS converge_tags');
+    await client.query('DROP TABLE IF EXISTS ripple_tags');
     await client.query('CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)');
-    await client.query(`CREATE TABLE converge_tags (
+    await client.query(`CREATE TABLE ripple_tags (
       entity TEXT NOT NULL,
       id TEXT NOT NULL,
       data TEXT NOT NULL,
@@ -125,7 +125,7 @@ describe('materialize-drizzle (postgresql)', () => {
     await materializeChange(adapter, change);
 
     const tagsRow = await client.query(
-      'SELECT data, tags, deleted FROM converge_tags WHERE entity = $1 AND id = $2',
+      'SELECT data, tags, deleted FROM ripple_tags WHERE entity = $1 AND id = $2',
       ['todos', 'todo-1'],
     );
     expect(tagsRow.rows.length).toBe(1);
@@ -171,7 +171,7 @@ describe('materialize-drizzle (postgresql)', () => {
     await materializeChange(adapter, change2);
 
     const tagsRow = await client.query(
-      'SELECT deleted, deleted_tag FROM converge_tags WHERE entity = $1 AND id = $2',
+      'SELECT deleted, deleted_tag FROM ripple_tags WHERE entity = $1 AND id = $2',
       ['todos', 'todo-1'],
     );
     expect(tagsRow.rows.length).toBe(1);

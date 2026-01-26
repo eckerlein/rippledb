@@ -1,4 +1,4 @@
-import type { Change, ConvergeSchema, Hlc } from '@converge/core';
+import type { Change, RippleSchema, Hlc } from '@rippledb/core';
 
 export type Cursor = string;
 
@@ -8,12 +8,12 @@ export type PullRequest = {
   limit?: number;
 };
 
-export type PullResponse<S extends ConvergeSchema = ConvergeSchema> = {
+export type PullResponse<S extends RippleSchema = RippleSchema> = {
   changes: Change<S>[];
   nextCursor: Cursor | null;
 };
 
-export type AppendRequest<S extends ConvergeSchema = ConvergeSchema> = {
+export type AppendRequest<S extends RippleSchema = RippleSchema> = {
   stream: string;
   /**
    * Idempotency key for the whole batch (optional but recommended).
@@ -33,9 +33,9 @@ export type AppendResult = {
 
 /**
  * Server-side persistence contract (authoritative ordering + cursorable history).
- * Implementations live in `@converge/db-*`.
+ * Implementations live in `@rippledb/db-*`.
  */
-export interface Db<S extends ConvergeSchema = ConvergeSchema> {
+export interface Db<S extends RippleSchema = RippleSchema> {
   append(req: AppendRequest<S>): Promise<AppendResult>;
   pull(req: PullRequest): Promise<PullResponse<S>>;
 }

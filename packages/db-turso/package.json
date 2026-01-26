@@ -1,5 +1,5 @@
 {
-  "name": "@converge/db-turso",
+  "name": "@rippledb/db-turso",
   "version": "0.0.0",
   "private": false,
   "type": "module",
@@ -12,10 +12,10 @@
   },
   "files": ["dist"],
   "dependencies": {
-    "@converge/core": "workspace:*",
-    "@converge/materialize-core": "workspace:*",
-    "@converge/materialize-db": "workspace:*",
-    "@converge/server": "workspace:*",
+    "@rippledb/core": "workspace:*",
+    "@rippledb/materialize-core": "workspace:*",
+    "@rippledb/materialize-db": "workspace:*",
+    "@rippledb/server": "workspace:*",
     "@libsql/client": "^0.14.0"
   },
   "devDependencies": {

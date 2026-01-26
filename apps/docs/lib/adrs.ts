@@ -115,7 +115,7 @@ export const ADRS: AdrSummary[] = [
   {
     id: 'ADR-0015',
     title: 'Core Package Must Be Pure and Dependency-Minimal',
-    description: '@converge/core is pure logic/types with no UI/runtime/DB deps.',
+    description: '@rippledb/core is pure logic/types with no UI/runtime/DB deps.',
     href: '/docs/adr/0015-core-pure-and-minimal',
     category: 'Packages',
   },

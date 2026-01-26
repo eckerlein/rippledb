@@ -2,24 +2,24 @@ import type { Hlc } from './hlc';
 
 export type ChangeKind = 'upsert' | 'delete';
 
-export type ConvergeSchema = Record<string, Record<string, unknown>>;
+export type RippleSchema = Record<string, Record<string, unknown>>;
 
-export type EntityName<S extends ConvergeSchema> = Extract<keyof S, string>;
+export type EntityName<S extends RippleSchema> = Extract<keyof S, string>;
 
 type FieldKey<T extends Record<string, unknown>> = Extract<keyof T, string>;
 
 export type ChangePatch<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 > = Partial<S[E]>;
 
 export type ChangeTags<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 > = Partial<Record<FieldKey<S[E]>, Hlc>>;
 
 export type Change<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 > = {
   stream: string;
@@ -32,7 +32,7 @@ export type Change<
 };
 
 export type UpsertChangeInput<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 > = {
   stream: string;
@@ -44,7 +44,7 @@ export type UpsertChangeInput<
 };
 
 export type DeleteChangeInput<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 > = {
   stream: string;
@@ -54,7 +54,7 @@ export type DeleteChangeInput<
 };
 
 export function makeUpsert<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 >(input: UpsertChangeInput<S, E>): Change<S, E> {
   const tags =
@@ -73,7 +73,7 @@ export function makeUpsert<
 }
 
 export function makeDelete<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 >(input: DeleteChangeInput<S, E>): Change<S, E> {
   return {

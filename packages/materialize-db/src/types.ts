@@ -1,4 +1,4 @@
-import type { ConvergeSchema, EntityName } from '@converge/core';
+import type { RippleSchema, EntityName } from '@rippledb/core';
 
 /**
  * Database interface for materialization.
@@ -70,10 +70,10 @@ export type Dialect = {
 /**
  * Base configuration shared by all materialization adapters.
  */
-export type MaterializerConfigBase<S extends ConvergeSchema> = {
+export type MaterializerConfigBase<S extends RippleSchema> = {
   /**
    * Table/collection name for storing entity tags/metadata.
-   * Default: 'converge_tags'
+   * Default: 'ripple_tags'
    */
   tagsTable?: string;
 
@@ -142,7 +142,7 @@ export type MaterializerExecutor = {
 /**
  * Configuration when using a built-in dialect.
  */
-type DialectConfig<S extends ConvergeSchema> = MaterializerConfigBase<S> & {
+type DialectConfig<S extends RippleSchema> = MaterializerConfigBase<S> & {
   /**
    * Database dialect name (e.g., 'sqlite', 'postgresql').
    */
@@ -162,7 +162,7 @@ type DialectConfig<S extends ConvergeSchema> = MaterializerConfigBase<S> & {
 /**
  * Configuration when providing all custom commands.
  */
-type CustomCommandsConfig<S extends ConvergeSchema> = MaterializerConfigBase<S> & {
+type CustomCommandsConfig<S extends RippleSchema> = MaterializerConfigBase<S> & {
   dialect?: never;
   /**
    * Custom command for loading entity state.
@@ -201,7 +201,7 @@ type CustomCommandsConfig<S extends ConvergeSchema> = MaterializerConfigBase<S> 
 /**
  * Configuration when providing a custom executor.
  */
-type ExecutorConfig<S extends ConvergeSchema> = MaterializerConfigBase<S> & {
+type ExecutorConfig<S extends RippleSchema> = MaterializerConfigBase<S> & {
   executor: MaterializerExecutor;
   dialect?: never;
   loadCommand?: never;
@@ -215,11 +215,11 @@ type ExecutorConfig<S extends ConvergeSchema> = MaterializerConfigBase<S> & {
  * Either provide a dialect name OR all custom commands (loadCommand, saveCommand, removeCommand).
  */
 export type SqlMaterializerConfig<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
 > = DialectConfig<S> | CustomCommandsConfig<S>;
 
 export type CustomMaterializerConfig<
-  S extends ConvergeSchema = ConvergeSchema,
+  S extends RippleSchema = RippleSchema,
 > = ExecutorConfig<S>;
 
 /**

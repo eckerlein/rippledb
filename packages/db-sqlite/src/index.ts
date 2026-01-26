@@ -1,16 +1,16 @@
 import Database from 'better-sqlite3';
-import type { Change, ConvergeSchema } from '@converge/core';
-import type { AppendRequest, AppendResult, Cursor, Db, PullRequest, PullResponse } from '@converge/server';
-import { applyChangeToState } from '@converge/materialize-core';
+import type { Change, RippleSchema } from '@rippledb/core';
+import type { AppendRequest, AppendResult, Cursor, Db, PullRequest, PullResponse } from '@rippledb/server';
+import { applyChangeToState } from '@rippledb/materialize-core';
 import type {
   MaterializerConfigBase,
   SyncMaterializerExecutor,
-} from '@converge/materialize-db';
-import { createSyncMaterializer } from '@converge/materialize-db';
+} from '@rippledb/materialize-db';
+import { createSyncMaterializer } from '@rippledb/materialize-db';
 
 export type SqliteDatabase = InstanceType<typeof Database>;
 
-export type SqliteDbOptions<S extends ConvergeSchema = ConvergeSchema> = {
+export type SqliteDbOptions<S extends RippleSchema = RippleSchema> = {
   /**
    * SQLite pragmas to apply (only when using `filename`).
    * Default: ['journal_mode = WAL']
@@ -45,7 +45,7 @@ function decodeCursor(cursor: Cursor | null): number {
   return Math.floor(n);
 }
 
-export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S> {
+export class SqliteDb<S extends RippleSchema = RippleSchema> implements Db<S> {
   private db: SqliteDatabase;
   private ownsDb: boolean;
   private insertChange: ReturnType<SqliteDatabase['prepare']>;
@@ -70,13 +70,13 @@ export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S
     }
 
     this.db.exec(`
-      CREATE TABLE IF NOT EXISTS converge_changes (
+      CREATE TABLE IF NOT EXISTS ripple_changes (
         seq INTEGER PRIMARY KEY AUTOINCREMENT,
         stream TEXT NOT NULL,
         change_json TEXT NOT NULL
       );
 
-      CREATE TABLE IF NOT EXISTS converge_idempotency (
+      CREATE TABLE IF NOT EXISTS ripple_idempotency (
         stream TEXT NOT NULL,
         idempotency_key TEXT NOT NULL,
         last_seq INTEGER NOT NULL,
@@ -85,19 +85,19 @@ export class SqliteDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S
     `);
 
     this.insertChange = this.db.prepare(
-      'INSERT INTO converge_changes (stream, change_json) VALUES (@stream, @change_json)',
+      'INSERT INTO ripple_changes (stream, change_json) VALUES (@stream, @change_json)',
     );
     this.selectChanges = this.db.prepare(
-      'SELECT seq, change_json FROM converge_changes WHERE stream = @stream AND seq > @afterSeq ORDER BY seq ASC LIMIT @limit',
+      'SELECT seq, change_json FROM ripple_changes WHERE stream = @stream AND seq > @afterSeq ORDER BY seq ASC LIMIT @limit',
     );
     this.idempotencyGet = this.db.prepare(
-      'SELECT last_seq FROM converge_idempotency WHERE stream = @stream AND idempotency_key = @idempotency_key',
+      'SELECT last_seq FROM ripple_idempotency WHERE stream = @stream AND idempotency_key = @idempotency_key',
     );
     this.idempotencyInsert = this.db.prepare(
-      'INSERT INTO converge_idempotency (stream, idempotency_key, last_seq) VALUES (@stream, @idempotency_key, @last_seq)',
+      'INSERT INTO ripple_idempotency (stream, idempotency_key, last_seq) VALUES (@stream, @idempotency_key, @last_seq)',
     );
     this.idempotencyUpdate = this.db.prepare(
-      'UPDATE converge_idempotency SET last_seq = @last_seq WHERE stream = @stream AND idempotency_key = @idempotency_key',
+      'UPDATE ripple_idempotency SET last_seq = @last_seq WHERE stream = @stream AND idempotency_key = @idempotency_key',
     );
 
     this.materializerFactory = opts.materializer;

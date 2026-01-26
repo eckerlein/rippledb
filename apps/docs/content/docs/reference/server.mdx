@@ -1,16 +1,16 @@
 ---
-title: "@converge/server"
+title: "@rippledb/server"
 description: Db interface and server persistence contracts
 ---
 
-# @converge/server
+# @rippledb/server
 
-Defines the `Db` interface for server-side persistence. Implementations live in `@converge/db-*` packages.
+Defines the `Db` interface for server-side persistence. Implementations live in `@rippledb/db-*` packages.
 
 ## Installation
 
 ```bash
-pnpm add @converge/server
+pnpm add @rippledb/server
 ```
 
 ## Db Interface
@@ -18,7 +18,7 @@ pnpm add @converge/server
 The core interface that all database adapters implement:
 
 ```ts
-interface Db<S extends ConvergeSchema = ConvergeSchema> {
+interface Db<S extends RippleSchema = RippleSchema> {
   append(req: AppendRequest<S>): Promise<AppendResult>;
   pull(req: PullRequest): Promise<PullResponse<S>>;
 }
@@ -31,7 +31,7 @@ Append changes to the log for a stream.
 **AppendRequest:**
 
 ```ts
-type AppendRequest<S extends ConvergeSchema> = {
+type AppendRequest<S extends RippleSchema> = {
   stream: string;
   idempotencyKey?: string;
   changes: Change<S>[];
@@ -101,7 +101,7 @@ type PullRequest = {
 **PullResponse:**
 
 ```ts
-type PullResponse<S extends ConvergeSchema> = {
+type PullResponse<S extends RippleSchema> = {
   changes: Change<S>[];
   nextCursor: Cursor | null;
 };
@@ -148,10 +148,10 @@ type Cursor = string;
 ## Implementing a Custom Adapter
 
 ```ts
-import type { Db, AppendRequest, AppendResult, PullRequest, PullResponse } from '@converge/server';
-import type { ConvergeSchema } from '@converge/core';
+import type { Db, AppendRequest, AppendResult, PullRequest, PullResponse } from '@rippledb/server';
+import type { RippleSchema } from '@rippledb/core';
 
-class MyDb<S extends ConvergeSchema> implements Db<S> {
+class MyDb<S extends RippleSchema> implements Db<S> {
   async append(req: AppendRequest<S>): Promise<AppendResult> {
     // 1. Check idempotency key if provided
     // 2. Insert changes into your storage
@@ -173,10 +173,10 @@ class MyDb<S extends ConvergeSchema> implements Db<S> {
 
 | Package | Database | Notes |
 |---------|----------|-------|
-| `@converge/db-sqlite` | SQLite | Uses better-sqlite3 |
-| `@converge/db-turso` | Turso/libSQL | Edge-ready |
-| `@converge/db-drizzle` | Any Drizzle DB | Database-agnostic |
-| `@converge/db-memory` | In-memory | Testing only |
+| `@rippledb/db-sqlite` | SQLite | Uses better-sqlite3 |
+| `@rippledb/db-turso` | Turso/libSQL | Edge-ready |
+| `@rippledb/db-drizzle` | Any Drizzle DB | Database-agnostic |
+| `@rippledb/db-memory` | In-memory | Testing only |
 
 ## Related
 

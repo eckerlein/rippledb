@@ -9,7 +9,7 @@ import { Diagram } from '@/components/diagram';
 
 # Client Sync
 
-This guide shows how to set up client-side sync with a Converge server.
+This guide shows how to set up client-side sync with a RippleDB server.
 
 ## Architecture
 
@@ -35,7 +35,7 @@ This guide shows how to set up client-side sync with a Converge server.
 ### Install Dependencies
 
 ```bash
-npm install @converge/core @converge/client @converge/remote-http
+npm install @rippledb/core @rippledb/client @rippledb/remote-http
 ```
 </Step>
 
@@ -43,7 +43,7 @@ npm install @converge/core @converge/client @converge/remote-http
 ### Create the Remote
 
 ```ts title="src/remote.ts"
-import { createHttpRemote } from '@converge/remote-http';
+import { createHttpRemote } from '@rippledb/remote-http';
 import type { AppSchema } from './schema';
 
 export const remote = createHttpRemote<AppSchema>({
@@ -61,8 +61,8 @@ export const remote = createHttpRemote<AppSchema>({
 The Store interface manages local state:
 
 ```ts title="src/store.ts"
-import type { Store, DbEvent } from '@converge/client';
-import type { Change, EntityName } from '@converge/core';
+import type { Store, DbEvent } from '@rippledb/client';
+import type { Change, EntityName } from '@rippledb/core';
 import type { AppSchema } from './schema';
 
 export class InMemoryStore implements Store<AppSchema> {
@@ -123,8 +123,8 @@ export class InMemoryStore implements Store<AppSchema> {
 ### Create the Replicator
 
 ```ts title="src/sync.ts"
-import { createReplicator, InMemoryOutbox } from '@converge/client';
-import { createHlcState, tickHlc, makeUpsert, makeDelete } from '@converge/core';
+import { createReplicator, InMemoryOutbox } from '@rippledb/client';
+import { createHlcState, tickHlc, makeUpsert, makeDelete } from '@rippledb/core';
 import { remote } from './remote';
 import { InMemoryStore } from './store';
 import type { AppSchema } from './schema';
@@ -309,7 +309,7 @@ await updateTodo('todo-1', { done: true });
 ```
 
 <Callout type="info">
-No manual conflict resolution needed. Converge's field-level LWW ensures consistent, deterministic merges across all clients.
+No manual conflict resolution needed. RippleDB's field-level LWW ensures consistent, deterministic merges across all clients.
 </Callout>
 
 ## Next Steps

@@ -15,16 +15,16 @@ Even with multiple packages, accidental imports can break layering and portabili
 
 We enforce the following dependency graph:
 
-- `@converge/core`
+- `@rippledb/core`
   - depends on nothing (or only tiny pure deps)
-- `@converge/client` and `@converge/server`
-  - depend on `@converge/core`
-- `@converge/store-*`
-  - depend on `@converge/core` (and optionally `@converge/client` interfaces)
-- `@converge/db-*`
-  - depend on `@converge/core` (and optionally `@converge/server` interfaces)
-- `@converge/bind-*`
-  - depend on `@converge/core` (for types like `DbEvent`) and on their UI library
+- `@rippledb/client` and `@rippledb/server`
+  - depend on `@rippledb/core`
+- `@rippledb/store-*`
+  - depend on `@rippledb/core` (and optionally `@rippledb/client` interfaces)
+- `@rippledb/db-*`
+  - depend on `@rippledb/core` (and optionally `@rippledb/server` interfaces)
+- `@rippledb/bind-*`
+  - depend on `@rippledb/core` (for types like `DbEvent`) and on their UI library
   - must not be required by core/client/server
 
 ## Alternatives Considered

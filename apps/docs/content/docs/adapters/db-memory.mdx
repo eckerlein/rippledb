@@ -6,7 +6,7 @@ description: In-memory adapter for testing
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
-# @converge/db-memory
+# @rippledb/db-memory
 
 A simple in-memory adapter for unit testing. No persistence, no dependencies.
 
@@ -19,17 +19,17 @@ A simple in-memory adapter for unit testing. No persistence, no dependencies.
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
 ```bash
-pnpm add @converge/db-memory
+pnpm add @rippledb/db-memory
 ```
   </Tab>
   <Tab value="npm">
 ```bash
-npm install @converge/db-memory
+npm install @rippledb/db-memory
 ```
   </Tab>
   <Tab value="yarn">
 ```bash
-yarn add @converge/db-memory
+yarn add @rippledb/db-memory
 ```
   </Tab>
 </Tabs>
@@ -37,7 +37,7 @@ yarn add @converge/db-memory
 ## Usage
 
 ```ts
-import { MemoryDb } from '@converge/db-memory';
+import { MemoryDb } from '@rippledb/db-memory';
 
 const db = new MemoryDb<MySchema>();
 
@@ -78,8 +78,8 @@ const { changes, nextCursor } = await db.pull({
 
 ```ts
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MemoryDb } from '@converge/db-memory';
-import { makeUpsert } from '@converge/core';
+import { MemoryDb } from '@rippledb/db-memory';
+import { makeUpsert } from '@rippledb/core';
 
 describe('TodoService', () => {
   let db: MemoryDb<MySchema>;

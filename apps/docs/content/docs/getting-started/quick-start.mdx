@@ -8,7 +8,7 @@ import { Steps, Step } from 'fumadocs-ui/components/steps';
 
 # Quick Start
 
-Let's build a simple todo backend with Converge. By the end, you'll have a server that:
+Let's build a simple todo backend with RippleDB. By the end, you'll have a server that:
 
 - Stores changes in an append-only log
 - Materializes changes into a `todos` table
@@ -27,7 +27,7 @@ Let's build a simple todo backend with Converge. By the end, you'll have a serve
 ```bash
 mkdir converge-demo && cd converge-demo
 npm init -y
-npm install @converge/core @converge/db-sqlite @converge/materialize-db better-sqlite3
+npm install @rippledb/core @rippledb/db-sqlite @rippledb/materialize-db better-sqlite3
 npm install -D typescript @types/better-sqlite3 tsx
 ```
 </Step>
@@ -52,11 +52,11 @@ export type TodosSchema = {
 <Step>
 ### Set Up the Database
 
-Create `src/db.ts` to configure your Converge database:
+Create `src/db.ts` to configure your RippleDB database:
 
 ```ts title="src/db.ts"
-import { SqliteDb } from '@converge/db-sqlite';
-import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+import { SqliteDb } from '@rippledb/db-sqlite';
+import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
 import type { TodosSchema } from './schema';
 
 // Create the database with a materializer
@@ -81,7 +81,7 @@ export const db = new SqliteDb<TodosSchema>({
 Create `src/hlc.ts` to generate timestamps:
 
 ```ts title="src/hlc.ts"
-import { createHlcState, tickHlc } from '@converge/core';
+import { createHlcState, tickHlc } from '@rippledb/core';
 
 // Each node needs a unique ID
 const nodeId = `server-${Math.random().toString(36).slice(2, 8)}`;
@@ -99,7 +99,7 @@ export function hlc() {
 Create `src/index.ts`:
 
 ```ts title="src/index.ts"
-import { makeUpsert, makeDelete } from '@converge/core';
+import { makeUpsert, makeDelete } from '@rippledb/core';
 import { db } from './db';
 import { hlc } from './hlc';
 import type { TodosSchema } from './schema';

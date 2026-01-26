@@ -1,11 +1,11 @@
-import type { ConvergeSchema, EntityName } from '@converge/core';
+import type { RippleSchema, EntityName } from '@rippledb/core';
 import type {
   CustomMaterializerConfig,
   MaterializerConfigBase,
   MaterializerExecutor,
   SyncMaterializerExecutor,
   TagsRow,
-} from '@converge/materialize-db';
+} from '@rippledb/materialize-db';
 import { and, eq } from 'drizzle-orm';
 
 type DrizzleTable = object;
@@ -24,7 +24,7 @@ type BivariantCallback<Args extends unknown[], Result> = {
 }['bivarianceHack'];
 
 type DrizzleMaterializerOptions<
-  S extends ConvergeSchema,
+  S extends RippleSchema,
   TTable extends DrizzleTable,
   TConfig extends DrizzleTableConfig,
 > = {
@@ -71,7 +71,7 @@ type DrizzleMaterializerOptions<
  *
  * @example
  * ```ts
- * import { createDrizzleMaterializerConfig } from '@converge/materialize-drizzle';
+ * import { createDrizzleMaterializerConfig } from '@rippledb/materialize-drizzle';
  * import { sqliteTable, text, integer, getTableConfig } from 'drizzle-orm/sqlite-core';
  * import { drizzle } from 'drizzle-orm/better-sqlite3';
  *
@@ -81,7 +81,7 @@ type DrizzleMaterializerOptions<
  *   done: integer('done'),
  * });
  *
- * const tagsTable = sqliteTable('converge_tags', {
+ * const tagsTable = sqliteTable('ripple_tags', {
  *   entity: text('entity').notNull(),
  *   id: text('id').notNull(),
  *   data: text('data').notNull(),
@@ -104,7 +104,7 @@ type DrizzleMaterializerOptions<
  * ```
  */
 export function createDrizzleMaterializerExecutor<
-  S extends ConvergeSchema,
+  S extends RippleSchema,
   TTable extends DrizzleTable = DrizzleTable,
   TDb = unknown,
   TConfig extends DrizzleTableConfig = DrizzleTableConfig,
@@ -317,7 +317,7 @@ export function createDrizzleMaterializerExecutor<
 }
 
 export function createDrizzleMaterializerConfig<
-  S extends ConvergeSchema,
+  S extends RippleSchema,
   TTable extends DrizzleTable = DrizzleTable,
   TDb = unknown,
   TConfig extends DrizzleTableConfig = DrizzleTableConfig,
@@ -344,7 +344,7 @@ export function createDrizzleMaterializerConfig<
  * Use this with db-sqlite which requires synchronous operations.
  */
 export function createDrizzleSyncMaterializerExecutor<
-  S extends ConvergeSchema,
+  S extends RippleSchema,
   TTable extends DrizzleTable = DrizzleTable,
   TDb = unknown,
   TConfig extends DrizzleTableConfig = DrizzleTableConfig,
@@ -528,7 +528,7 @@ export function createDrizzleSyncMaterializerExecutor<
  * Use this with db-sqlite which requires synchronous operations.
  */
 export function createDrizzleSyncMaterializerConfig<
-  S extends ConvergeSchema,
+  S extends RippleSchema,
   TTable extends DrizzleTable = DrizzleTable,
   TDb = unknown,
   TConfig extends DrizzleTableConfig = DrizzleTableConfig,

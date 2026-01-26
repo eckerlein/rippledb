@@ -15,7 +15,7 @@ Row-level “last write wins” causes unnecessary data loss and conflicts.
 
 ## Decision
 
-Converge resolves conflicts using **field-level Last-Write-Wins**, ordered by **Hybrid Logical Clock (HLC) tags**.
+RippleDB resolves conflicts using **field-level Last-Write-Wins**, ordered by **Hybrid Logical Clock (HLC) tags**.
 
 Each mutable field has its own tag:
 

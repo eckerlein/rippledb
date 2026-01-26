@@ -43,9 +43,9 @@ SELECT * FROM todos WHERE id = 'todo-1';
     { id: 'lww', x: 20, y: 140, label: ['2. Apply field-level LWW', '(compare HLC timestamps)'] },
     { id: 'domain', x: 20, y: 220, label: '3. Update domain table' },
     { id: 'tags', x: 20, y: 290, label: '4. Update tags table' },
-    { id: 'tags-read', relativeTo: 'load', anchor: 'right', offset: { x: 40 }, variant: 'label', label: 'converge_tags' },
+    { id: 'tags-read', relativeTo: 'load', anchor: 'right', offset: { x: 40 }, variant: 'label', label: 'ripple_tags' },
     { id: 'todos', relativeTo: 'domain', anchor: 'right', offset: { x: 40 }, variant: 'label', label: 'todos' },
-    { id: 'tags-write', relativeTo: 'tags', anchor: 'right', offset: { x: 40 }, variant: 'label', label: 'converge_tags' },
+    { id: 'tags-write', relativeTo: 'tags', anchor: 'right', offset: { x: 40 }, variant: 'label', label: 'ripple_tags' },
   ]}
   edges={[
     { from: 'append', to: 'load', orthogonal: true },
@@ -90,9 +90,9 @@ Maps schema fields to database columns:
 ```
 
 <Callout type="info">
-**Without fieldMap**, only the `converge_tags` table is updated. The domain table is unchanged.
+**Without fieldMap**, only the `ripple_tags` table is updated. The domain table is unchanged.
 
-**With fieldMap**, both `converge_tags` and the domain table are updated.
+**With fieldMap**, both `ripple_tags` and the domain table are updated.
 </Callout>
 
 ## Field-Level LWW in Action
@@ -108,7 +108,7 @@ When a change arrives, each field is compared independently:
   tags: { title: '1001:0:client-A', done: '1002:0:client-B' }
 }
 
-// Existing state (from converge_tags)
+// Existing state (from ripple_tags)
 {
   values: { title: 'Old Title', done: false },
   tags: { title: '1000:0:server', done: '1003:0:client-C' }
@@ -136,8 +136,8 @@ When a change arrives, each field is compared independently:
 ### materialize-db Example
 
 ```ts
-import { SqliteDb } from '@converge/db-sqlite';
-import { createMaterializerConfig, SqliteDialect } from '@converge/materialize-db';
+import { SqliteDb } from '@rippledb/db-sqlite';
+import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
 
 const db = new SqliteDb<MySchema>({
   filename: './data.db',
@@ -153,8 +153,8 @@ const db = new SqliteDb<MySchema>({
 ### materialize-drizzle Example
 
 ```ts
-import { SqliteDb } from '@converge/db-sqlite';
-import { createDrizzleSyncMaterializerConfig } from '@converge/materialize-drizzle';
+import { SqliteDb } from '@rippledb/db-sqlite';
+import { createDrizzleSyncMaterializerConfig } from '@rippledb/materialize-drizzle';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 
 const db = new SqliteDb<MySchema>({
@@ -173,10 +173,10 @@ const db = new SqliteDb<MySchema>({
 
 ## Tags Table
 
-The materializer maintains a `converge_tags` table:
+The materializer maintains a `ripple_tags` table:
 
 ```sql
-CREATE TABLE converge_tags (
+CREATE TABLE ripple_tags (
   entity TEXT NOT NULL,
   id TEXT NOT NULL,
   data TEXT NOT NULL,       -- JSON: current field values

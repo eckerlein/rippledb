@@ -1,12 +1,12 @@
-import type { Change, ConvergeSchema } from '@converge/core';
-import type { AppendRequest, AppendResult, Cursor, Db, PullRequest, PullResponse } from '@converge/server';
+import type { Change, RippleSchema } from '@rippledb/core';
+import type { AppendRequest, AppendResult, Cursor, Db, PullRequest, PullResponse } from '@rippledb/server';
 
-type Entry<S extends ConvergeSchema> = {
+type Entry<S extends RippleSchema> = {
   seq: number;
   change: Change<S>;
 };
 
-type StreamState<S extends ConvergeSchema> = {
+type StreamState<S extends RippleSchema> = {
   nextSeq: number;
   entries: Entry<S>[];
   idempotency: Map<string, number>; // key -> last accepted seq
@@ -23,7 +23,7 @@ function decodeCursor(cursor: Cursor | null): number {
   return Math.floor(n);
 }
 
-export class MemoryDb<S extends ConvergeSchema = ConvergeSchema> implements Db<S> {
+export class MemoryDb<S extends RippleSchema = RippleSchema> implements Db<S> {
   private streams = new Map<string, StreamState<S>>();
 
   async append(req: AppendRequest<S>): Promise<AppendResult> {

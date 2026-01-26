@@ -1,5 +1,5 @@
 {
-  "name": "@converge/db-drizzle",
+  "name": "@rippledb/db-drizzle",
   "version": "0.0.0",
   "private": false,
   "type": "module",
@@ -12,9 +12,9 @@
   },
   "files": ["dist"],
   "dependencies": {
-    "@converge/core": "workspace:*",
-    "@converge/materialize-core": "workspace:*",
-    "@converge/server": "workspace:*"
+    "@rippledb/core": "workspace:*",
+    "@rippledb/materialize-core": "workspace:*",
+    "@rippledb/server": "workspace:*"
   },
   "peerDependencies": {
     "drizzle-orm": ">=0.36.0"

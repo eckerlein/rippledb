@@ -90,7 +90,7 @@ importers:
 
   packages/client:
     dependencies:
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -124,13 +124,13 @@ importers:
 
   packages/db-drizzle:
     dependencies:
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../core
-      '@converge/materialize-core':
+      '@rippledb/materialize-core':
         specifier: workspace:*
         version: link:../materialize-core
-      '@converge/server':
+      '@rippledb/server':
         specifier: workspace:*
         version: link:../server
     devDependencies:
@@ -167,10 +167,10 @@ importers:
 
   packages/db-memory:
     dependencies:
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../core
-      '@converge/server':
+      '@rippledb/server':
         specifier: workspace:*
         version: link:../server
     devDependencies:
@@ -189,23 +189,23 @@ importers:
 
   packages/db-sqlite:
     dependencies:
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../core
-      '@converge/materialize-core':
+      '@rippledb/materialize-core':
         specifier: workspace:*
         version: link:../materialize-core
-      '@converge/materialize-db':
+      '@rippledb/materialize-db':
         specifier: workspace:*
         version: link:../materialize-db
-      '@converge/server':
+      '@rippledb/server':
         specifier: workspace:*
         version: link:../server
       better-sqlite3:
         specifier: ^12.4.1
         version: 12.6.2
     devDependencies:
-      '@converge/materialize-drizzle':
+      '@rippledb/materialize-drizzle':
         specifier: workspace:*
         version: link:../materialize-drizzle
       '@types/better-sqlite3':
@@ -229,21 +229,21 @@ importers:
 
   packages/db-turso:
     dependencies:
-      '@converge/core':
-        specifier: workspace:*
-        version: link:../core
-      '@converge/materialize-core':
-        specifier: workspace:*
-        version: link:../materialize-core
-      '@converge/materialize-db':
-        specifier: workspace:*
-        version: link:../materialize-db
-      '@converge/server':
-        specifier: workspace:*
-        version: link:../server
       '@libsql/client':
         specifier: ^0.14.0
         version: 0.14.0
+      '@rippledb/core':
+        specifier: workspace:*
+        version: link:../core
+      '@rippledb/materialize-core':
+        specifier: workspace:*
+        version: link:../materialize-core
+      '@rippledb/materialize-db':
+        specifier: workspace:*
+        version: link:../materialize-db
+      '@rippledb/server':
+        specifier: workspace:*
+        version: link:../server
     devDependencies:
       eslint:
         specifier: ^9.37.0
@@ -260,10 +260,10 @@ importers:
 
   packages/materialize-core:
     dependencies:
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../core
-      '@converge/server':
+      '@rippledb/server':
         specifier: workspace:*
         version: link:../server
     devDependencies:
@@ -282,10 +282,10 @@ importers:
 
   packages/materialize-db:
     dependencies:
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../core
-      '@converge/materialize-core':
+      '@rippledb/materialize-core':
         specifier: workspace:*
         version: link:../materialize-core
     devDependencies:
@@ -319,17 +319,17 @@ importers:
 
   packages/materialize-drizzle:
     dependencies:
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../core
-      '@converge/materialize-db':
+      '@rippledb/materialize-db':
         specifier: workspace:*
         version: link:../materialize-db
       drizzle-orm:
         specifier: ^0.36.4
         version: 0.36.4(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.16.0)(@types/react@19.2.9)(better-sqlite3@11.10.0)(pg@8.17.2)(react@19.2.3)
     devDependencies:
-      '@converge/materialize-core':
+      '@rippledb/materialize-core':
         specifier: workspace:*
         version: link:../materialize-core
       '@testcontainers/postgresql':
@@ -362,10 +362,10 @@ importers:
 
   packages/remote-http:
     dependencies:
-      '@converge/client':
+      '@rippledb/client':
         specifier: workspace:*
         version: link:../client
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -384,7 +384,7 @@ importers:
 
   packages/server:
     dependencies:
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -403,10 +403,10 @@ importers:
 
   packages/store-memory:
     dependencies:
-      '@converge/client':
+      '@rippledb/client':
         specifier: workspace:*
         version: link:../client
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -425,16 +425,16 @@ importers:
 
   tests/e2e-basic:
     devDependencies:
-      '@converge/client':
+      '@rippledb/client':
         specifier: workspace:*
         version: link:../../packages/client
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@converge/db-memory':
+      '@rippledb/db-memory':
         specifier: workspace:*
         version: link:../../packages/db-memory
-      '@converge/store-memory':
+      '@rippledb/store-memory':
         specifier: workspace:*
         version: link:../../packages/store-memory
       typescript:
@@ -446,19 +446,19 @@ importers:
 
   tests/e2e-http:
     devDependencies:
-      '@converge/client':
+      '@rippledb/client':
         specifier: workspace:*
         version: link:../../packages/client
-      '@converge/core':
+      '@rippledb/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@converge/db-memory':
+      '@rippledb/db-memory':
         specifier: workspace:*
         version: link:../../packages/db-memory
-      '@converge/remote-http':
+      '@rippledb/remote-http':
         specifier: workspace:*
         version: link:../../packages/remote-http
-      '@converge/store-memory':
+      '@rippledb/store-memory':
         specifier: workspace:*
         version: link:../../packages/store-memory
       typescript:

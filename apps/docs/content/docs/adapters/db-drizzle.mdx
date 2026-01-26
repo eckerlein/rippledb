@@ -6,7 +6,7 @@ description: Database-agnostic adapter using Drizzle ORM
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
-# @converge/db-drizzle
+# @rippledb/db-drizzle
 
 A database-agnostic adapter that uses [Drizzle ORM](https://orm.drizzle.team/) for all database operations. Works with any Drizzle-supported database: SQLite, PostgreSQL, MySQL, and more.
 
@@ -15,17 +15,17 @@ A database-agnostic adapter that uses [Drizzle ORM](https://orm.drizzle.team/) f
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
 ```bash
-pnpm add @converge/db-drizzle drizzle-orm
+pnpm add @rippledb/db-drizzle drizzle-orm
 ```
   </Tab>
   <Tab value="npm">
 ```bash
-npm install @converge/db-drizzle drizzle-orm
+npm install @rippledb/db-drizzle drizzle-orm
 ```
   </Tab>
   <Tab value="yarn">
 ```bash
-yarn add @converge/db-drizzle drizzle-orm
+yarn add @rippledb/db-drizzle drizzle-orm
 ```
   </Tab>
 </Tabs>
@@ -50,16 +50,16 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
-import { DrizzleDb } from '@converge/db-drizzle';
+import { DrizzleDb } from '@rippledb/db-drizzle';
 
 // Define Drizzle table schemas for internal tables
-const changesTable = sqliteTable('converge_changes', {
+const changesTable = sqliteTable('ripple_changes', {
   seq: integer('seq').primaryKey({ autoIncrement: true }),
   stream: text('stream').notNull(),
   change_json: text('change_json').notNull(),
 });
 
-const idempotencyTable = sqliteTable('converge_idempotency', {
+const idempotencyTable = sqliteTable('ripple_idempotency', {
   stream: text('stream').notNull(),
   idempotency_key: text('idempotency_key').notNull(),
   last_seq: integer('last_seq').notNull(),
@@ -71,12 +71,12 @@ const drizzleDb = drizzle(sqlite);
 
 // Create tables (use Drizzle migrations in production)
 sqlite.exec(`
-  CREATE TABLE IF NOT EXISTS converge_changes (
+  CREATE TABLE IF NOT EXISTS ripple_changes (
     seq INTEGER PRIMARY KEY AUTOINCREMENT,
     stream TEXT NOT NULL,
     change_json TEXT NOT NULL
   );
-  CREATE TABLE IF NOT EXISTS converge_idempotency (
+  CREATE TABLE IF NOT EXISTS ripple_idempotency (
     stream TEXT NOT NULL,
     idempotency_key TEXT NOT NULL,
     last_seq INTEGER NOT NULL,
@@ -101,15 +101,15 @@ import { Client } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { pgTable, text, serial, integer } from 'drizzle-orm/pg-core';
 import { getTableConfig } from 'drizzle-orm/pg-core';
-import { DrizzleDb } from '@converge/db-drizzle';
+import { DrizzleDb } from '@rippledb/db-drizzle';
 
-const changesTable = pgTable('converge_changes', {
+const changesTable = pgTable('ripple_changes', {
   seq: serial('seq').primaryKey(),
   stream: text('stream').notNull(),
   change_json: text('change_json').notNull(),
 });
 
-const idempotencyTable = pgTable('converge_idempotency', {
+const idempotencyTable = pgTable('ripple_idempotency', {
   stream: text('stream').notNull(),
   idempotency_key: text('idempotency_key').notNull(),
   last_seq: integer('last_seq').notNull(),
@@ -169,11 +169,11 @@ Converge needs to know which style to use for proper transaction handling.
 ## With Materialization
 
 ```ts
-import { DrizzleDb } from '@converge/db-drizzle';
+import { DrizzleDb } from '@rippledb/db-drizzle';
 import { and, eq } from 'drizzle-orm';
 
 // Tags table for materialization
-const tagsTable = sqliteTable('converge_tags', {
+const tagsTable = sqliteTable('ripple_tags', {
   entity: text('entity').notNull(),
   id: text('id').notNull(),
   data: text('data').notNull(),
@@ -313,13 +313,13 @@ Or create tables manually:
 
 ```sql
 -- SQLite
-CREATE TABLE converge_changes (
+CREATE TABLE ripple_changes (
   seq INTEGER PRIMARY KEY AUTOINCREMENT,
   stream TEXT NOT NULL,
   change_json TEXT NOT NULL
 );
 
-CREATE TABLE converge_idempotency (
+CREATE TABLE ripple_idempotency (
   stream TEXT NOT NULL,
   idempotency_key TEXT NOT NULL,
   last_seq INTEGER NOT NULL,

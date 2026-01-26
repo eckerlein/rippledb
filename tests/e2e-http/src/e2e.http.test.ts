@@ -1,9 +1,9 @@
 import http from 'node:http';
-import { createReplicator } from '@converge/client';
-import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@converge/core';
-import { MemoryDb } from '@converge/db-memory';
-import { createHttpRemote } from '@converge/remote-http';
-import { MemoryStore } from '@converge/store-memory';
+import { createReplicator } from '@rippledb/client';
+import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@rippledb/core';
+import { MemoryDb } from '@rippledb/db-memory';
+import { createHttpRemote } from '@rippledb/remote-http';
+import { MemoryStore } from '@rippledb/store-memory';
 import { describe, expect, it } from 'vitest';
 
 type DemoSchema = {
