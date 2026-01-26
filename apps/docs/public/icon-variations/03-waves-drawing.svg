@@ -1,57 +1,57 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Gradient for the drawn line - darker at leading edge, fading behind -->
+    <!-- Gradient: darker violet at top (leading edge), fading down -->
     <linearGradient id="drawGrad1" x1="0%" y1="100%" x2="0%" y2="0%">
       <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.3" />
-      <stop offset="70%" style="stop-color:#7c3aed;stop-opacity:0.6" />
-      <stop offset="95%" style="stop-color:#6d28d9;stop-opacity:0.9" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:0.5" />
+      <stop offset="85%" style="stop-color:#6d28d9;stop-opacity:0.8" />
       <stop offset="100%" style="stop-color:#5b21b6;stop-opacity:1" />
     </linearGradient>
     <linearGradient id="drawGrad2" x1="0%" y1="100%" x2="0%" y2="0%">
       <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.25" />
-      <stop offset="70%" style="stop-color:#7c3aed;stop-opacity:0.5" />
-      <stop offset="95%" style="stop-color:#6d28d9;stop-opacity:0.85" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:0.45" />
+      <stop offset="85%" style="stop-color:#6d28d9;stop-opacity:0.75" />
       <stop offset="100%" style="stop-color:#5b21b6;stop-opacity:1" />
     </linearGradient>
     <linearGradient id="drawGrad3" x1="0%" y1="100%" x2="0%" y2="0%">
       <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.2" />
-      <stop offset="70%" style="stop-color:#7c3aed;stop-opacity:0.4" />
-      <stop offset="95%" style="stop-color:#6d28d9;stop-opacity:0.75" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:0.4" />
+      <stop offset="85%" style="stop-color:#6d28d9;stop-opacity:0.7" />
       <stop offset="100%" style="stop-color:#5b21b6;stop-opacity:1" />
     </linearGradient>
   </defs>
   
-  <!-- Wave 3 (bottom) - draws first -->
-  <path d="M4 24 Q16 16, 28 24 T4 24" stroke="url(#drawGrad3)" stroke-width="2" fill="none" stroke-dasharray="60" stroke-dashoffset="60">
-    <animate attributeName="stroke-dashoffset" values="60;0" dur="1.2s" repeatCount="indefinite" />
+  <!-- Wave 3 (bottom wave, y=24) - draws first -->
+  <path d="M4 24 Q16 16, 28 24" stroke="url(#drawGrad3)" stroke-width="2" fill="none" stroke-dasharray="52" stroke-dashoffset="52">
+    <animate attributeName="stroke-dashoffset" values="52;0" dur="1s" repeatCount="indefinite" />
   </path>
   
-  <!-- Wave 2 (middle) - draws second -->
-  <path d="M4 20 Q16 12, 28 20 T4 20" stroke="url(#drawGrad2)" stroke-width="2" fill="none" stroke-dasharray="60" stroke-dashoffset="60">
-    <animate attributeName="stroke-dashoffset" values="60;0" dur="1.2s" begin="0.4s" repeatCount="indefinite" />
+  <!-- Wave 2 (middle wave, y=20) - draws second -->
+  <path d="M4 20 Q16 12, 28 20" stroke="url(#drawGrad2)" stroke-width="2" fill="none" stroke-dasharray="52" stroke-dashoffset="52">
+    <animate attributeName="stroke-dashoffset" values="52;0" dur="1s" begin="0.33s" repeatCount="indefinite" />
   </path>
   
-  <!-- Wave 1 (top) - draws last -->
-  <path d="M4 16 Q16 8, 28 16 T4 16" stroke="url(#drawGrad1)" stroke-width="2" fill="none" stroke-dasharray="60" stroke-dashoffset="60">
-    <animate attributeName="stroke-dashoffset" values="60;0" dur="1.2s" begin="0.8s" repeatCount="indefinite" />
+  <!-- Wave 1 (top wave, y=16) - draws last -->
+  <path d="M4 16 Q16 8, 28 16" stroke="url(#drawGrad1)" stroke-width="2" fill="none" stroke-dasharray="52" stroke-dashoffset="52">
+    <animate attributeName="stroke-dashoffset" values="52;0" dur="1s" begin="0.66s" repeatCount="indefinite" />
   </path>
   
-  <!-- Animated dot at the leading edge (follows the top wave) -->
-  <g>
-    <circle cx="16" cy="24" r="1.8" fill="#5b21b6" opacity="0">
-      <animate attributeName="cy" values="24;20;16;24" dur="1.2s" begin="0s" repeatCount="indefinite" />
-      <animate attributeName="opacity" values="0;0.5;1;1;0.5;0" dur="1.2s" begin="0s" repeatCount="indefinite" />
-    </circle>
-    <circle cx="16" cy="20" r="1.8" fill="#5b21b6" opacity="0">
-      <animate attributeName="cy" values="20;16;8;20" dur="1.2s" begin="0.4s" repeatCount="indefinite" />
-      <animate attributeName="opacity" values="0;0.5;1;1;0.5;0" dur="1.2s" begin="0.4s" repeatCount="indefinite" />
-    </circle>
-    <circle cx="16" cy="16" r="1.8" fill="#5b21b6" opacity="0">
-      <animate attributeName="cy" values="16;8;4;16" dur="1.2s" begin="0.8s" repeatCount="indefinite" />
-      <animate attributeName="opacity" values="0;0.5;1;1;0.5;0" dur="1.2s" begin="0.8s" repeatCount="indefinite" />
-    </circle>
-  </g>
+  <!-- Dot at leading edge - positioned at the top of the currently drawing wave -->
+  <!-- Dot for wave 3 (bottom) -->
+  <circle cx="28" cy="24" r="2" fill="#5b21b6" opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0" dur="1s" begin="0s" keyTimes="0;0.1;0.9;1" repeatCount="indefinite" />
+  </circle>
   
-  <!-- Center reference dot (subtle) -->
-  <circle cx="16" cy="16" r="1" fill="#8b5cf6" opacity="0.4"/>
+  <!-- Dot for wave 2 (middle) -->
+  <circle cx="28" cy="20" r="2" fill="#5b21b6" opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0" dur="1s" begin="0.33s" keyTimes="0;0.1;0.9;1" repeatCount="indefinite" />
+  </circle>
+  
+  <!-- Dot for wave 1 (top) - this is the furthest rendered point -->
+  <circle cx="28" cy="16" r="2" fill="#5b21b6" opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0" dur="1s" begin="0.66s" keyTimes="0;0.1;0.9;1" repeatCount="indefinite" />
+  </circle>
+  
+  <!-- Center reference dot -->
+  <circle cx="16" cy="16" r="1" fill="#8b5cf6" opacity="0.3"/>
 </svg>
