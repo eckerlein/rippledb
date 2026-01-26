@@ -1,3 +1,8 @@
 {
-  "installCommand": "pnpm install --filter=docs..."
+  "installCommand": "pnpm install --filter=docs...",
+  "git": {
+    "deploymentEnabled": {
+      "changeset-release/*": false
+    }
+  }
 }
