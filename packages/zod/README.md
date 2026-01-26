@@ -2,6 +2,8 @@
 
 Zod schemas for runtime validation of RippleDB types.
 
+📚 **Documentation:** [rippledb.dev/docs/reference/zod](https://rippledb.dev/docs/reference/zod)
+
 ## Installation
 
 ```bash
@@ -57,4 +59,4 @@ const todoChangeSchema = createChangeSchema(todoSchema);
 
 ## License
 
-Proprietary
+MIT
