@@ -1,0 +1,21 @@
+{
+  "name": "@rippledb/test-e2e-trpc",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@rippledb/client": "workspace:*",
+    "@rippledb/core": "workspace:*",
+    "@rippledb/db-memory": "workspace:*",
+    "@rippledb/remote-trpc": "workspace:*",
+    "@rippledb/server-trpc": "workspace:*",
+    "@rippledb/store-memory": "workspace:*",
+    "@trpc/client": "^11.1.2",
+    "@trpc/server": "^11.1.2",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "scripts": {
+    "test": "vitest run --pool=threads",
+    "test:watch": "vitest --pool=threads"
+  }
+}

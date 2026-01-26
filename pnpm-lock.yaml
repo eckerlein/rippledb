@@ -388,12 +388,65 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
 
+  packages/remote-trpc:
+    dependencies:
+      '@rippledb/client':
+        specifier: workspace:*
+        version: link:../client
+      '@rippledb/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@trpc/client':
+        specifier: ^11.1.2
+        version: 11.8.1(@trpc/server@11.8.1(typescript@5.9.3))(typescript@5.9.3)
+      '@trpc/server':
+        specifier: ^11.1.2
+        version: 11.8.1(typescript@5.9.3)
+      eslint:
+        specifier: ^9.37.0
+        version: 9.39.2(jiti@2.6.1)
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
+
   packages/server:
     dependencies:
       '@rippledb/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      eslint:
+        specifier: ^9.37.0
+        version: 9.39.2(jiti@2.6.1)
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
+
+  packages/server-trpc:
+    dependencies:
+      '@rippledb/core':
+        specifier: workspace:*
+        version: link:../core
+      '@rippledb/server':
+        specifier: workspace:*
+        version: link:../server
+    devDependencies:
+      '@trpc/server':
+        specifier: ^11.1.2
+        version: 11.8.1(typescript@5.9.3)
       eslint:
         specifier: ^9.37.0
         version: 9.39.2(jiti@2.6.1)
@@ -467,6 +520,39 @@ importers:
       '@rippledb/store-memory':
         specifier: workspace:*
         version: link:../../packages/store-memory
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
+
+  tests/e2e-trpc:
+    devDependencies:
+      '@rippledb/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@rippledb/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@rippledb/db-memory':
+        specifier: workspace:*
+        version: link:../../packages/db-memory
+      '@rippledb/remote-trpc':
+        specifier: workspace:*
+        version: link:../../packages/remote-trpc
+      '@rippledb/server-trpc':
+        specifier: workspace:*
+        version: link:../../packages/server-trpc
+      '@rippledb/store-memory':
+        specifier: workspace:*
+        version: link:../../packages/store-memory
+      '@trpc/client':
+        specifier: ^11.1.2
+        version: 11.8.1(@trpc/server@11.8.1(typescript@5.9.3))(typescript@5.9.3)
+      '@trpc/server':
+        specifier: ^11.1.2
+        version: 11.8.1(typescript@5.9.3)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -1785,6 +1871,17 @@ packages:
 
   '@testcontainers/postgresql@11.11.0':
     resolution: {integrity: sha512-Og64I/h5LKLVvUTkAcLeTXfFcMhh3dCHCypN3Uzd+tQMd70SpCfQ0LCP9v/U+MS7JBRzU9EmqhUFkTOm4hyZWw==}
+
+  '@trpc/client@11.8.1':
+    resolution: {integrity: sha512-L/SJFGanr9xGABmuDoeXR4xAdHJmsXsiF9OuH+apecJ+8sUITzVT1EPeqp0ebqA6lBhEl5pPfg3rngVhi/h60Q==}
+    peerDependencies:
+      '@trpc/server': 11.8.1
+      typescript: '>=5.7.2'
+
+  '@trpc/server@11.8.1':
+    resolution: {integrity: sha512-P4rzZRpEL7zDFgjxK65IdyH0e41FMFfTkQkuq0BA5tKcr7E6v9/v38DEklCpoDN6sPiB1Sigy/PUEzHENhswDA==}
+    peerDependencies:
+      typescript: '>=5.7.2'
 
   '@ts-morph/common@0.28.1':
     resolution: {integrity: sha512-W74iWf7ILp1ZKNYXY5qbddNaml7e9Sedv5lvU1V8lftlitkc9Pq1A+jlH23ltDgWYeZFFEqGCD1Ies9hqu3O+g==}
@@ -5632,6 +5729,15 @@ snapshots:
       - bare-buffer
       - react-native-b4a
       - supports-color
+
+  '@trpc/client@11.8.1(@trpc/server@11.8.1(typescript@5.9.3))(typescript@5.9.3)':
+    dependencies:
+      '@trpc/server': 11.8.1(typescript@5.9.3)
+      typescript: 5.9.3
+
+  '@trpc/server@11.8.1(typescript@5.9.3)':
+    dependencies:
+      typescript: 5.9.3
 
   '@ts-morph/common@0.28.1':
     dependencies:

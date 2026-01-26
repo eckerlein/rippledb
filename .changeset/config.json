@@ -10,5 +10,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["docs", "@rippledb/test-e2e-basic", "@rippledb/test-e2e-http"]
+  "ignore": ["docs", "@rippledb/test-e2e-basic", "@rippledb/test-e2e-http", "@rippledb/test-e2e-trpc"]
 }
