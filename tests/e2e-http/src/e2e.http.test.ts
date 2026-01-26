@@ -59,7 +59,7 @@ function startServer(db: MemoryDb<DemoSchema>) {
   });
 }
 
-describe('converge http e2e (memory db server + http remote)', () => {
+describe('rippledb http e2e (memory db server + http remote)', () => {
   it('syncs over HTTP with two clients', async () => {
     const db = new MemoryDb<DemoSchema>();
     const { server, baseUrl } = await startServer(db);

@@ -335,7 +335,7 @@ async function runInsertReturning(query: QueryResult): Promise<unknown | null> {
  * const sqlite = new Database('db.sqlite');
  * const db = drizzle(sqlite);
  *
- * const convergeDb = new DrizzleDb({
+ * const rippleDb = new DrizzleDb({
  *   db,
  *   changesTable,
  *   idempotencyTable,
@@ -360,7 +360,7 @@ async function runInsertReturning(query: QueryResult): Promise<unknown | null> {
  *   last_seq: integer('last_seq').notNull(),
  * }, (t) => [primaryKey({ columns: [t.stream, t.idempotency_key] })]);
  *
- * const convergeDb = new DrizzleDb({
+ * const rippleDb = new DrizzleDb({
  *   db: drizzle(pool),
  *   changesTable,
  *   idempotencyTable,

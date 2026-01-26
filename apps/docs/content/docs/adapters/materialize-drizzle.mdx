@@ -227,7 +227,7 @@ await client.connect();
 const drizzleDb = drizzle(client);
 
 // Use with db-drizzle
-const convergeDb = new DrizzleDb({
+const rippleDb = new DrizzleDb({
   db: drizzleDb,
   changesTable,
   idempotencyTable,

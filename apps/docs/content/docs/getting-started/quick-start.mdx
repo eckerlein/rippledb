@@ -25,7 +25,7 @@ Let's build a simple todo backend with RippleDB. By the end, you'll have a serve
 ### Install Dependencies
 
 ```bash
-mkdir converge-demo && cd converge-demo
+mkdir rippledb-demo && cd rippledb-demo
 npm init -y
 npm install @rippledb/core @rippledb/db-sqlite @rippledb/materialize-db better-sqlite3
 npm install -D typescript @types/better-sqlite3 tsx
@@ -183,9 +183,9 @@ Deleted todo
    - `hlc` — the change-level timestamp
 
 2. **`db.append`** stored the change and materialized it:
-   - Appended to the `converge_changes` table
+   - Appended to the `ripple_changes` table
    - Applied field-level LWW to the `todos` table
-   - Updated the `converge_tags` table with field timestamps
+   - Updated the `ripple_tags` table with field timestamps
 
 3. **`db.pull`** returned all changes since cursor `null` (the beginning).
 

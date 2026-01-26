@@ -17,7 +17,7 @@ type TestSchema = {
   };
 };
 
-// Define Drizzle tables for the internal converge tables
+// Define Drizzle tables for the internal ripple tables
 // Note: Composite primary keys are defined in the raw SQL, not in the Drizzle schema
 const changesTable = sqliteTable('ripple_changes', {
   seq: integer('seq').primaryKey({ autoIncrement: true }),
@@ -76,7 +76,7 @@ describe('DrizzleDb with SQLite', () => {
 
   it('appends and pulls changes', async () => {
     const db = drizzle(sqlite);
-    const convergeDb = new DrizzleDb<TestSchema>({
+    const rippleDb = new DrizzleDb<TestSchema>({
       db,
       changesTable,
       idempotencyTable,
@@ -93,23 +93,23 @@ describe('DrizzleDb with SQLite', () => {
       hlc,
     });
 
-    const appendResult = await convergeDb.append({
+    const appendResult = await rippleDb.append({
       stream: 'test',
       changes: [change],
     });
     expect(appendResult.accepted).toBe(1);
 
-    const pullResult = await convergeDb.pull({ stream: 'test', cursor: null });
+    const pullResult = await rippleDb.pull({ stream: 'test', cursor: null });
     expect(pullResult.changes).toHaveLength(1);
     expect(pullResult.changes[0]).toEqual(change);
     expect(pullResult.nextCursor).toBe('1');
 
-    convergeDb.close();
+    rippleDb.close();
   });
 
   it('handles idempotency keys', async () => {
     const db = drizzle(sqlite);
-    const convergeDb = new DrizzleDb<TestSchema>({
+    const rippleDb = new DrizzleDb<TestSchema>({
       db,
       changesTable,
       idempotencyTable,
@@ -127,7 +127,7 @@ describe('DrizzleDb with SQLite', () => {
     });
 
     // First append should succeed
-    const result1 = await convergeDb.append({
+    const result1 = await rippleDb.append({
       stream: 'test',
       changes: [change],
       idempotencyKey: 'key-1',
@@ -135,7 +135,7 @@ describe('DrizzleDb with SQLite', () => {
     expect(result1.accepted).toBe(1);
 
     // Second append with same key should be rejected
-    const result2 = await convergeDb.append({
+    const result2 = await rippleDb.append({
       stream: 'test',
       changes: [change],
       idempotencyKey: 'key-1',
@@ -143,19 +143,19 @@ describe('DrizzleDb with SQLite', () => {
     expect(result2.accepted).toBe(0);
 
     // Different key should succeed
-    const result3 = await convergeDb.append({
+    const result3 = await rippleDb.append({
       stream: 'test',
       changes: [change],
       idempotencyKey: 'key-2',
     });
     expect(result3.accepted).toBe(1);
 
-    convergeDb.close();
+    rippleDb.close();
   });
 
   it('supports cursor-based pagination', async () => {
     const db = drizzle(sqlite);
-    const convergeDb = new DrizzleDb<TestSchema>({
+    const rippleDb = new DrizzleDb<TestSchema>({
       db,
       changesTable,
       idempotencyTable,
@@ -178,24 +178,24 @@ describe('DrizzleDb with SQLite', () => {
       );
     }
 
-    await convergeDb.append({ stream: 'test', changes });
+    await rippleDb.append({ stream: 'test', changes });
 
     // Pull with limit
-    const page1 = await convergeDb.pull({ stream: 'test', cursor: null, limit: 2 });
+    const page1 = await rippleDb.pull({ stream: 'test', cursor: null, limit: 2 });
     expect(page1.changes).toHaveLength(2);
     expect(page1.nextCursor).toBe('2');
 
     // Pull next page
-    const page2 = await convergeDb.pull({ stream: 'test', cursor: page1.nextCursor, limit: 2 });
+    const page2 = await rippleDb.pull({ stream: 'test', cursor: page1.nextCursor, limit: 2 });
     expect(page2.changes).toHaveLength(2);
     expect(page2.nextCursor).toBe('4');
 
     // Pull remaining
-    const page3 = await convergeDb.pull({ stream: 'test', cursor: page2.nextCursor, limit: 2 });
+    const page3 = await rippleDb.pull({ stream: 'test', cursor: page2.nextCursor, limit: 2 });
     expect(page3.changes).toHaveLength(1);
     expect(page3.nextCursor).toBe('5');
 
-    convergeDb.close();
+    rippleDb.close();
   });
 
   it('supports materialization with Drizzle executor', async () => {
@@ -213,7 +213,7 @@ describe('DrizzleDb with SQLite', () => {
     `);
 
     const db = drizzle(sqlite);
-    const convergeDb = new DrizzleDb<TestSchema, typeof db>({
+    const rippleDb = new DrizzleDb<TestSchema, typeof db>({
       db,
       changesTable,
       idempotencyTable,
@@ -279,7 +279,7 @@ describe('DrizzleDb with SQLite', () => {
       hlc,
     });
 
-    await convergeDb.append({ stream: 'test', changes: [change] });
+    await rippleDb.append({ stream: 'test', changes: [change] });
 
     // Verify materialized data
     const tagsRow = sqlite
@@ -290,7 +290,7 @@ describe('DrizzleDb with SQLite', () => {
     expect(JSON.parse(tagsRow.data)).toEqual({ id: 'todo-1', title: 'Buy milk', done: false });
     expect(tagsRow.deleted).toBe(0);
 
-    convergeDb.close();
+    rippleDb.close();
   });
 
   it('rolls back transaction on error (atomicity)', async () => {
@@ -308,7 +308,7 @@ describe('DrizzleDb with SQLite', () => {
     `);
 
     const db = drizzle(sqlite);
-    const convergeDb = new DrizzleDb<TestSchema, typeof db>({
+    const rippleDb = new DrizzleDb<TestSchema, typeof db>({
       db,
       changesTable,
       idempotencyTable,
@@ -348,7 +348,7 @@ describe('DrizzleDb with SQLite', () => {
     });
 
     // Append should fail due to CHECK constraint
-    await expect(convergeDb.append({ stream: 'test', changes: [change] })).rejects.toThrow();
+    await expect(rippleDb.append({ stream: 'test', changes: [change] })).rejects.toThrow();
 
     // Verify no changes were persisted (transaction rolled back)
     const changeCount = sqlite.prepare('SELECT COUNT(*) as count FROM ripple_changes').get() as { count: number };
@@ -358,6 +358,6 @@ describe('DrizzleDb with SQLite', () => {
     const tagsCount = sqlite.prepare('SELECT COUNT(*) as count FROM ripple_tags').get() as { count: number };
     expect(tagsCount.count).toBe(0);
 
-    convergeDb.close();
+    rippleDb.close();
   });
 });

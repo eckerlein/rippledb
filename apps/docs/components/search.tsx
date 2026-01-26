@@ -25,7 +25,7 @@ export default function StaticSearchDialog(props: SharedProps) {
 
   const { search, setSearch, query } = useDocsSearch({
     type: 'static',
-    // GitHub Pages project sites live under a basePath (e.g. /converge)
+    // GitHub Pages project sites live under a basePath (e.g. /rippledb)
     from: joinBasePath('/api/search'),
     locale,
   });

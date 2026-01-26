@@ -7,7 +7,7 @@ export type ArchitectureItem = {
 export const ARCHITECTURE_PAGES: ArchitectureItem[] = [
   {
     title: 'Purpose & Scope',
-    description: 'What Converge is, what it is not, and the deliberate non-goals.',
+    description: 'What RippleDB is, what it is not, and the deliberate non-goals.',
     href: '/docs/architecture/purpose-scope',
   },
   {

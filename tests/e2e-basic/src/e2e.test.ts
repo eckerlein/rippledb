@@ -13,7 +13,7 @@ function makeHlc(nodeId: string, nowMs: number) {
   return tickHlc(state, nowMs);
 }
 
-describe('converge e2e (memory store + memory db)', () => {
+describe('rippledb e2e (memory store + memory db)', () => {
   it('replicates changes and resolves last-write-wins by HLC tags', async () => {
     const stream = 'demo';
     const remote = new MemoryDb<DemoSchema>();

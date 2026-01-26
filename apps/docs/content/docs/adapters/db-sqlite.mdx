@@ -8,7 +8,7 @@ import { Callout } from 'fumadocs-ui/components/callout';
 
 # @rippledb/db-sqlite
 
-A production-ready SQLite adapter for Converge using [better-sqlite3](https://github.com/WiseLibs/better-sqlite3).
+A production-ready SQLite adapter for RippleDB using [better-sqlite3](https://github.com/WiseLibs/better-sqlite3).
 
 ## Installation
 
@@ -102,7 +102,7 @@ const db = new SqliteDb({ db: sqlite });
 ```
 
 <Callout type="info">
-When using `db`, Converge will **not** close the connection when you call `db.close()`. You're responsible for managing the connection lifecycle.
+When using `db`, RippleDB will **not** close the connection when you call `db.close()`. You're responsible for managing the connection lifecycle.
 </Callout>
 
 ### `pragmas`
@@ -160,7 +160,7 @@ CREATE TABLE ripple_idempotency (
 
 ## Using with Drizzle
 
-You can use `db-sqlite` with Drizzle for your domain queries while Converge manages the sync:
+You can use `db-sqlite` with Drizzle for your domain queries while RippleDB manages the sync:
 
 ```ts
 import Database from 'better-sqlite3';
@@ -180,8 +180,8 @@ sqlite.exec(`
 // Use Drizzle for queries
 const drizzleDb = drizzle(sqlite);
 
-// Use SqliteDb for Converge sync
-const convergeDb = new SqliteDb<MySchema>({
+// Use SqliteDb for RippleDB sync
+const rippleDb = new SqliteDb<MySchema>({
   db: sqlite,  // Share the connection
   materializer: ({ db }) =>
     createDrizzleSyncMaterializerConfig(drizzleDb, {
@@ -191,7 +191,7 @@ const convergeDb = new SqliteDb<MySchema>({
     }),
 });
 
-// Now you can use drizzleDb for queries and convergeDb for sync
+// Now you can use drizzleDb for queries and rippleDb for sync
 const todos = drizzleDb.select().from(todosTable).all();
 ```
 

@@ -520,7 +520,7 @@ describe('SqliteDb', () => {
     const drizzleDb = drizzle(sqlite);
 
     // Create SqliteDb with external db
-    const convergeDb = new SqliteDb<TestSchema>({
+    const rippleDb = new SqliteDb<TestSchema>({
       db: sqlite,
       materializer: () => {
         return createDrizzleSyncMaterializerConfig<TestSchema>(drizzleDb, {
@@ -533,9 +533,9 @@ describe('SqliteDb', () => {
       },
     });
 
-    // Append via converge
+    // Append via rippledb
     const hlc = tickHlc(createHlcState('node-1'), 100);
-    await convergeDb.append({
+    await rippleDb.append({
       stream: 'test',
       changes: [
         makeUpsert<TestSchema>({
@@ -554,7 +554,7 @@ describe('SqliteDb', () => {
     expect(todos[0]).toEqual({ id: 'todo-1', title: 'Buy milk', done: 0 });
 
     // close() should be a no-op since we provided external db
-    convergeDb.close();
+    rippleDb.close();
 
     // Database should still be open and usable
     const todosAfterClose = drizzleDb.select().from(todosTable).all();

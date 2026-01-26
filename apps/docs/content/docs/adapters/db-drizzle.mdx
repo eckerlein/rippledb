@@ -84,7 +84,7 @@ sqlite.exec(`
   );
 `);
 
-// Create the Converge adapter
+// Create the RippleDB adapter
 const db = new DrizzleDb({
   db: drizzleDb,
   changesTable,
@@ -134,7 +134,7 @@ const db = new DrizzleDb({
 **Critical for SQLite with better-sqlite3**: You must set `isSync: true`.
 </Callout>
 
-The `isSync` flag tells Converge whether the underlying Drizzle driver is synchronous or asynchronous:
+The `isSync` flag tells RippleDB whether the underlying Drizzle driver is synchronous or asynchronous:
 
 | Driver | `isSync` Value |
 |--------|---------------|
@@ -159,7 +159,7 @@ await db.transaction(async (tx) => {
 });
 ```
 
-Converge needs to know which style to use for proper transaction handling.
+RippleDB needs to know which style to use for proper transaction handling.
 
 ### What Happens If I Get It Wrong?
 
