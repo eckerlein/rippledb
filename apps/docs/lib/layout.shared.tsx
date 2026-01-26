@@ -8,14 +8,14 @@ export function baseOptions(): BaseLayoutProps {
         <div className="flex items-center gap-2 text-md">
           <div className="relative w-9 h-9">
             <Image
-              src="/icon-variations/06-pulse-gradient-light.svg"
+              src="/icon-variations/icon-light.svg"
               alt="RippleDB"
               width={36}
               height={36}
               className="dark:hidden"
             />
             <Image
-              src="/icon-variations/06-pulse-gradient-dark.svg"
+              src="/icon-variations/icon-dark.svg"
               alt="RippleDB"
               width={36}
               height={36}
