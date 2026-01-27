@@ -1,5 +1,13 @@
 # @rippledb/zod
 
+## 0.1.3
+
+### Patch Changes
+
+- [`34dd0a8`](https://github.com/eckerlein/rippledb/commit/34dd0a8fefa48a401069b5acfe0645d81ae3c11d) Thanks [@Jan-Eckerlein](https://github.com/Jan-Eckerlein)! - Add documentation link and fix license in README
+
+- [`d09a63f`](https://github.com/eckerlein/rippledb/commit/d09a63f009d00eeb6cd3dc20b442a92117aa4856) Thanks [@Jan-Eckerlein](https://github.com/Jan-Eckerlein)! - Add MIT license to package.json
+
 ## 0.1.2
 
 ### Patch Changes
