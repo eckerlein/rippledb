@@ -4,6 +4,10 @@ import { GradientText } from '@/components/ui/gradient-text';
 
 export function baseOptions(): BaseLayoutProps {
   return {
+    themeSwitch: {
+      enabled: true,
+      mode: 'light-dark-system',
+    },
     nav: {
       title: (
         <div className="flex items-center gap-2 text-3xl">

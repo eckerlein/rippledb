@@ -35,6 +35,9 @@ export default function Layout({ children }: LayoutProps<'/'>) {
           search={{
             SearchDialog,
           }}
+          theme={{
+            defaultTheme: 'system',
+          }}
         >
           {children}
         </RootProvider>
