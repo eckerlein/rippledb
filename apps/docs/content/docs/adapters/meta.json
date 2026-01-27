@@ -12,6 +12,8 @@
     "materialize-db",
     "materialize-drizzle",
     "---Stores---",
-    "store-memory"
+    "store-memory",
+    "---Bindings---",
+    "bind-tanstack"
   ]
 }

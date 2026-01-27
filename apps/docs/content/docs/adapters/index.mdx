@@ -9,11 +9,12 @@ import { Diagram } from '@/components/diagram';
 
 # Adapters
 
-RippleDB uses adapters to integrate with different runtimes, databases, and ORMs. There are three types:
+RippleDB uses adapters to integrate with different runtimes, databases, and ORMs. There are four types:
 
 1. **Database Adapters (`db-*`)** — Store the change log and handle append/pull
 2. **Materializers (`materialize-*`)** — Project changes into domain tables
 3. **Stores (`store-*`)** — Client-side local truth store (what the UI reads from)
+4. **Bindings (`bind-*`)** — Wire DbEvents to UI cache invalidation (e.g. TanStack Query)
 
 ## Decision Tree
 
@@ -134,13 +135,25 @@ But this is not implemented yet. And will be optional in the future yet recommen
 
 ## Stores
 
-Stores implement the client-side `Store` contract (`@rippledb/client`). They are optional but recommended if you want a consistent local “truth DB” that emits `DbEvent`s for UI reactivity.
+Stores implement the client-side `Store` contract (`@rippledb/client`). They are optional but recommended if you want a consistent local "truth DB" that emits `DbEvent`s for UI reactivity.
 
 <Cards>
   <Card
     title="store-memory"
     description="In-memory Store implementation for tests and examples"
     href="/docs/adapters/store-memory"
+  />
+</Cards>
+
+## Bindings
+
+Bindings wire RippleDB's `DbEvent`s to UI cache invalidation. When your Store applies changes, it emits events like `{ entity: 'todos', kind: 'update', id: '1' }`. A binding translates these into cache invalidations for your UI framework.
+
+<Cards>
+  <Card
+    title="bind-tanstack"
+    description="TanStack Query invalidation binding (React, Vue, Solid, Svelte)"
+    href="/docs/adapters/bind-tanstack"
   />
 </Cards>
 

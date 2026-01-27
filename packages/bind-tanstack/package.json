@@ -1,0 +1,57 @@
+{
+  "name": "@rippledb/bind-tanstack",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "sideEffects": false,
+  "description": "TanStack Query invalidation binding for RippleDB",
+  "keywords": [
+    "rippledb",
+    "tanstack",
+    "tanstack-query",
+    "react-query",
+    "invalidation",
+    "sync",
+    "local-first",
+    "offline-first"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eckerlein/rippledb.git",
+    "directory": "packages/bind-tanstack"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@rippledb/core": "workspace:*",
+    "@rippledb/client": "workspace:*"
+  },
+  "peerDependencies": {
+    "@tanstack/query-core": "^5.0.0"
+  },
+  "devDependencies": {
+    "@tanstack/query-core": "^5.60.5",
+    "eslint": "^9.37.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "lint": "eslint ."
+  },
+  "tsup": {
+    "entry": ["src/index.ts"],
+    "format": ["esm"],
+    "dts": false,
+    "sourcemap": true,
+    "clean": true
+  }
+}
