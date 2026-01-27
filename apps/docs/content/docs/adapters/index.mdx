@@ -120,7 +120,8 @@ Stores implement the client-side `Store` contract (`@rippledb/client`). They are
 ## Pairing Guide
 
 <Callout type="info">
-Not all combinations work. Here are the recommended pairings:
+These are the **supported pairings** we test and guarantee (especially around atomicity/transactions).
+Other combinations can be made to work, but you may need custom wiring to ensure the Db adapter and materializer share the same transaction/connection semantics.
 </Callout>
 
 | Database Adapter | Recommended Materializer |
@@ -132,9 +133,20 @@ Not all combinations work. Here are the recommended pairings:
 
 ### Why These Pairings?
 
-- **db-sqlite + materialize-db**: Both use raw SQL, share the same connection
-- **db-turso + materialize-db**: Both use libSQL driver
-- **db-drizzle + materialize-drizzle**: Both use Drizzle's query builder, type-safe
+- **db-sqlite + materialize-db**: Both speak raw SQL and can share the same connection/transaction.
+- **db-turso + materialize-db**: Both use the libSQL driver and transaction model.
+- **db-drizzle + materialize-drizzle**: Both use Drizzle’s schema + query builder, keeping things type-safe and consistent.
+
+### Can I mix-and-match?
+
+Yes — the limitation is usually **support/guarantees**, not a hard technical block.
+
+For example, `db-sqlite + materialize-drizzle` could work if you:
+
+- create a Drizzle instance on top of the same SQLite connection used by `db-sqlite`
+- ensure materialization runs inside the same `db.append()` transaction boundary
+
+If you don’t share the transaction/connection, you can break the atomicity guarantee (log written but materialization fails, or vice versa).
 
 ## Atomicity
 
@@ -143,6 +155,15 @@ All adapters guarantee atomicity within `db.append()`:
 - Changes are written to the log
 - Materialization happens in the same transaction
 - If anything fails, everything rolls back
+
+### Why is this important?
+
+Atomicity prevents “half-applied” state, which is one of the hardest classes of bugs in sync systems:
+
+- If the **log write succeeds** but **materialization fails**, reads from your domain tables won’t match what replication history says happened.
+- If **materialization succeeds** but the **log write fails/rolls back**, clients may never receive the change again (history is missing) even though your tables changed.
+
+Keeping log + materialized state in one transaction makes failures safe: either the whole change is visible everywhere, or it’s as if it never happened.
 
 <Callout type="warning">
 With `db-drizzle`, set `isSync: true` for synchronous drivers like `better-sqlite3` to ensure proper transaction handling. See the [db-drizzle docs](/docs/adapters/db-drizzle#issync-flag) for details.
