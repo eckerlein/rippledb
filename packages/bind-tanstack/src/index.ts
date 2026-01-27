@@ -1,4 +1,4 @@
-import type { RippleSchema, EntityName } from '@rippledb/core';
+import type { RippleSchema } from '@rippledb/core';
 import type { DbEvent, Store } from '@rippledb/client';
 import type { QueryClient } from '@tanstack/query-core';
 
