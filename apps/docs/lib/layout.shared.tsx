@@ -25,7 +25,7 @@ export function baseOptions(): BaseLayoutProps {
           </div>
           <span>
             Ripple
-            <GradientText>DB</GradientText>
+            <GradientText className="font-bold">DB</GradientText>
           </span>
         </div>
       ),
