@@ -12,7 +12,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'RippleDB',
-  description: 'RippleDB is a database for the modern web.',
+  description: 'RippleDB is a headless local-first sync engine with field-level conflict resolution. Build offline-first apps with deterministic conflict resolution.',
   icons: {
     icon: [
       {
