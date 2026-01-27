@@ -1,6 +1,6 @@
 {
   "name": "@rippledb/bind-tanstack",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": false,
   "type": "module",
   "sideEffects": false,
@@ -26,7 +26,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@rippledb/core": "workspace:*",
     "@rippledb/client": "workspace:*"
@@ -49,8 +51,12 @@
     "lint": "eslint ."
   },
   "tsup": {
-    "entry": ["src/index.ts"],
-    "format": ["esm"],
+    "entry": [
+      "src/index.ts"
+    ],
+    "format": [
+      "esm"
+    ],
     "dts": false,
     "sourcemap": true,
     "clean": true
