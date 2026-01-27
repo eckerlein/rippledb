@@ -27,15 +27,15 @@ function CustomOGImage({ description }: { description?: string }) {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '24px',
-          marginBottom: '60px',
+          gap: '42px',
+          marginBottom: '80px',
         }}
       >
         {/* Icon - recreated with basic shapes */}
         <div
           style={{
-            width: '120',
-            height: '120',
+            width: '210',
+            height: '210',
             position: 'relative',
             display: 'flex',
             alignItems: 'center',
@@ -46,38 +46,38 @@ function CustomOGImage({ description }: { description?: string }) {
           <div
             style={{
               position: 'absolute',
-              width: '66',
-              height: '66',
+              width: '116',
+              height: '116',
               borderRadius: '50%',
-              border: '4px solid',
+              border: '7px solid',
               borderColor: 'rgba(59, 130, 246, 0.5)',
             }}
           />
           <div
             style={{
               position: 'absolute',
-              width: '90',
-              height: '90',
+              width: '158',
+              height: '158',
               borderRadius: '50%',
-              border: '6px solid',
+              border: '11px solid',
               borderColor: 'rgba(59, 130, 246, 0.7)',
             }}
           />
           <div
             style={{
               position: 'absolute',
-              width: '110',
-              height: '110',
+              width: '193',
+              height: '193',
               borderRadius: '50%',
-              border: '4px solid',
+              border: '7px solid',
               borderColor: 'rgba(59, 130, 246, 0.3)',
             }}
           />
           {/* Center circle with gradient */}
           <div
             style={{
-              width: '32',
-              height: '32',
+              width: '56',
+              height: '56',
               borderRadius: '50%',
               background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
             }}
@@ -86,10 +86,10 @@ function CustomOGImage({ description }: { description?: string }) {
           <div
             style={{
               position: 'absolute',
-              top: '22',
-              right: '22',
-              width: '14',
-              height: '14',
+              top: '39',
+              right: '39',
+              width: '25',
+              height: '25',
               borderRadius: '50%',
               background: '#60a5fa',
             }}
@@ -97,10 +97,10 @@ function CustomOGImage({ description }: { description?: string }) {
           <div
             style={{
               position: 'absolute',
-              bottom: '22',
-              left: '22',
-              width: '14',
-              height: '14',
+              bottom: '39',
+              left: '39',
+              width: '25',
+              height: '25',
               borderRadius: '50%',
               background: '#7c3aed',
             }}
@@ -115,12 +115,12 @@ function CustomOGImage({ description }: { description?: string }) {
         >
           <div
             style={{
-              fontSize: '48',
+              fontSize: '92',
               fontWeight: 600,
               color: '#ffffff',
               display: 'flex',
               alignItems: 'baseline',
-              gap: '4px',
+              gap: '7px',
               fontFamily: 'Inter',
             }}
           >
@@ -140,8 +140,9 @@ function CustomOGImage({ description }: { description?: string }) {
           </div>
           <div
             style={{
-              fontSize: '20',
+              fontSize: '45',
               color: '#9ca3af',
+              fontFamily: 'Inter',
             }}
           >
             Documentation
@@ -153,10 +154,10 @@ function CustomOGImage({ description }: { description?: string }) {
       {description && (
         <div
           style={{
-            fontSize: '32',
+            fontSize: '36',
             color: '#d1d5db',
             textAlign: 'center',
-            maxWidth: '900px',
+            maxWidth: '1400px',
             lineHeight: '1.4',
           }}
         >
