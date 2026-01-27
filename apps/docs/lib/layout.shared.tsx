@@ -1,12 +1,12 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 import Image from 'next/image';
-import { GradientTextWrapper } from '@/components/gradient-text-wrapper';
+import { GradientText } from '@/components/ui/gradient-text';
 
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
       title: (
-        <div className="flex items-center gap-2 text-4xl">
+        <div className="flex items-center gap-2 text-3xl">
           <div className="relative w-9 h-9">
             <Image
               src="/icon-variations/icon-light.svg"
@@ -25,7 +25,7 @@ export function baseOptions(): BaseLayoutProps {
           </div>
           <span>
             Ripple
-            <GradientTextWrapper>DB</GradientTextWrapper>
+            <GradientText>DB</GradientText>
           </span>
         </div>
       ),

@@ -38,14 +38,21 @@ export function GradientText({
         animate && 'animate-gradient-shift',
         className
       )}
-      style={
-        animate
+      style={{
+        ...(animate
           ? {
               backgroundSize: '200% auto',
               animation: `gradient-shift ${duration}s ease-in-out infinite`,
             }
-          : undefined
-      }
+          : {}),
+        fontFeatureSettings: '"liga" 1, "kern" 1',
+        textRendering: 'optimizeLegibility',
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
+        transform: 'translateZ(0)',
+        willChange: 'auto',
+        ...props.style,
+      }}
       {...props}
     >
       {children}
