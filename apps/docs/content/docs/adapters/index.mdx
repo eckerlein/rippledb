@@ -105,6 +105,33 @@ RippleDB uses adapters to integrate with different runtimes, databases, and ORMs
   />
 </Cards>
 
+## Materialization
+
+Materialization is how *you, the app developer*, get a fast “current state” view of your data at all times.
+
+RippleDB stores an **append-only change log**. That log is great for sync, but you usually don’t want to replay changes on every read. A materializer incrementally applies incoming changes into your **domain tables** (a live snapshot), so your application can query current rows efficiently.
+
+### Who is this for?
+
+- **You want normal reads**: `SELECT * FROM todos WHERE ...` (or Drizzle queries) against current state.
+- **You need a live snapshot**: UI and APIs read domain tables that always reflect the latest applied changes.
+- **You care about performance**: reads stay fast as history grows.
+
+### RippleDB does not need materialization
+
+RippleDB does not require materialization. You can use the change log directly if you want.
+All our adapters on the client side consume changes directly from the change log.
+
+#### When this might change
+
+A Snapshot is a powerful tool to keep new clients in sync with the latest state before moving them to the change log.
+But this is not implemented yet. And will be optional in the future yet recommended for production use.
+
+### When you might skip it
+
+- Prototypes/tests where you only care about the log
+- You already maintain your own projection layer and want RippleDB only for replication history
+
 ## Stores
 
 Stores implement the client-side `Store` contract (`@rippledb/client`). They are optional but recommended if you want a consistent local “truth DB” that emits `DbEvent`s for UI reactivity.
