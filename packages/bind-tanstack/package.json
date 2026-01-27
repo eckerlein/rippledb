@@ -35,6 +35,7 @@
     "@tanstack/query-core": "^5.0.0"
   },
   "devDependencies": {
+    "@rippledb/store-memory": "workspace:*",
     "@tanstack/query-core": "^5.60.5",
     "eslint": "^9.37.0",
     "tsup": "^8.5.0",

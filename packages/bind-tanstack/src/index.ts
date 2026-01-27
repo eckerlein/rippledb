@@ -134,8 +134,8 @@ export function wireTanstackInvalidation<S extends RippleSchema = RippleSchema>(
     invalidateRows = true,
   } = opts;
 
-  // Get the event subscription function
-  const subscribe = onEvent ?? store?.onEvent;
+  // Get the event subscription function (bind to store if using store.onEvent)
+  const subscribe = onEvent ?? (store?.onEvent ? (cb: (event: DbEvent<S>) => void) => store.onEvent!(cb) : undefined);
   if (!subscribe) {
     throw new Error(
       'wireTanstackInvalidation: either `store` (with onEvent) or `onEvent` callback is required',

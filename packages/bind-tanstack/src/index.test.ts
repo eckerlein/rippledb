@@ -2,9 +2,9 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import {
   defineListRegistry,
   wireTanstackInvalidation,
-  type ListRegistry,
 } from './index';
-import type { DbEvent } from '@rippledb/client';
+import { MemoryStore } from '@rippledb/store-memory';
+import { makeUpsert, makeDelete, createHlcState, tickHlc } from '@rippledb/core';
 import type { QueryClient } from '@tanstack/query-core';
 
 type TestSchema = {
@@ -20,16 +20,42 @@ function createMockQueryClient() {
   } as unknown as QueryClient;
 }
 
-// Mock Store with onEvent
-function createMockStore() {
-  const subscribers = new Set<(event: DbEvent<TestSchema>) => void>();
+// Helper to create a store and HLC state
+function createTestStore() {
+  const store = new MemoryStore<TestSchema>();
+  const hlcState = createHlcState('test-node');
+  let now = Date.now();
+
   return {
-    onEvent: (cb: (event: DbEvent<TestSchema>) => void) => {
-      subscribers.add(cb);
-      return () => subscribers.delete(cb);
+    store,
+    // Helper to emit an upsert event (makeUpsert auto-generates tags)
+    async upsert(
+      entity: 'todos' | 'tags' | 'users',
+      id: string,
+      patch: Record<string, unknown>,
+    ) {
+      const hlc = tickHlc(hlcState, now++);
+      await store.applyChanges([
+        makeUpsert({
+          stream: 'test-stream',
+          entity,
+          entityId: id,
+          patch,
+          hlc,
+        }),
+      ]);
     },
-    emit: (event: DbEvent<TestSchema>) => {
-      for (const sub of subscribers) sub(event);
+    // Helper to emit a delete event
+    async delete(entity: 'todos' | 'tags' | 'users', id: string) {
+      const hlc = tickHlc(hlcState, now++);
+      await store.applyChanges([
+        makeDelete({
+          stream: 'test-stream',
+          entity,
+          entityId: id,
+          hlc,
+        }),
+      ]);
     },
   };
 }
@@ -83,15 +109,15 @@ describe('wireTanstackInvalidation', () => {
 
   it('invalidates entity queries on event', async () => {
     const queryClient = createMockQueryClient();
-    const store = createMockStore();
+    const { store, upsert } = createTestStore();
 
     wireTanstackInvalidation({
       queryClient,
-      onEvent: store.onEvent,
+      store,
       debounceMs: 0,
     });
 
-    store.emit({ entity: 'todos', kind: 'insert', id: '1' });
+    await upsert('todos', '1', { title: 'Test' });
 
     // Should invalidate [todos] and [todos, 1]
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
@@ -104,19 +130,19 @@ describe('wireTanstackInvalidation', () => {
 
   it('invalidates list queries based on registry', async () => {
     const queryClient = createMockQueryClient();
-    const store = createMockStore();
+    const { store, upsert } = createTestStore();
     const registry = defineListRegistry()
       .list(['todoList'], { deps: ['todos'] })
       .list(['dashboard'], { deps: ['todos', 'users'] });
 
     wireTanstackInvalidation({
       queryClient,
-      onEvent: store.onEvent,
+      store,
       registry,
       debounceMs: 0,
     });
 
-    store.emit({ entity: 'todos', kind: 'update', id: '1' });
+    await upsert('todos', '1', { title: 'Updated' });
 
     // Should invalidate both todoList and dashboard (both depend on todos)
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
@@ -129,19 +155,19 @@ describe('wireTanstackInvalidation', () => {
 
   it('does not invalidate unrelated list queries', async () => {
     const queryClient = createMockQueryClient();
-    const store = createMockStore();
+    const { store, upsert } = createTestStore();
     const registry = defineListRegistry()
       .list(['todoList'], { deps: ['todos'] })
       .list(['userList'], { deps: ['users'] });
 
     wireTanstackInvalidation({
       queryClient,
-      onEvent: store.onEvent,
+      store,
       registry,
       debounceMs: 0,
     });
 
-    store.emit({ entity: 'tags', kind: 'insert', id: '1' });
+    await upsert('tags', '1', { name: 'test-tag' });
 
     // Should NOT invalidate todoList or userList (neither depends on tags)
     expect(queryClient.invalidateQueries).not.toHaveBeenCalledWith({
@@ -158,18 +184,18 @@ describe('wireTanstackInvalidation', () => {
 
   it('debounces multiple events', async () => {
     const queryClient = createMockQueryClient();
-    const store = createMockStore();
+    const { store, upsert } = createTestStore();
 
     wireTanstackInvalidation({
       queryClient,
-      onEvent: store.onEvent,
+      store,
       debounceMs: 50,
     });
 
-    // Emit multiple events rapidly
-    store.emit({ entity: 'todos', kind: 'insert', id: '1' });
-    store.emit({ entity: 'todos', kind: 'update', id: '2' });
-    store.emit({ entity: 'users', kind: 'insert', id: '1' });
+    // Emit multiple events rapidly (all sync, before timer fires)
+    await upsert('todos', '1', { title: 'First' });
+    await upsert('todos', '2', { title: 'Second' });
+    await upsert('users', '1', { name: 'Alice' });
 
     // Nothing invalidated yet (debouncing)
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
@@ -192,16 +218,16 @@ describe('wireTanstackInvalidation', () => {
 
   it('can disable row invalidation', async () => {
     const queryClient = createMockQueryClient();
-    const store = createMockStore();
+    const { store, upsert } = createTestStore();
 
     wireTanstackInvalidation({
       queryClient,
-      onEvent: store.onEvent,
+      store,
       debounceMs: 0,
       invalidateRows: false,
     });
 
-    store.emit({ entity: 'todos', kind: 'insert', id: '1' });
+    await upsert('todos', '1', { title: 'Test' });
 
     // Should NOT invalidate [todos, 1]
     expect(queryClient.invalidateQueries).not.toHaveBeenCalledWith({
@@ -215,11 +241,11 @@ describe('wireTanstackInvalidation', () => {
 
   it('cleanup stops listening', async () => {
     const queryClient = createMockQueryClient();
-    const store = createMockStore();
+    const { store, upsert } = createTestStore();
 
     const cleanup = wireTanstackInvalidation({
       queryClient,
-      onEvent: store.onEvent,
+      store,
       debounceMs: 0,
     });
 
@@ -227,7 +253,7 @@ describe('wireTanstackInvalidation', () => {
     cleanup();
 
     // Emit event after cleanup
-    store.emit({ entity: 'todos', kind: 'insert', id: '1' });
+    await upsert('todos', '1', { title: 'Test' });
 
     // Should NOT invalidate (unsubscribed)
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled();

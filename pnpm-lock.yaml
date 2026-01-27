@@ -112,6 +112,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@rippledb/store-memory':
+        specifier: workspace:*
+        version: link:../store-memory
       '@tanstack/query-core':
         specifier: ^5.60.5
         version: 5.90.20
