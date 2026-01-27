@@ -9,10 +9,11 @@ import { Diagram } from '@/components/diagram';
 
 # Adapters
 
-RippleDB uses adapters to integrate with different databases and ORMs. There are two types:
+RippleDB uses adapters to integrate with different runtimes, databases, and ORMs. There are three types:
 
 1. **Database Adapters (`db-*`)** — Store the change log and handle append/pull
 2. **Materializers (`materialize-*`)** — Project changes into domain tables
+3. **Stores (`store-*`)** — Client-side local truth store (what the UI reads from)
 
 ## Decision Tree
 
@@ -60,6 +61,7 @@ RippleDB uses adapters to integrate with different databases and ORMs. There are
 | `db-turso` | Edge deployments, serverless | Async | Uses `@libsql/client` |
 | `db-drizzle` | Existing Drizzle projects | Both | Database-agnostic |
 | `db-memory` | Unit tests | Sync | No persistence |
+| `store-memory` | Unit tests | Sync | Client truth store, no persistence |
 | `materialize-db` | Raw SQL projects | Both | Works with db-sqlite, db-turso |
 | `materialize-drizzle` | Drizzle projects | Both | Type-safe queries |
 
@@ -100,6 +102,18 @@ RippleDB uses adapters to integrate with different databases and ORMs. There are
     title="materialize-drizzle" 
     description="Type-safe materializer using Drizzle schemas"
     href="/docs/adapters/materialize-drizzle"
+  />
+</Cards>
+
+## Stores
+
+Stores implement the client-side `Store` contract (`@rippledb/client`). They are optional but recommended if you want a consistent local “truth DB” that emits `DbEvent`s for UI reactivity.
+
+<Cards>
+  <Card
+    title="store-memory"
+    description="In-memory Store implementation for tests and examples"
+    href="/docs/adapters/store-memory"
   />
 </Cards>
 

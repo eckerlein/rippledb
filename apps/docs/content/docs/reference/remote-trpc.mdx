@@ -1,0 +1,51 @@
+---
+title: "@rippledb/remote-trpc"
+description: tRPC Remote implementation for client-server sync
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# @rippledb/remote-trpc
+
+A `Remote` implementation for RippleDB sync using tRPC procedures. This is an alternative to [`@rippledb/remote-http`](/docs/reference/remote-http).
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @rippledb/remote-trpc @trpc/client
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @rippledb/remote-trpc @trpc/client
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @rippledb/remote-trpc @trpc/client
+```
+  </Tab>
+</Tabs>
+
+## Usage
+
+`createTrpcRemote` takes your `pull` and `append` procedures and returns a `Remote`:
+
+```ts
+import { createTrpcRemote } from '@rippledb/remote-trpc';
+// see https://rippledb.dev/docs/reference/server-trpc#usage for more information
+import { trpc } from './your-trpc-router-file';
+
+const remote = createTrpcRemote({
+  pull: trpc.ripple.pull.query,
+  append: trpc.ripple.append.mutate,
+});
+```
+
+<Callout type="info">
+You can also pass a direct “caller” (e.g. `appRouter.createCaller(...)`) for tests.
+</Callout>
+

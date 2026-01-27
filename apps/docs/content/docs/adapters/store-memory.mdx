@@ -1,0 +1,78 @@
+---
+title: store-memory
+description: In-memory Store implementation for tests and examples
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# @rippledb/store-memory
+
+An in-memory implementation of the `Store` contract from `@rippledb/client`. Useful for tests, examples, and quick prototypes.
+
+<Callout type="warning">
+This store does **not** persist anything. For production apps, you’ll want a persistent `store-*` implementation (e.g. SQLite/IndexedDB).
+</Callout>
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @rippledb/store-memory
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @rippledb/store-memory
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @rippledb/store-memory
+```
+  </Tab>
+</Tabs>
+
+## Basic Usage
+
+```ts
+import { MemoryStore } from '@rippledb/store-memory';
+import { makeUpsert } from '@rippledb/core';
+
+type Schema = {
+  todos: { id: string; title: string; done?: boolean };
+};
+
+const store = new MemoryStore<Schema>();
+
+// Subscribe to reactivity events (optional)
+store.onEvent((ev) => {
+  console.log(ev); // { entity, kind, id? }
+});
+
+// Apply changes transactionally
+await store.applyChanges([
+  makeUpsert({
+    stream: 'demo',
+    entity: 'todos',
+    entityId: 'todo-1',
+    patch: { id: 'todo-1', title: 'Buy milk', done: false },
+  }),
+]);
+
+// Read a single row
+const todo = await store.getRow('todos', 'todo-1');
+
+// List rows (query shape is store-specific)
+const todos = await store.listRows({ entity: 'todos' });
+```
+
+## Query Shape
+
+`store-memory` supports a simple list query:
+
+```ts
+type MemoryListQuery = { entity: string };
+```
+

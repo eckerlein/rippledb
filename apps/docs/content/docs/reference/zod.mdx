@@ -1,0 +1,68 @@
+---
+title: "@rippledb/zod"
+description: Zod schemas for runtime validation of RippleDB payloads
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# @rippledb/zod
+
+Runtime validation helpers for RippleDB types using [Zod](https://zod.dev/).
+
+This is useful at boundaries where untrusted input enters your system:
+
+- validating server request bodies (`pull`, `append`)
+- validating events/messages between systems
+- validating persisted JSON blobs
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @rippledb/zod zod
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @rippledb/zod zod
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @rippledb/zod zod
+```
+  </Tab>
+</Tabs>
+
+## Provided Schemas
+
+- `hlcSchema`
+- `changeKindSchema`
+- `changeSchema` (generic “unknown patch” change)
+- `pullRequestSchema`
+- `pullResponseSchema`
+- `appendRequestSchema`
+- `appendResultSchema`
+
+## Roadmap
+
+- Per-entity patch validation (so `entity: "todos"` validates `patch` against the `todos` schema automatically): see [GitHub issue #7](https://github.com/eckerlein/rippledb/issues/7).
+
+## Typed Change Schema
+
+If you know your patch shape, build a typed schema:
+
+```ts
+import { z } from 'zod';
+import { createChangeSchema } from '@rippledb/zod';
+
+const todoPatchSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  done: z.boolean().optional(),
+});
+
+const todoChangeSchema = createChangeSchema(todoPatchSchema);
+```
+

@@ -1,0 +1,58 @@
+---
+title: "@rippledb/server-trpc"
+description: tRPC router exposing RippleDB pull/append procedures
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# @rippledb/server-trpc
+
+A small helper to expose RippleDB sync over tRPC by generating a router with `pull` and `append` procedures backed by your `Db` implementation.
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @rippledb/server-trpc @trpc/server
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @rippledb/server-trpc @trpc/server
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @rippledb/server-trpc @trpc/server
+```
+  </Tab>
+</Tabs>
+
+## Usage
+
+```ts
+import { MemoryDb } from '@rippledb/db-memory';
+import { createRippleTrpcRouter } from '@rippledb/server-trpc';
+import { initTRPC } from '@trpc/server';
+
+// 1) Create a RippleDB Db implementation (use a real db-* adapter in production)
+type DemoSchema = {
+  todo: { id: string; title: string };
+};
+
+// 2) Use one of our existing Db adapters (or implement your own)
+//    See https://rippledb.dev/docs/adapters#database-adapters for more information
+const db = new MemoryDb<DemoSchema>();
+
+// 3) Create the Ripple tRPC router (exposes `pull` and `append`)
+//    And plug in your Db Adapter
+const rippleRouter = createRippleTrpcRouter({ db });
+
+// 4) Mount it in your app router under a namespace (e.g. `ripple`)
+const t = initTRPC.create();
+export const appRouter = t.router({
+  ripple: rippleRouter,
+});
+```
+

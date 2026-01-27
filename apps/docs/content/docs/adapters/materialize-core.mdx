@@ -1,0 +1,72 @@
+---
+title: materialize-core
+description: Core materialization algorithm and adapter interfaces
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# @rippledb/materialize-core
+
+Shared, database-agnostic materialization logic used by the `materialize-*` packages.
+
+This package provides:
+
+- A **materializer state model** (values + per-field tags + deletion state)
+- A **storage adapter interface** (load/save/remove)
+- Helpers to apply changes incrementally (field-level LWW)
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @rippledb/materialize-core
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @rippledb/materialize-core
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @rippledb/materialize-core
+```
+  </Tab>
+</Tabs>
+
+## Core Types
+
+### `MaterializerAdapter`
+
+Implement this interface to persist materialized entity state:
+
+```ts
+export type MaterializerAdapter<S> = {
+  load(entity: string, id: string): Promise<MaterializerState<S> | null>;
+  save(entity: string, id: string, state: MaterializerState<S>): Promise<void>;
+  remove(entity: string, id: string, state: MaterializerState<S>): Promise<void>;
+};
+```
+
+## Applying Changes
+
+### `applyChangeToState(current, change)`
+
+Apply a single change to a materialized snapshot (per-field LWW) and return whether it changed anything.
+
+### `materializeChange(adapter, change)`
+
+Loads current state via `adapter.load`, applies the change, and persists via `save/remove`.
+
+### `materializeChanges(adapter, changes)`
+
+Sequentially materialize a batch of changes.
+
+## When to use this package
+
+Most users don’t need to import `materialize-core` directly. Use:
+
+- [`@rippledb/materialize-db`](/docs/adapters/materialize-db) for raw SQL projects
+- [`@rippledb/materialize-drizzle`](/docs/adapters/materialize-drizzle) for Drizzle projects
+

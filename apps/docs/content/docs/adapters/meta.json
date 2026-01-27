@@ -8,7 +8,10 @@
     "db-drizzle",
     "db-memory",
     "---Materializers---",
+    "materialize-core",
     "materialize-db",
-    "materialize-drizzle"
+    "materialize-drizzle",
+    "---Stores---",
+    "store-memory"
   ]
 }
