@@ -5,6 +5,8 @@ import SearchDialog from '@/components/search';
 
 const inter = Inter({
   subsets: ['latin'],
+  display: 'swap',
+  adjustFontFallback: true,
 });
 
 export default function Layout({ children }: LayoutProps<'/'>) {
