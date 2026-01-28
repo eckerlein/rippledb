@@ -5,6 +5,7 @@
     "core",
     "server",
     "client",
+    "client-query",
     "remote-http",
     "remote-trpc",
     "server-trpc",

@@ -1,0 +1,65 @@
+{
+  "name": "@rippledb/client-query",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "sideEffects": false,
+  "description": "Final DX package combining controllers + bind-tanstack-query for RippleDB",
+  "keywords": [
+    "rippledb",
+    "tanstack-query",
+    "react-query",
+    "controllers",
+    "crud",
+    "local-first",
+    "offline-first"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eckerlein/rippledb.git",
+    "directory": "packages/client-query"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@rippledb/core": "workspace:*",
+    "@rippledb/client": "workspace:*",
+    "@rippledb/client-controllers": "workspace:*",
+    "@rippledb/bind-tanstack-query": "workspace:*"
+  },
+  "peerDependencies": {
+    "@tanstack/query-core": "^5.0.0"
+  },
+  "devDependencies": {
+    "@rippledb/store-memory": "workspace:*",
+    "@tanstack/query-core": "^5.60.5",
+    "eslint": "^9.37.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "lint": "eslint ."
+  },
+  "tsup": {
+    "entry": [
+      "src/index.ts"
+    ],
+    "format": [
+      "esm"
+    ],
+    "dts": false,
+    "sourcemap": true,
+    "clean": true
+  }
+}
