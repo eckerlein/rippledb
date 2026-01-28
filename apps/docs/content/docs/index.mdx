@@ -4,8 +4,13 @@ description: A local-first sync engine with field-level conflict resolution
 ---
 
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
 
 # RippleDB
+
+<Callout type="warning">
+**Early Development**: RippleDB is currently in early stages of development. APIs may change, and some features are still being refined. Use at your own discretion and feel free to [contribute feedback](https://github.com/eckerlein/rippledb)!
+</Callout>
 
 A **local-first sync engine** that treats local storage as the source of truth. Changes replicate via an append-only log, and conflicts resolve deterministically at the field level using hybrid logical clocks.
 
