@@ -1,6 +1,6 @@
 {
   "name": "@rippledb/materialize-drizzle",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
   "sideEffects": false,
@@ -10,7 +10,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@rippledb/core": "workspace:*",
     "@rippledb/materialize-db": "workspace:*",
@@ -35,8 +37,12 @@
     "lint": "eslint ."
   },
   "tsup": {
-    "entry": ["src/index.ts"],
-    "format": ["esm"],
+    "entry": [
+      "src/index.ts"
+    ],
+    "format": [
+      "esm"
+    ],
     "dts": false,
     "sourcemap": true,
     "clean": true

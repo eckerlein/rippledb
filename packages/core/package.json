@@ -1,6 +1,6 @@
 {
   "name": "@rippledb/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
   "sideEffects": false,
@@ -10,7 +10,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "eslint": "^9.37.0",
     "tsup": "^8.5.0",
@@ -24,11 +26,14 @@
     "lint": "eslint ."
   },
   "tsup": {
-    "entry": ["src/index.ts"],
-    "format": ["esm"],
+    "entry": [
+      "src/index.ts"
+    ],
+    "format": [
+      "esm"
+    ],
     "dts": false,
     "sourcemap": true,
     "clean": true
   }
 }
-
