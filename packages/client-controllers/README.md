@@ -39,12 +39,12 @@ await todoController.delete(todo.id);
 - **Framework agnostic**: Works with any UI framework or backend
 - **Store abstraction**: Works with any `Store` implementation
 
-## Relationship to bind-tanstack
+## Relationship to bind-tanstack-query
 
 - **Controllers**: Handle reads/writes and batch loading (data access layer)
-- **bind-tanstack**: Handles cache invalidation (UI reactivity layer)
+- **bind-tanstack-query**: Handles cache invalidation (UI reactivity layer)
 
-Use controllers for CRUD operations, and `bind-tanstack` for automatic cache invalidation.
+Use controllers for CRUD operations, and `bind-tanstack-query` for automatic cache invalidation.
 
 ## License
 
