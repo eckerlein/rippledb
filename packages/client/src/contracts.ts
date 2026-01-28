@@ -28,6 +28,16 @@ export interface Store<
   getRow<E extends import('@rippledb/core').EntityName<S>>(entity: E, id: string): Promise<S[E] | null>;
 
   /**
+   * Bulk read by primary key.
+   * Implementations should optimize this when possible (e.g., single SQL query),
+   * but can fall back to parallel `getRow` calls if needed.
+   */
+  getRows<E extends import('@rippledb/core').EntityName<S>>(
+    entity: E,
+    ids: string[],
+  ): Promise<Map<string, S[E]>>;
+
+  /**
    * Run an arbitrary list query (broad invalidation target).
    * The shape is store-specific (SQL string, prepared stmt, query DSL, etc.).
    */

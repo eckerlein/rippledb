@@ -42,6 +42,11 @@ jobs:
         run: pnpm test
 
       - name: Verify package publish (dry-run)
-        run: pnpm -r publish --dry-run --access public
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm -r publish --dry-run --access public --no-git-checks
+          else
+            pnpm -r publish --dry-run --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || 'fake-token-for-dry-run' }}

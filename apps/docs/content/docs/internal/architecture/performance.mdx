@@ -46,3 +46,9 @@ The batch loader:
 
 Any caller benefits.
 
+### 13.5 Implementation
+
+`@rippledb/client-controllers` provides a reference implementation of the batch loader pattern on top of the `Store` interface. It automatically uses `Store.getRows()` when available (optimized path) or falls back to parallel `getRow()` calls.
+
+The client-controllers package also provides entity controllers that combine batch loading with CRUD operations, making it easy to build data access layers that benefit from automatic batching.
+

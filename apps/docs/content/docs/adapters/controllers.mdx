@@ -1,0 +1,255 @@
+---
+title: controllers
+description: Abstract CRUD controllers with batch loading for RippleDB
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# @rippledb/client-controllers
+
+Abstract CRUD controllers with automatic batch loading for RippleDB. Provides a high-level data access layer on top of the `Store` interface.
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @rippledb/client-controllers
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @rippledb/client-controllers
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @rippledb/client-controllers
+```
+  </Tab>
+</Tabs>
+
+## Basic Usage
+
+```ts
+import { createEntityController } from '@rippledb/client-controllers';
+import { MemoryStore } from '@rippledb/store-memory';
+
+const store = new MemoryStore<MySchema>();
+
+// Create a controller for an entity type
+const todoController = createEntityController({
+  store,
+  entity: 'todos',
+  stream: 'user-123',
+});
+
+// CRUD operations with automatic batch loading
+const todo = await todoController.create({ title: 'Buy milk', done: false });
+const fetched = await todoController.read(todo.id);
+const updated = await todoController.update(todo.id, { done: true });
+await todoController.delete(todo.id);
+```
+
+## Batch Loading
+
+The controllers automatically batch multiple `read()` calls that occur in the same tick/RAF:
+
+```ts
+// These three reads will be batched into a single getRows() call
+const p1 = todoController.read('todo-1');
+const p2 = todoController.read('todo-2');
+const p3 = todoController.read('todo-3');
+
+const [todo1, todo2, todo3] = await Promise.all([p1, p2, p3]);
+```
+
+The batch loader uses `Store.getRows()` for efficient bulk reads. All Store implementations must provide this method.
+
+### Flush strategy
+
+By default, the batch loader uses `requestAnimationFrame` when available (best for UIs), and falls back to a microtask flush otherwise (best for non-browser runtimes).
+
+You can override this per-controller:
+
+```ts
+const todoController = createEntityController({
+  store,
+  entity: 'todos',
+  stream: 'user-123',
+  batch: { flush: 'microtask' }, // 'auto' | 'raf' | 'microtask'
+});
+```
+
+## Entity Controllers
+
+### `create(patch: Partial<S[E]>): Promise<S[E]>`
+
+Create a new entity. If the patch contains an `id` field, it will be used. Otherwise, a UUID is generated.
+
+```ts
+// Auto-generate ID
+const todo = await todoController.create({ title: 'Test', done: false });
+
+// Use provided ID
+const todo2 = await todoController.create({ id: 'custom-id', title: 'Test' });
+```
+
+### `read(id: string): Promise<S[E] | null>`
+
+Read a single entity by ID. Uses batch loading for efficiency.
+
+```ts
+const todo = await todoController.read('todo-1');
+if (!todo) {
+  // Entity not found or deleted
+}
+```
+
+### `readMany(ids: string[]): Promise<Map<string, S[E]>>`
+
+Read multiple entities by IDs. Always executes immediately (no batching).
+
+```ts
+const todos = await todoController.readMany(['todo-1', 'todo-2', 'todo-3']);
+// Returns Map with found entities (missing/deleted ones are omitted)
+```
+
+### `update(id: string, patch: Partial<S[E]>): Promise<S[E]>`
+
+Update an entity by ID with a partial patch.
+
+```ts
+const updated = await todoController.update('todo-1', { done: true });
+```
+
+### `delete(id: string): Promise<void>`
+
+Delete an entity by ID.
+
+```ts
+await todoController.delete('todo-1');
+```
+
+### `list(query: ListQuery): Promise<S[E][]>`
+
+List entities using a store-specific query. Delegates to `store.listRows()`.
+
+```ts
+// Example with MemoryStore
+const todos = await todoController.list({ entity: 'todos' });
+```
+
+## Configuration
+
+### `store`
+
+The `Store` instance to operate on. Required.
+
+### `entity`
+
+The entity name this controller manages. Required.
+
+### `stream`
+
+The stream ID for all changes created by this controller. Required.
+
+### `hlcState`
+
+Optional HLC state. If not provided, a new one will be created.
+
+```ts
+import { createHlcState } from '@rippledb/core';
+
+const hlcState = createHlcState('my-node');
+const controller = createEntityController({
+  store,
+  entity: 'todos',
+  stream: 'user-123',
+  hlcState,
+});
+```
+
+### `generateId`
+
+Optional function to generate entity IDs. Defaults to `crypto.randomUUID()`.
+
+```ts
+import { nanoid } from 'nanoid';
+
+const controller = createEntityController({
+  store,
+  entity: 'todos',
+  stream: 'user-123',
+  generateId: () => nanoid(),
+});
+```
+
+## Relationship to bind-tanstack
+
+- **Controllers**: Handle reads/writes and batch loading (data access layer)
+- **bind-tanstack**: Handles cache invalidation (UI reactivity layer)
+
+Use controllers for CRUD operations, and `bind-tanstack` for automatic cache invalidation:
+
+```ts
+import { createEntityController } from '@rippledb/client-controllers';
+import { wireTanstackInvalidation } from '@rippledb/bind-tanstack';
+
+const todoController = createEntityController({
+  store,
+  entity: 'todos',
+  stream: 'user-123',
+});
+
+// Wire up invalidation
+wireTanstackInvalidation({
+  queryClient,
+  store,
+});
+
+// In your React component
+function TodoList() {
+  const { data: todos } = useQuery({
+    queryKey: ['todos'],
+    queryFn: () => todoController.list({ entity: 'todos' }),
+  });
+
+  const handleCreate = async () => {
+    await todoController.create({ title: 'New todo' });
+    // Cache is automatically invalidated via bind-tanstack
+  };
+
+  // ...
+}
+```
+
+## Batch Loader
+
+You can also use the batch loader directly:
+
+```ts
+import { createBatchLoader } from '@rippledb/client-controllers';
+
+const batchLoader = createBatchLoader(store, 'todos');
+
+// Single load (batched)
+const todo = await batchLoader.load('todo-1');
+
+// Multiple loads (immediate)
+const todos = await batchLoader.loadMany(['todo-1', 'todo-2']);
+```
+
+## Store.getRows()
+
+`getRows()` is a required method on the `Store` interface. Implementations should optimize this when possible (e.g., single SQL query with `WHERE id IN (...)`), but can fall back to parallel `getRow()` calls if needed:
+
+```ts
+interface Store<S> {
+  // ... other methods ...
+  getRows<E>(entity: E, ids: string[]): Promise<Map<string, S[E]>>;
+}
+```
+
+The batch loader always uses `getRows()` for efficient bulk reads.
