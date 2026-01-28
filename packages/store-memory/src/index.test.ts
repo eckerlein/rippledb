@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MemoryStore } from './index';
-import { tickHlc, createHlcState, makeUpsert } from '@rippledb/core';
+import { tickHlc, createHlcState, makeUpsert, makeDelete } from '@rippledb/core';
 
 type TestSchema = {
   todos: { id: string; title: string };
@@ -40,7 +40,7 @@ describe('MemoryStore getRows', () => {
   it('does not return deleted rows', async () => {
     const store = new MemoryStore<TestSchema>();
     const state = createHlcState('test-node');
-    const now = Date.now();
+    let now = Date.now();
 
     await store.applyChanges([
       makeUpsert({
@@ -48,17 +48,21 @@ describe('MemoryStore getRows', () => {
         entity: 'todos',
         entityId: '1',
         patch: { id: '1', title: 'One' },
-        hlc: tickHlc(state, now),
+        hlc: tickHlc(state, now++),
       }),
     ]);
 
-    // Mark as deleted via an upsert with no fields and higher HLC + delete semantics
-    // Easiest is to rely on existing delete helpers in real code; here we just ensure
-    // that if a record is marked deleted internally it is not returned.
-    // For now, simulate by calling applyChanges with a change that sets deleted=true
-    // through the public API is non-trivial, so we assert positive path only.
+    // Delete the row
+    await store.applyChanges([
+      makeDelete({
+        stream: 's',
+        entity: 'todos',
+        entityId: '1',
+        hlc: tickHlc(state, now++),
+      }),
+    ]);
 
     const rows = await store.getRows('todos', ['1']);
-    expect(rows.size).toBe(1);
+    expect(rows.size).toBe(0);
   });
 });

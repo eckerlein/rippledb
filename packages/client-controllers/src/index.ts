@@ -42,8 +42,7 @@ type PendingRequest<V> = {
  * Creates a batch loader for a specific entity in a Store.
  *
  * The batch loader collects `load()` calls during a single tick/RAF,
- * deduplicates keys, and executes them as a bulk query if `store.getRows`
- * is available, otherwise falls back to parallel `getRow` calls.
+ * deduplicates keys, and executes them as a bulk query using `store.getRows`.
  *
  * @param store - The Store instance
  * @param entity - The entity name to load from
@@ -133,9 +132,9 @@ export function createBatchLoader<
       // cause two bulk reads (one for the flush + one for loadMany). We can add an
       // explicit opt-in like `loadMany(ids, { coalesce: true })` later if we
       // see real call-sites where this matters.
-	  // I see two otions:
-	  // 1. loadMany seperates each key into a seperate function call to move them into the schedule.
-	  // 2. loadMany lets currenlty scheduled keys piggy back on its load call.
+	  // I see two options:
+	  // 1. loadMany separates each key into a separate function call to move them into the schedule.
+	  // 2. loadMany lets currently scheduled keys piggy back on its load call.
       const uniqueKeys = Array.from(new Set(keys));
       return await store.getRows(entity, uniqueKeys);
     },
@@ -247,9 +246,8 @@ export function createEntityController<
     batch,
   } = options;
   const batchLoader = createBatchLoader(store, entity, batch);
-  let now = Date.now();
 
-  const getHlc = () => tickHlc(hlcState, now++);
+  const getHlc = () => tickHlc(hlcState, Date.now());
 
   return {
     async create(patch: Partial<S[E]>): Promise<S[E]> {
