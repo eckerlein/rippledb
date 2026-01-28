@@ -7,7 +7,7 @@ Final DX package combining:
 
 This package is intended to be the ergonomic “one import” for client apps using RippleDB + TanStack Query.
 
-📚 **Documentation:** `https://rippledb.dev/docs/reference/client-query`
+📚 **Documentation:** [rippledb.dev/docs/reference/client-query](https://rippledb.dev/docs/reference/client-query)
 
 ## Installation
 

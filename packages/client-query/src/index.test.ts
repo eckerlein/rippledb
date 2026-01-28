@@ -20,7 +20,7 @@ describe('createClientQueryApi', () => {
       defaultOptions: { queries: { retry: false } },
     });
     store = new MemoryStore<TestSchema>();
-    schema = defineSchema({
+    schema = defineSchema<TestSchema>({
       todos: { id: '', title: '', done: false },
       users: { id: '', name: '', email: '' },
     });
@@ -135,6 +135,49 @@ describe('createClientQueryApi', () => {
     expect(result.length).toBeGreaterThan(0);
   });
 
+  it('does not create duplicate registry entries for same query key', async () => {
+    createClientQueryApi({
+      store,
+      stream: 'test-stream',
+      queryClient,
+      schema,
+    });
+
+    // Access the internal registry by creating a new API and checking its registry
+    // We'll test by calling query() multiple times with the same key
+    const registry = defineListRegistry();
+    const apiWithRegistry = createClientQueryApi({
+      store,
+      stream: 'test-stream',
+      queryClient,
+      schema,
+      registry,
+    });
+
+    // Call query() multiple times with the same key
+    await apiWithRegistry.query({
+      key: ['todos'],
+      deps: ['todos'],
+      fn: async () => apiWithRegistry.todos.list({ entity: 'todos' }),
+    });
+
+    await apiWithRegistry.query({
+      key: ['todos'],
+      deps: ['todos'],
+      fn: async () => apiWithRegistry.todos.list({ entity: 'todos' }),
+    });
+
+    await apiWithRegistry.query({
+      key: ['todos'],
+      deps: ['todos'],
+      fn: async () => apiWithRegistry.todos.list({ entity: 'todos' }),
+    });
+
+    // Should only have one entry despite multiple calls
+    expect(registry.entries.length).toBe(1);
+    expect(registry.entries[0].queryKey).toEqual(['todos']);
+  });
+
   it('provides cleanup function', () => {
     const api = createClientQueryApi({
       store,
@@ -149,8 +192,9 @@ describe('createClientQueryApi', () => {
     expect(() => api.cleanup()).not.toThrow();
   });
 
-  it('works with provided registry', () => {
+  it('works with provided registry', async () => {
     const registry = defineListRegistry().list(['todos'], { deps: ['todos'] });
+    const initialEntryCount = registry.entries.length;
 
     const api = createClientQueryApi({
       store,
@@ -162,5 +206,16 @@ describe('createClientQueryApi', () => {
 
     expect(api.todos).toBeDefined();
     expect(typeof api.cleanup).toBe('function');
+
+    // Verify that calling api.query() adds entries to the provided registry
+    await api.query({
+      key: ['users'],
+      deps: ['users'],
+      fn: async () => api.users.list({ entity: 'users' }),
+    });
+
+    // The registry should now have the new entry added by api.query()
+    expect(registry.entries.length).toBe(initialEntryCount + 1);
+    expect(registry.entries.some((e) => e.queryKey[0] === 'users')).toBe(true);
   });
 });

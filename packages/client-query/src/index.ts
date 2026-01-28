@@ -169,8 +169,9 @@ export function createClientQueryApi<
     });
   }
 
-  // If caller doesn't provide a registry, we create a mutable registry that
-  // `api.query()` will populate on the fly (so invalidation works automatically).
+  // If the caller doesn't provide a registry, we create a new mutable registry.
+  // If a registry *is* provided, it is expected to be mutable and `api.query()`
+  // will add entries to it dynamically (so invalidation works automatically).
   const registry: ListRegistry = providedRegistry ?? { entries: [] };
 
   // Wire up invalidation once
