@@ -23,6 +23,7 @@ The contract for client-side local storage:
 interface Store<S extends RippleSchema, ListQuery = unknown> {
   applyChanges(changes: Change<S>[]): Promise<void>;
   getRow<E extends EntityName<S>>(entity: E, id: string): Promise<S[E] | null>;
+  getRows<E extends EntityName<S>>(entity: E, ids: string[]): Promise<Map<string, S[E]>>;
   listRows(query: ListQuery): Promise<Array<S[EntityName<S>]>>;
   onEvent?(cb: (event: DbEvent<S>) => void): () => void;
 }
@@ -45,6 +46,15 @@ Fetch a single entity by primary key.
 
 ```ts
 const todo = await store.getRow('todos', 'todo-1');
+```
+
+### `getRows<E>(entity: E, ids: string[]): Promise<Map<string, S[E]>>`
+
+Bulk read by primary key. Required method for efficient batch loading. Implementations should optimize this when possible (e.g., single SQL query), but can fall back to parallel `getRow` calls if needed.
+
+```ts
+const todos = await store.getRows('todos', ['todo-1', 'todo-2']);
+// Returns Map with found entities (missing/deleted ones are omitted)
 ```
 
 ### `listRows(query: ListQuery): Promise<Array<...>>`

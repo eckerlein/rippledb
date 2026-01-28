@@ -92,6 +92,22 @@ export class MemoryStore<S extends RippleSchema = RippleSchema> implements Store
     return { ...rec.values } as S[E];
   }
 
+  async getRows<E extends EntityName<S>>(entity: E, ids: string[]): Promise<Map<string, S[E]>> {
+    const result = new Map<string, S[E]>();
+    if (ids.length === 0) return result;
+
+    const table = this.entities.get(entity);
+    if (!table) return result;
+
+    for (const id of ids) {
+      const rec = table.get(id);
+      if (!rec || rec.deleted) continue;
+      result.set(id, { ...rec.values } as S[E]);
+    }
+
+    return result;
+  }
+
   async listRows(query: MemoryListQuery<EntityName<S>>): Promise<Array<S[EntityName<S>]>> {
     const table = this.entities.get(query.entity);
     if (!table) return [];
