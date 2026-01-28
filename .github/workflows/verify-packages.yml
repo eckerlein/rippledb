@@ -32,3 +32,9 @@ jobs:
       - name: Verify package config
         run: pnpm check:packages
 
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
