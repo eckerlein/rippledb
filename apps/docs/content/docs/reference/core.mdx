@@ -237,6 +237,95 @@ type MySchema = {
 The schema type is used for compile-time type checking only. It doesn't create database tables.
 </Callout>
 
+## Runtime Schema Descriptor
+
+For runtime entity discovery and metadata attachment, use `defineSchema()` to create a schema descriptor:
+
+### `defineSchema<S>(entities): SchemaDescriptor<S>`
+
+Creates a runtime schema descriptor that provides entity discovery, property discovery, and extensible metadata attachment.
+
+```ts
+import { defineSchema } from '@rippledb/core';
+
+const schema = defineSchema({
+  todos: { id: '', title: '', done: false },
+  users: { id: '', name: '', email: '' },
+});
+
+// Runtime entity discovery
+schema.entities; // ['todos', 'users']
+schema.entityMap.has('todos'); // true
+
+// Runtime property discovery
+schema.getFields('todos'); // ['id', 'title', 'done']
+schema.hasField('todos', 'title'); // true
+schema.hasField('todos', 'missing'); // false
+
+// Type inference still works
+type MySchema = typeof schema.schema;
+const db = new SqliteDb<MySchema>({ filename: './data.db' });
+```
+
+**Note:** The values in the entity objects are used to infer field names at runtime. Use sample/default values (empty strings, `false`, `0`, etc.) that match your TypeScript types.
+
+### Schema Descriptor API
+
+```ts
+type SchemaDescriptor<S extends RippleSchema> = {
+  // Original schema (for type inference and runtime introspection)
+  readonly schema: S;
+  
+  // Array of entity names for runtime discovery
+  readonly entities: readonly EntityName<S>[];
+  
+  // Map for O(1) entity lookup
+  readonly entityMap: ReadonlyMap<EntityName<S>, true>;
+  
+  // Map of entity names to their field names
+  readonly entityFields: ReadonlyMap<EntityName<S>, readonly string[]>;
+  
+  // Get field names for a specific entity
+  getFields<E extends EntityName<S>>(entity: E): readonly string[];
+  
+  // Check if an entity has a specific field
+  hasField<E extends EntityName<S>>(entity: E, field: string): boolean;
+  
+  // Extensible metadata (Zod schemas, Drizzle tables, etc.)
+  readonly extensions: ReadonlyMap<string, SchemaExtension>;
+  
+  // Attach metadata extensions
+  extend<K extends string, E extends SchemaExtension>(
+    key: K,
+    extension: E,
+  ): SchemaDescriptor<S>;
+};
+```
+
+### Extensions
+
+Extensions allow adapters to attach metadata to schema descriptors:
+
+```ts
+// Example: Attach Zod schemas (future @rippledb/zod integration)
+const schemaWithZod = schema.extend('zod', {
+  todos: z.object({ id: z.string(), title: z.string() }),
+  users: z.object({ id: z.string(), name: z.string() }),
+});
+
+// Example: Attach Drizzle table mappings (future integration)
+const schemaWithDrizzle = schema.extend('drizzle', {
+  tableMap: { todos: todosTable, users: usersTable },
+});
+```
+
+### Use Cases
+
+- **Controllers / client-query**: Build `api.todos`, `api.users` dynamically from `descriptor.entities`
+- **Zod validation**: Attach schemas for per-entity validation (see [issue #7](https://github.com/eckerlein/rippledb/issues/7))
+- **Drizzle adapters**: Attach table definitions as single source of truth
+- **Materializers**: Read `tableMap` from descriptor instead of separate config
+
 ## Related
 
 - [Core Concepts](/docs/getting-started/concepts) — Understand HLCs and Changes
