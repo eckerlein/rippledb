@@ -4,6 +4,7 @@ description: Understand the mental model behind RippleDB — HLCs, Changes, Stre
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
+import { Diagram } from '@/components/diagram';
 
 # Core Concepts
 
@@ -245,6 +246,38 @@ const { changes, cursor } = await db.pull(stream, lastCursor);
 3. Then push local changes
 
 This ensures conflicts are resolved deterministically.
+
+## Package Relationships
+
+The RippleDB ecosystem is composed of several independent packages that work together. For most applications, `@rippledb/client-query` is the recommended high-level entry point as it combines CRUD controllers with automatic TanStack Query invalidation.
+
+<Diagram
+  height={520}
+  nodes={[
+    { id: 'core', x: 40, y: 240, label: ['core', '(pure logic)'] },
+    { id: 'server', relativeTo: 'core', anchor: 'right', offset: { x: 40, y: -180 }, label: ['server', '(Db interface)'] },
+    { id: 'client', relativeTo: 'core', anchor: 'right', offset: { x: 40, y: 0 }, label: ['client', '(Store/Sync)'] },
+    { id: 'materializeCore', relativeTo: 'core', anchor: 'right', offset: { x: 40, y: 180 }, label: ['materialize-core', '(projectors)'] },
+    { id: 'db', relativeTo: 'server', anchor: 'right', offset: { x: 40 }, label: ['db-*', '(adapters)'] },
+    { id: 'store', relativeTo: 'client', anchor: 'right', offset: { x: 40, y: -80 }, label: ['store-*', '(adapters)'] },
+    { id: 'controllers', relativeTo: 'client', anchor: 'right', offset: { x: 40 }, label: ['client-controllers', '(CRUD)'] },
+    { id: 'bindTanstack', relativeTo: 'client', anchor: 'right', offset: { x: 40, y: 80}, label: ['bind-tanstack-query', '(UI Cache)'] },
+    { id: 'materialize', relativeTo: 'materializeCore', anchor: 'right', offset: { x: 40 }, label: ['materialize-*', '(adapters)'] },
+    { id: 'clientQuery', relativeTo: 'controllers', anchor: 'right', offset: { x: 40, y: 40 }, label: ['client-query', '(Final DX)'] },
+  ]}
+  edges={[
+    { from: 'core', to: 'server', orthogonal: true, fromSide: 'bottom', toSide: 'left' },
+    { from: 'core', to: 'client', orthogonal: true, fromSide: 'right', toSide: 'left' },
+    { from: 'core', to: 'materializeCore', orthogonal: true, fromSide: 'bottom', toSide: 'left' },
+    { from: 'server', to: 'db', orthogonal: true, fromSide: 'right', toSide: 'left' },
+    { from: 'client', to: 'store', orthogonal: true, fromSide: 'right', toSide: 'left' },
+    { from: 'client', to: 'controllers', orthogonal: true, fromSide: 'right', toSide: 'left' },
+    { from: 'client', to: 'bindTanstack', orthogonal: true, fromSide: 'right', toSide: 'left' },
+    { from: 'materializeCore', to: 'materialize', orthogonal: true, fromSide: 'right', toSide: 'left' },
+    { from: 'controllers', to: 'clientQuery', orthogonal: true, fromSide: 'right', toSide: 'left' },
+    { from: 'bindTanstack', to: 'clientQuery', orthogonal: true, fromSide: 'right', toSide: 'left' },
+  ]}
+/>
 
 ## Next Steps
 

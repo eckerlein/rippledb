@@ -1,24 +1,23 @@
 {
-  "name": "@rippledb/bind-tanstack",
-  "version": "0.1.1",
+  "name": "@rippledb/client-query",
+  "version": "0.1.0",
   "private": false,
   "type": "module",
   "sideEffects": false,
-  "description": "TanStack Query invalidation binding for RippleDB",
+  "description": "Final DX package combining controllers + bind-tanstack-query for RippleDB",
   "keywords": [
     "rippledb",
-    "tanstack",
     "tanstack-query",
     "react-query",
-    "invalidation",
-    "sync",
+    "controllers",
+    "crud",
     "local-first",
     "offline-first"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/eckerlein/rippledb.git",
-    "directory": "packages/bind-tanstack"
+    "directory": "packages/client-query"
   },
   "exports": {
     ".": {
@@ -31,7 +30,9 @@
   ],
   "dependencies": {
     "@rippledb/core": "workspace:*",
-    "@rippledb/client": "workspace:*"
+    "@rippledb/client": "workspace:*",
+    "@rippledb/client-controllers": "workspace:*",
+    "@rippledb/bind-tanstack-query": "workspace:*"
   },
   "peerDependencies": {
     "@tanstack/query-core": "^5.0.0"

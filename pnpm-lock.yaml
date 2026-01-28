@@ -103,7 +103,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/bind-tanstack:
+  packages/bind-tanstack-query:
     dependencies:
       '@rippledb/client':
         specifier: workspace:*
@@ -162,6 +162,40 @@ importers:
       '@rippledb/store-memory':
         specifier: workspace:*
         version: link:../store-memory
+      eslint:
+        specifier: ^9.37.0
+        version: 9.39.2(jiti@2.6.1)
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(yaml@2.8.2)
+
+  packages/client-query:
+    dependencies:
+      '@rippledb/bind-tanstack-query':
+        specifier: workspace:*
+        version: link:../bind-tanstack-query
+      '@rippledb/client':
+        specifier: workspace:*
+        version: link:../client
+      '@rippledb/client-controllers':
+        specifier: workspace:*
+        version: link:../client-controllers
+      '@rippledb/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@rippledb/store-memory':
+        specifier: workspace:*
+        version: link:../store-memory
+      '@tanstack/query-core':
+        specifier: ^5.60.5
+        version: 5.90.20
       eslint:
         specifier: ^9.37.0
         version: 9.39.2(jiti@2.6.1)

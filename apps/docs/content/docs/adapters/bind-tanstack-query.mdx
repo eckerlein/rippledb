@@ -1,31 +1,35 @@
 ---
-title: bind-tanstack
+title: bind-tanstack-query
 description: TanStack Query invalidation binding for RippleDB
 ---
 
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
-# @rippledb/bind-tanstack
+# @rippledb/bind-tanstack-query
 
 Wire RippleDB `DbEvent`s to [TanStack Query](https://tanstack.com/query) cache invalidation. Works with any TanStack Query adapter (React, Vue, Solid, Svelte).
+
+<Callout type="info">
+This package is used internally by `@rippledb/client-query` to provide a complete data fetching and caching solution. Consider using [client-query](/docs/reference/client-query) for a more integrated experience.
+</Callout>
 
 ## Installation
 
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
 ```bash
-pnpm add @rippledb/bind-tanstack @tanstack/query-core
+pnpm add @rippledb/bind-tanstack-query @tanstack/query-core
 ```
   </Tab>
   <Tab value="npm">
 ```bash
-npm install @rippledb/bind-tanstack @tanstack/query-core
+npm install @rippledb/bind-tanstack-query @tanstack/query-core
 ```
   </Tab>
   <Tab value="yarn">
 ```bash
-yarn add @rippledb/bind-tanstack @tanstack/query-core
+yarn add @rippledb/bind-tanstack-query @tanstack/query-core
 ```
   </Tab>
 </Tabs>
@@ -37,7 +41,7 @@ If you're using a framework-specific TanStack Query (e.g. `@tanstack/react-query
 ## Basic Usage
 
 ```ts
-import { wireTanstackInvalidation, defineListRegistry } from '@rippledb/bind-tanstack';
+import { wireTanstackInvalidation, defineListRegistry } from '@rippledb/bind-tanstack-query';
 import { QueryClient } from '@tanstack/query-core';
 
 // 1. Define which query keys depend on which entities
@@ -150,7 +154,7 @@ wireTanstackInvalidation({
 ```tsx
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { wireTanstackInvalidation, defineListRegistry } from '@rippledb/bind-tanstack';
+import { wireTanstackInvalidation, defineListRegistry } from '@rippledb/bind-tanstack-query';
 import { store } from './ripple';  // Your RippleDB store
 
 const registry = defineListRegistry()

@@ -1,0 +1,105 @@
+---
+title: "@rippledb/client-query"
+description: Final DX package combining controllers + TanStack Query invalidation
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# @rippledb/client-query
+
+`@rippledb/client-query` is the ergonomic “final DX” client package that combines:
+
+- `@rippledb/client-controllers` — CRUD controllers (+ batch loading)
+- `@rippledb/bind-tanstack-query` — TanStack Query invalidation wiring
+
+It dynamically creates entity controllers from your runtime schema descriptor, so you can call `api.todos.*`, `api.users.*`, etc.
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @rippledb/client-query @tanstack/query-core
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @rippledb/client-query @tanstack/query-core
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @rippledb/client-query @tanstack/query-core
+```
+  </Tab>
+</Tabs>
+
+<Callout type="info">
+If you're using a framework-specific TanStack Query adapter (e.g. `@tanstack/react-query`), you already have `@tanstack/query-core` as a dependency.
+</Callout>
+
+## Basic Usage
+
+```ts
+import { QueryClient } from '@tanstack/query-core';
+import { defineSchema } from '@rippledb/core';
+import { createClientQueryApi } from '@rippledb/client-query';
+
+const queryClient = new QueryClient();
+
+const schema = defineSchema({
+  todos: { id: '', title: '', done: false },
+  users: { id: '', name: '', email: '' },
+});
+
+const api = createClientQueryApi({
+  store,
+  stream: 'user-123',
+  queryClient,
+  schema,
+});
+
+const todo = await api.todos.create({ title: 'Buy milk', done: false });
+const fetched = await api.todos.read(todo.id);
+```
+
+## Cached Query Helper
+
+`api.query()` uses TanStack Query’s `queryClient.fetchQuery(...)` under the hood, so results are cached and will be automatically invalidated when dependent entities change.
+
+```ts
+const todos = await api.query({
+  key: ['todos'],
+  deps: ['todos'],
+  fn: () => api.todos.list({ entity: 'todos' }),
+});
+```
+
+## List registry (recommended)
+
+If you want to pre-register list queries (recommended for consistent invalidation), provide a registry:
+
+```ts
+import { defineListRegistry } from '@rippledb/bind-tanstack-query';
+
+const registry = defineListRegistry()
+  .list(['todos'], { deps: ['todos'] })
+  .list(['dashboard'], { deps: ['todos', 'users'] });
+
+const api = createClientQueryApi({
+  store,
+  stream: 'user-123',
+  queryClient,
+  schema,
+  registry,
+});
+```
+
+## Related Packages
+
+- [@rippledb/core](/docs/reference/core) — runtime schema descriptor (`defineSchema`)
+- [@rippledb/client-controllers](/docs/adapters/controllers) — CRUD controllers
+- [@rippledb/bind-tanstack-query](/docs/adapters/bind-tanstack-query) — TanStack Query invalidation binding
+- [/docs/getting-started/concepts](/docs/getting-started/concepts) — Package relationship diagrams
+
