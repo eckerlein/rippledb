@@ -6,7 +6,7 @@ description: Abstract CRUD controllers with batch loading for RippleDB
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
-# @rippledb/controllers
+# @rippledb/client-controllers
 
 Abstract CRUD controllers with automatic batch loading for RippleDB. Provides a high-level data access layer on top of the `Store` interface.
 
@@ -15,17 +15,17 @@ Abstract CRUD controllers with automatic batch loading for RippleDB. Provides a 
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
 ```bash
-pnpm add @rippledb/controllers
+pnpm add @rippledb/client-controllers
 ```
   </Tab>
   <Tab value="npm">
 ```bash
-npm install @rippledb/controllers
+npm install @rippledb/client-controllers
 ```
   </Tab>
   <Tab value="yarn">
 ```bash
-yarn add @rippledb/controllers
+yarn add @rippledb/client-controllers
 ```
   </Tab>
 </Tabs>
@@ -33,7 +33,7 @@ yarn add @rippledb/controllers
 ## Basic Usage
 
 ```ts
-import { createEntityController } from '@rippledb/controllers';
+import { createEntityController } from '@rippledb/client-controllers';
 import { MemoryStore } from '@rippledb/store-memory';
 
 const store = new MemoryStore<MySchema>();
@@ -194,7 +194,7 @@ const controller = createEntityController({
 Use controllers for CRUD operations, and `bind-tanstack` for automatic cache invalidation:
 
 ```ts
-import { createEntityController } from '@rippledb/controllers';
+import { createEntityController } from '@rippledb/client-controllers';
 import { wireTanstackInvalidation } from '@rippledb/bind-tanstack';
 
 const todoController = createEntityController({
@@ -230,7 +230,7 @@ function TodoList() {
 You can also use the batch loader directly:
 
 ```ts
-import { createBatchLoader } from '@rippledb/controllers';
+import { createBatchLoader } from '@rippledb/client-controllers';
 
 const batchLoader = createBatchLoader(store, 'todos');
 

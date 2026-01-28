@@ -1,4 +1,4 @@
-# @rippledb/controllers
+# @rippledb/client-controllers
 
 Abstract CRUD controllers with batch loading for RippleDB.
 
@@ -7,13 +7,13 @@ Abstract CRUD controllers with batch loading for RippleDB.
 ## Installation
 
 ```bash
-npm install @rippledb/controllers
+npm install @rippledb/client-controllers
 ```
 
 ## Usage
 
 ```typescript
-import { createEntityController } from '@rippledb/controllers';
+import { createEntityController } from '@rippledb/client-controllers';
 import { MemoryStore } from '@rippledb/store-memory';
 
 const store = new MemoryStore<MySchema>();
