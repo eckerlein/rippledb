@@ -186,16 +186,16 @@ const controller = createEntityController({
 });
 ```
 
-## Relationship to bind-tanstack
+## Relationship to bind-tanstack-query
 
 - **Controllers**: Handle reads/writes and batch loading (data access layer)
-- **bind-tanstack**: Handles cache invalidation (UI reactivity layer)
+- **bind-tanstack-query**: Handles cache invalidation (UI reactivity layer)
 
-Use controllers for CRUD operations, and `bind-tanstack` for automatic cache invalidation:
+Use controllers for CRUD operations, and `bind-tanstack-query` for automatic cache invalidation:
 
 ```ts
 import { createEntityController } from '@rippledb/client-controllers';
-import { wireTanstackInvalidation } from '@rippledb/bind-tanstack';
+import { wireTanstackInvalidation } from '@rippledb/bind-tanstack-query';
 
 const todoController = createEntityController({
   store,
@@ -218,7 +218,7 @@ function TodoList() {
 
   const handleCreate = async () => {
     await todoController.create({ title: 'New todo' });
-    // Cache is automatically invalidated via bind-tanstack
+    // Cache is automatically invalidated via bind-tanstack-query
   };
 
   // ...

@@ -1,4 +1,4 @@
-# @rippledb/bind-tanstack
+# @rippledb/bind-tanstack-query
 
 ## 0.1.1
 
@@ -12,7 +12,7 @@
 
 ### Minor Changes
 
-- [`307e39a`](https://github.com/eckerlein/rippledb/commit/307e39aea101f97ef9d888baabfb50dbbff0a412) Thanks [@Jan-Eckerlein](https://github.com/Jan-Eckerlein)! - Add @rippledb/bind-tanstack — TanStack Query cache invalidation binding
+- [`307e39a`](https://github.com/eckerlein/rippledb/commit/307e39aea101f97ef9d888baabfb50dbbff0a412) Thanks [@Jan-Eckerlein](https://github.com/Jan-Eckerlein)! - Add @rippledb/bind-tanstack-query — TanStack Query cache invalidation binding
   - `defineListRegistry()` builder for mapping query keys to entity dependencies
   - `wireTanstackInvalidation()` to wire DbEvents to queryClient.invalidateQueries()
   - Debounce support (default 50ms) to coalesce rapid-fire events

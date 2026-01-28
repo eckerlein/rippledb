@@ -1,6 +1,6 @@
 ---
 title: "ADR-0017: UI Integrations Live in bind-* Packages"
-description: Cache invalidation wiring is UI-specific; ship it as optional bind-* packages (e.g. bind-tanstack).
+description: Cache invalidation wiring is UI-specific; ship it as optional bind-* packages (e.g. bind-tanstack-query).
 ---
 
 ## Status
@@ -15,7 +15,7 @@ Invalidation wiring is cache/UI-specific and not part of the replication core. H
 
 UI/caching integration is shipped as separate packages, for example:
 
-- `@rippledb/bind-tanstack`
+- `@rippledb/bind-tanstack-query`
 
 Responsibilities include:
 

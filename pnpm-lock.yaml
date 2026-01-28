@@ -103,7 +103,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/bind-tanstack:
+  packages/bind-tanstack-query:
     dependencies:
       '@rippledb/client':
         specifier: workspace:*

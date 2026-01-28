@@ -14,7 +14,7 @@
     "---Stores---",
     "store-memory",
     "---Bindings---",
-    "bind-tanstack",
+    "bind-tanstack-query",
     "controllers"
   ]
 }

@@ -104,7 +104,7 @@ export type WireTanstackInvalidationOptions<
  *
  * @example
  * ```ts
- * import { wireTanstackInvalidation, defineListRegistry } from '@rippledb/bind-tanstack';
+ * import { wireTanstackInvalidation, defineListRegistry } from '@rippledb/bind-tanstack-query';
  *
  * const registry = defineListRegistry()
  *   .list(['todos'], { deps: ['todos'] })

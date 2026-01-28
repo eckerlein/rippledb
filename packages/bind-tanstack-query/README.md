@@ -1,19 +1,19 @@
-# @rippledb/bind-tanstack
+# @rippledb/bind-tanstack-query
 
 TanStack Query cache invalidation binding for RippleDB.
 
-📚 **Documentation:** [rippledb.dev/docs/adapters/bind-tanstack](https://rippledb.dev/docs/adapters/bind-tanstack)
+📚 **Documentation:** [rippledb.dev/docs/adapters/bind-tanstack-query](https://rippledb.dev/docs/adapters/bind-tanstack-query)
 
 ## Installation
 
 ```bash
-npm install @rippledb/bind-tanstack @tanstack/query-core
+npm install @rippledb/bind-tanstack-query @tanstack/query-core
 ```
 
 ## Usage
 
 ```typescript
-import { wireTanstackInvalidation, defineListRegistry } from '@rippledb/bind-tanstack';
+import { wireTanstackInvalidation, defineListRegistry } from '@rippledb/bind-tanstack-query';
 
 // 1. Define which query keys depend on which entities
 const registry = defineListRegistry()
