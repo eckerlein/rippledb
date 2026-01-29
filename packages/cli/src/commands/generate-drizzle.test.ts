@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadConfig } from '../utils/config-loader.js';
 import { generateFromDrizzle } from './generate-drizzle.js';
+import { createConsoleLogger } from '../logger.js';
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), 'rippledb-cli-'));
@@ -71,6 +72,9 @@ export const todos = sqliteTable('todos', {
         output: outputPath,
       },
       dir,
+      {
+        logger: createConsoleLogger('test'),
+      },
     );
 
     const generated = await readFile(outputPath, 'utf-8');
