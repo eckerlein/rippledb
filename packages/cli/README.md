@@ -2,6 +2,8 @@
 
 CLI tools for RippleDB - schema codegen and utilities.
 
+📖 **[Full Documentation](https://rippledb.dev/docs/reference/cli)**
+
 ## Installation
 
 ```bash
