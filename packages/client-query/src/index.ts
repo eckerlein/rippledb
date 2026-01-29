@@ -1,5 +1,11 @@
 import type { Store } from '@rippledb/client';
-import type { RippleSchema, EntityName, SchemaDescriptor } from '@rippledb/core';
+import type {
+  RippleSchema,
+  EntityName,
+  SchemaDescriptor,
+  DescriptorSchema,
+  InferSchema,
+} from '@rippledb/core';
 import type { QueryClient } from '@tanstack/query-core';
 import { createEntityController, type EntityController } from '@rippledb/client-controllers';
 import { wireTanstackInvalidation, type ListRegistry } from '@rippledb/bind-tanstack-query';
@@ -80,13 +86,14 @@ export type ClientQueryApi<
 };
 
 export type CreateClientQueryApiOptions<
-  S extends RippleSchema = RippleSchema,
+  D extends DescriptorSchema = DescriptorSchema,
   ListQuery = unknown,
 > = {
   /**
    * The Store instance to operate on.
+   * Must be typed with the inferred schema type.
    */
-  store: Store<S, ListQuery>;
+  store: Store<InferSchema<SchemaDescriptor<D>>, ListQuery>;
   
   /**
    * The stream ID for all changes created by controllers.
@@ -101,7 +108,7 @@ export type CreateClientQueryApiOptions<
   /**
    * Schema descriptor for runtime entity discovery.
    */
-  schema: SchemaDescriptor<S>;
+  schema: SchemaDescriptor<D>;
   
   /**
    * Optional list registry for custom query key mappings.
@@ -125,13 +132,24 @@ export type CreateClientQueryApiOptions<
  * 
  * @example
  * ```ts
- * import { defineSchema } from '@rippledb/core';
+ * import { defineSchema, s, InferSchema } from '@rippledb/core';
  * import { createClientQueryApi } from '@rippledb/client-query';
  * 
  * const schema = defineSchema({
- *   todos: { id: '', title: '', done: false },
- *   users: { id: '', name: '', email: '' },
+ *   todos: {
+ *     id: s.string(),
+ *     title: s.string(),
+ *     done: s.boolean(),
+ *   },
+ *   users: {
+ *     id: s.string(),
+ *     name: s.string(),
+ *     email: s.string(),
+ *   },
  * });
+ * 
+ * type MySchema = InferSchema<typeof schema>;
+ * const store = new MemoryStore<MySchema>();
  * 
  * const api = createClientQueryApi({
  *   store,
@@ -146,9 +164,13 @@ export type CreateClientQueryApiOptions<
  * ```
  */
 export function createClientQueryApi<
-  S extends RippleSchema = RippleSchema,
+  D extends DescriptorSchema,
   ListQuery = unknown,
->(options: CreateClientQueryApiOptions<S, ListQuery>): ClientQueryApi<S, ListQuery> {
+>(
+  options: CreateClientQueryApiOptions<D, ListQuery>,
+): ClientQueryApi<InferSchema<SchemaDescriptor<D>>, ListQuery> {
+  type S = InferSchema<SchemaDescriptor<D>>;
+  
   const {
     store,
     stream,
@@ -161,7 +183,9 @@ export function createClientQueryApi<
   // Create controllers for each entity dynamically
   const controllers = {} as Record<EntityName<S>, EntityController<S, EntityName<S>, ListQuery>>;
   
-  for (const entity of schema.entities) {
+  for (const entityName of schema.entities) {
+    // Cast entity name to the correct type
+    const entity = entityName as EntityName<S>;
     controllers[entity] = createEntityController({
       store,
       entity,

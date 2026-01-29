@@ -208,88 +208,130 @@ type DeleteChangeInput<S, E> = {
 
 ## Schema Definition
 
-Define your schema as a TypeScript type:
+RippleDB uses typed field descriptors to define schemas with full type inference and runtime metadata.
+
+### `defineSchema()` and Field Descriptors
+
+Use `defineSchema()` with `s.*` field builders to define your schema:
 
 ```ts
-// Each key is an entity name
-// Each value is the shape of that entity's data
-type MySchema = {
+import { defineSchema, s, InferSchema } from '@rippledb/core';
+
+const status = ['pending', 'active', 'done'] as const;
+
+const schema = defineSchema({
   todos: {
-    id: string;
-    title: string;
-    done: boolean;
-    createdAt: string;
-  };
+    id: s.string(),
+    title: s.string(),
+    done: s.boolean(),
+    status: s.enum(status),
+    notes: s.string().optional(),
+  },
   users: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  comments: {
-    id: string;
-    todoId: string;
-    text: string;
-  };
-};
+    id: s.string(),
+    name: s.string(),
+    email: s.string(),
+  },
+});
+
+// Infer the TypeScript type from the schema
+type MySchema = InferSchema<typeof schema>;
+// = {
+//   todos: { id: string; title: string; done: boolean; status: 'pending' | 'active' | 'done'; notes: string | undefined }
+//   users: { id: string; name: string; email: string }
+// }
+
+// Use the inferred type with other RippleDB APIs
+const store = new MemoryStore<MySchema>();
+```
+
+### Field Descriptor Builders
+
+The `s` object provides builders for all supported field types:
+
+| Builder | TypeScript Type | Description |
+|---------|-----------------|-------------|
+| `s.string()` | `string` | String field |
+| `s.number()` | `number` | Number field |
+| `s.boolean()` | `boolean` | Boolean field |
+| `s.enum(['a', 'b'])` | `'a' \| 'b'` | String literal union (use `as const` for inference) |
+
+All builders support the `.optional()` modifier:
+
+```ts
+s.string().optional()  // string | undefined
+s.number().optional()  // number | undefined
 ```
 
 <Callout type="info">
-The schema type is used for compile-time type checking only. It doesn't create database tables.
+Tip: Use a const assertion on your enum array for literal type inference. Without it, TypeScript infers `string[]` instead of the literal union.
 </Callout>
+
+### `InferSchema<D>`
+
+Type helper to extract the data type from a schema descriptor:
+
+```ts
+import { defineSchema, s, InferSchema } from '@rippledb/core';
+
+const schema = defineSchema({
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+});
+
+type MySchema = InferSchema<typeof schema>;
+// { todos: { id: string; title: string; done: boolean } }
+```
 
 ## Runtime Schema Descriptor
 
-For runtime entity discovery and metadata attachment, use `defineSchema()` to create a schema descriptor:
+The `defineSchema()` function returns a `SchemaDescriptor` that provides runtime entity discovery and metadata attachment.
 
-### `defineSchema<S>(entities): SchemaDescriptor<S>`
-
-Creates a runtime schema descriptor that provides entity discovery, property discovery, and extensible metadata attachment.
+### Runtime Discovery
 
 ```ts
-import { defineSchema } from '@rippledb/core';
-
 const schema = defineSchema({
-  todos: { id: '', title: '', done: false },
-  users: { id: '', name: '', email: '' },
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+  users: { id: s.string(), name: s.string(), email: s.string() },
 });
 
-// Runtime entity discovery
+// Entity discovery
 schema.entities; // ['todos', 'users']
 schema.entityMap.has('todos'); // true
 
-// Runtime property discovery
+// Field discovery
 schema.getFields('todos'); // ['id', 'title', 'done']
 schema.hasField('todos', 'title'); // true
 schema.hasField('todos', 'missing'); // false
 
-// Type inference still works
-type MySchema = typeof schema.schema;
-const db = new SqliteDb<MySchema>({ filename: './data.db' });
+// Field type access
+schema.getFieldDescriptor('todos', 'done');
+// { _type: 'boolean', _optional: false }
 ```
-
-**Note:** The values in the entity objects are used to infer field names at runtime. Use sample/default values (empty strings, `false`, `0`, etc.) that match your TypeScript types.
 
 ### Schema Descriptor API
 
 ```ts
-type SchemaDescriptor<S extends RippleSchema> = {
-  // Original schema (for type inference and runtime introspection)
+type SchemaDescriptor<S extends DescriptorSchema> = {
+  // Original schema with field descriptors
   readonly schema: S;
   
   // Array of entity names for runtime discovery
-  readonly entities: readonly EntityName<S>[];
+  readonly entities: readonly (keyof S & string)[];
   
   // Map for O(1) entity lookup
-  readonly entityMap: ReadonlyMap<EntityName<S>, true>;
+  readonly entityMap: ReadonlyMap<keyof S & string, true>;
   
   // Map of entity names to their field names
-  readonly entityFields: ReadonlyMap<EntityName<S>, readonly string[]>;
+  readonly entityFields: ReadonlyMap<keyof S & string, readonly string[]>;
   
   // Get field names for a specific entity
-  getFields<E extends EntityName<S>>(entity: E): readonly string[];
+  getFields<E extends keyof S & string>(entity: E): readonly string[];
   
   // Check if an entity has a specific field
-  hasField<E extends EntityName<S>>(entity: E, field: string): boolean;
+  hasField<E extends keyof S & string>(entity: E, field: string): boolean;
+  
+  // Get field descriptor for runtime type access
+  getFieldDescriptor<E, F>(entity: E, field: F): FieldDescriptor | undefined;
   
   // Extensible metadata (Zod schemas, Drizzle tables, etc.)
   readonly extensions: ReadonlyMap<string, SchemaExtension>;
@@ -307,13 +349,21 @@ type SchemaDescriptor<S extends RippleSchema> = {
 Extensions allow adapters to attach metadata to schema descriptors:
 
 ```ts
-// Example: Attach Zod schemas (future @rippledb/zod integration)
-const schemaWithZod = schema.extend('zod', {
-  todos: z.object({ id: z.string(), title: z.string() }),
-  users: z.object({ id: z.string(), name: z.string() }),
+import { withZod } from '@rippledb/zod';
+import { z } from 'zod';
+
+// Using the withZod() wrapper for auto-generated Zod schemas
+const schemaWithZod = withZod(schema);
+schemaWithZod.zod.todos.parse(data); // Auto-generated from field descriptors
+
+// With custom refinements
+const schemaWithRefinements = withZod(schema, {
+  users: {
+    email: z.string().email(),
+  },
 });
 
-// Example: Attach Drizzle table mappings (future integration)
+// Manual extension attachment
 const schemaWithDrizzle = schema.extend('drizzle', {
   tableMap: { todos: todosTable, users: usersTable },
 });
@@ -322,7 +372,7 @@ const schemaWithDrizzle = schema.extend('drizzle', {
 ### Use Cases
 
 - **Controllers / client-query**: Build `api.todos`, `api.users` dynamically from `descriptor.entities`
-- **Zod validation**: Attach schemas for per-entity validation (see [issue #7](https://github.com/eckerlein/rippledb/issues/7))
+- **Zod validation**: Use `withZod()` for auto-generated or custom validation (see [@rippledb/zod](/docs/reference/zod))
 - **Drizzle adapters**: Attach table definitions as single source of truth
 - **Materializers**: Read `tableMap` from descriptor instead of separate config
 
