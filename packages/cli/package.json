@@ -1,0 +1,71 @@
+{
+  "name": "@rippledb/cli",
+  "version": "0.0.1",
+  "description": "CLI tools for RippleDB - schema codegen and utilities",
+  "type": "module",
+  "bin": {
+    "rippledb": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "tsup": {
+    "entry": [
+      "src/index.ts",
+      "src/config.ts"
+    ],
+    "format": [
+      "esm"
+    ],
+    "dts": false,
+    "sourcemap": true,
+    "clean": true
+  },
+  "dependencies": {
+    "@rippledb/core": "workspace:*",
+    "commander": "^12.0.0",
+    "jiti": "^2.4.0"
+  },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.30.0"
+  },
+  "peerDependenciesMeta": {
+    "drizzle-orm": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "drizzle-orm": "^0.38.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.6.3"
+  },
+  "keywords": [
+    "rippledb",
+    "cli",
+    "codegen",
+    "drizzle"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eckerlein/rippledb.git",
+    "directory": "packages/cli"
+  }
+}
