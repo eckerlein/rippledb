@@ -11,6 +11,14 @@ import type {
 
 /**
  * Typed overrides for Zod schemas - constrained to valid entities and fields.
+ * 
+ * TypeScript's structural typing allows extra properties in object literals when
+ * assigned to variables. However, when passed directly to `withZod()` or 
+ * `generateZodSchemas()`, TypeScript will check compatibility more strictly.
+ * 
+ * To test for type errors, use a `.test-d.ts` file with `@ts-expect-error` comments.
+ * Note: Due to TypeScript limitations, extra properties may not always be caught
+ * at compile time. Consider runtime validation if strict enforcement is required.
  */
 export type ZodOverrides<S extends DescriptorSchema> = {
   [E in keyof S]?: {

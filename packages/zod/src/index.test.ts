@@ -233,6 +233,30 @@ describe('@rippledb/zod', () => {
       expect(invalidResult.success).toBe(false);
     });
 
+    it('validates types of passed in overrides', () => {
+      const schema = defineSchema({
+        items: {
+          id: s.string(),
+          count: s.number(),
+          price: s.number(),
+        },
+      });
+
+      // Valid overrides - only fields that exist in the schema
+      const validOverrides = {
+        items: {
+          count: z.number().int().min(0).max(100),
+          price: z.number().min(0).max(1000),
+        },
+      };
+
+      withZod(schema, validOverrides);
+    });
+
+    // Note: Type error tests for extra fields/entities are in index.test-d.ts
+    // Vitest runs .test-d.ts files through tsc and will fail tests if type errors
+    // occur unexpectedly or if @ts-expect-error directives are unused.
+
     it('supports enum fields', () => {
       const schema = defineSchema({
         tasks: {
