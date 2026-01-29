@@ -3,10 +3,12 @@ import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { loadConfig } from '../utils/config-loader.js';
 import { generateFromDrizzle } from './generate-drizzle.js';
+import { createConsoleLogger } from '../logger.js';
 
 export const generateCommand = new Command('generate')
   .description('Generate RippleDB schemas from external sources')
   .option('-c, --config <path>', 'Path to config file', 'ripple.config.ts')
+  .option('-q, --quiet', 'Suppress informational logs', false)
   .action(async (options) => {
     const configPath = resolve(process.cwd(), options.config);
 
@@ -16,7 +18,8 @@ export const generateCommand = new Command('generate')
       process.exit(1);
     }
 
-    console.log(`Loading config from: ${configPath}`);
+    const logger = createConsoleLogger(options.quiet ? 'test' : 'normal');
+    logger.log?.(`Loading config from: ${configPath}`);
     const config = await loadConfig(configPath);
 
     if (!config.codegen) {
@@ -26,9 +29,9 @@ export const generateCommand = new Command('generate')
 
     const { codegen } = config;
     if (codegen.drizzle) {
-      console.log('Generating RippleDB schema from Drizzle...');
-      await generateFromDrizzle(codegen.drizzle, process.cwd());
-      console.log('Done!');
+      logger.log?.('Generating RippleDB schema from Drizzle...');
+      await generateFromDrizzle(codegen.drizzle, process.cwd(), { logger });
+      logger.log?.('Done!');
     } else {
       console.error('No codegen source configured. Add drizzle config to codegen section.');
       process.exit(1);

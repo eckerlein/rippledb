@@ -2,13 +2,19 @@ import { resolve, dirname } from 'node:path';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import type { DrizzleCodegenConfig } from '../config.js';
 import { createRequire } from 'node:module';
+import { createConsoleLogger, type Logger } from '../logger.js';
+
 const require = createRequire(import.meta.url);
 const packageJson = require('../../package.json');
 
 /**
  * Maps Drizzle column data types to RippleDB field descriptor calls
  */
-function drizzleTypeToRipple(dataType: string, isNotNull: boolean): string {
+function drizzleTypeToRipple(
+  dataType: string,
+  isNotNull: boolean,
+  warn?: (message: string) => void,
+): string {
   let base: string;
 
   switch (dataType) {
@@ -35,7 +41,7 @@ function drizzleTypeToRipple(dataType: string, isNotNull: boolean): string {
       break;
     default:
       // Default to string for unknown types
-      console.warn(`Unknown Drizzle type "${dataType}", defaulting to s.string()`);
+      warn?.(`Unknown Drizzle type "${dataType}", defaulting to s.string()`);
       base = 's.string()';
   }
 
@@ -65,9 +71,11 @@ interface TableInfo {
 export async function generateFromDrizzle(
   config: DrizzleCodegenConfig,
   cwd: string,
+  options?: { logger?: Logger },
 ): Promise<void> {
   const entitiesPath = resolve(cwd, config.entities);
   const outputPath = resolve(cwd, config.output);
+  const logger = options?.logger ?? createConsoleLogger();
 
   // Dynamically import drizzle-orm utilities
   type DrizzleOrm = typeof import('drizzle-orm');
@@ -76,8 +84,8 @@ export async function generateFromDrizzle(
   try {
     drizzleOrm = await import('drizzle-orm');
   } catch {
-    console.error('Error: drizzle-orm is required for Drizzle codegen');
-    console.error('Install it with: pnpm add -D drizzle-orm');
+    logger.error?.('Error: drizzle-orm is required for Drizzle codegen');
+    logger.error?.('Install it with: pnpm add -D drizzle-orm');
     process.exit(1);
   }
 
@@ -89,10 +97,10 @@ export async function generateFromDrizzle(
   try {
     const { createJiti } = await import('jiti');
     const jiti = createJiti(cwd);
-    entityModule = await jiti.import(entitiesPath) as Record<string, unknown>;
+    entityModule = (await jiti.import(entitiesPath)) as Record<string, unknown>;
   } catch (err) {
-    console.error(`Error loading entities file: ${entitiesPath}`);
-    console.error(err);
+    logger.error?.(`Error loading entities file: ${entitiesPath}`);
+    logger.error?.(err instanceof Error ? err.message : String(err));
     process.exit(1);
   }
 
@@ -107,13 +115,15 @@ export async function generateFromDrizzle(
   }
 
   if (tables.length === 0) {
-    console.error('No Drizzle tables found in entities file');
-    console.error(`File: ${entitiesPath}`);
-    console.error('Make sure you export Drizzle table definitions');
+    logger.error?.('No Drizzle tables found in entities file');
+    logger.error?.(`File: ${entitiesPath}`);
+    logger.error?.('Make sure you export Drizzle table definitions');
     process.exit(1);
   }
 
-  console.log(`Found ${tables.length} table${(tables.length === 1 ? '' : 's')}: ${tables.map(t => t.name).join(', ')}`);
+  logger.log?.(
+    `Found ${tables.length} table${tables.length === 1 ? '' : 's'}: ${tables.map((t) => t.name).join(', ')}`,
+  );
 
   // Build the schema definition
   const entityDefinitions: string[] = [];
@@ -123,7 +133,7 @@ export async function generateFromDrizzle(
     const fieldDefinitions: string[] = [];
 
     for (const [columnName, column] of Object.entries(columns)) {
-      const fieldType = drizzleTypeToRipple(column.dataType, column.notNull);
+      const fieldType = drizzleTypeToRipple(column.dataType, column.notNull, logger.warn);
       fieldDefinitions.push(`    ${columnName}: ${fieldType},`);
     }
 
@@ -150,5 +160,5 @@ export type Schema = InferSchema<typeof schema>;
 
   // Write the output file
   writeFileSync(outputPath, output, 'utf-8');
-  console.log(`Generated: ${outputPath}`);
+  logger.log?.(`Generated: ${outputPath}`);
 }
