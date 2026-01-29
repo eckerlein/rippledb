@@ -4,54 +4,142 @@ description: Zod schemas for runtime validation of RippleDB payloads
 ---
 
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
 
 # @rippledb/zod
 
 Runtime validation helpers for RippleDB types using [Zod](https://zod.dev/).
 
-This is useful at boundaries where untrusted input enters your system:
+This is useful for:
 
-- validating server request bodies (`pull`, `append`)
-- validating events/messages between systems
-- validating persisted JSON blobs
+- **Auto-generating Zod schemas** from your schema descriptor
+- Validating server request bodies (`pull`, `append`)
+- Validating events/messages between systems
+- Validating persisted JSON blobs
 
 ## Installation
 
 <Tabs items={['pnpm', 'npm', 'yarn']}>
   <Tab value="pnpm">
 ```bash
-pnpm add @rippledb/zod zod
+pnpm add @rippledb/zod @rippledb/core zod
 ```
   </Tab>
   <Tab value="npm">
 ```bash
-npm install @rippledb/zod zod
+npm install @rippledb/zod @rippledb/core zod
 ```
   </Tab>
   <Tab value="yarn">
 ```bash
-yarn add @rippledb/zod zod
+yarn add @rippledb/zod @rippledb/core zod
 ```
   </Tab>
 </Tabs>
 
-## Provided Schemas
+## withZod() - Auto-Generated Schemas
 
-- `hlcSchema`
-- `changeKindSchema`
-- `changeSchema` (generic “unknown patch” change)
-- `pullRequestSchema`
-- `pullResponseSchema`
-- `appendRequestSchema`
-- `appendResultSchema`
+The `withZod()` function automatically generates Zod schemas from your field descriptors:
 
-## Roadmap
+```ts
+import { defineSchema, s, InferSchema } from '@rippledb/core';
+import { withZod } from '@rippledb/zod';
 
-- Per-entity patch validation (so `entity: "todos"` validates `patch` against the `todos` schema automatically): see [GitHub issue #7](https://github.com/eckerlein/rippledb/issues/7).
+const schema = defineSchema({
+  todos: {
+    id: s.string(),
+    title: s.string(),
+    done: s.boolean(),
+    status: s.enum(['pending', 'active', 'done']),
+    notes: s.string().optional(),
+  },
+  users: {
+    id: s.string(),
+    name: s.string(),
+    email: s.string(),
+  },
+});
+
+// Wrap with auto-generated Zod schemas
+const schemaWithZod = withZod(schema);
+
+// Validate data
+const todo = schemaWithZod.zod.todos.parse({
+  id: '1',
+  title: 'Buy milk',
+  done: false,
+  status: 'pending',
+});
+
+// Safe parsing
+const result = schemaWithZod.zod.users.safeParse(untrustedInput);
+if (result.success) {
+  console.log(result.data);
+} else {
+  console.error(result.error);
+}
+```
+
+### Custom Refinements
+
+Override specific fields with custom Zod schemas for additional validation:
+
+```ts
+import { z } from 'zod';
+
+const schemaWithRefinements = withZod(schema, {
+  todos: {
+    title: z.string().min(1).max(100),
+  },
+  users: {
+    email: z.string().email(),
+    name: z.string().min(2),
+  },
+});
+
+// Now email validation is enforced
+schemaWithRefinements.zod.users.parse({
+  id: '1',
+  name: 'Jo',  // Valid (length >= 2)
+  email: 'not-an-email',  // ❌ Throws ZodError
+});
+```
+
+<Callout type="info">
+Override types are fully typed - you'll get autocomplete for valid entity names and field names.
+</Callout>
+
+### generateZodSchemas()
+
+If you only need the Zod schemas without wrapping the descriptor:
+
+```ts
+import { generateZodSchemas } from '@rippledb/zod';
+
+const zodSchemas = generateZodSchemas(schema);
+
+// Use directly
+zodSchemas.todos.parse(data);
+zodSchemas.users.parse(data);
+```
+
+## Protocol Schemas
+
+Pre-built schemas for RippleDB protocol types:
+
+| Schema | Description |
+|--------|-------------|
+| `hlcSchema` | HLC timestamp format (`{wallMs}:{counter}:{nodeId}`) |
+| `changeKindSchema` | `'upsert' \| 'delete'` |
+| `changeSchema` | Generic change with unknown patch |
+| `pullRequestSchema` | Pull request body |
+| `pullResponseSchema` | Pull response body |
+| `appendRequestSchema` | Append request body |
+| `appendResultSchema` | Append result body |
 
 ## Typed Change Schema
 
-If you know your patch shape, build a typed schema:
+For typed change validation:
 
 ```ts
 import { z } from 'zod';
@@ -66,3 +154,6 @@ const todoPatchSchema = z.object({
 const todoChangeSchema = createChangeSchema(todoPatchSchema);
 ```
 
+## Roadmap
+
+- Per-entity patch validation (so `entity: "todos"` validates `patch` against the `todos` schema automatically): see [GitHub issue #7](https://github.com/eckerlein/rippledb/issues/7).
