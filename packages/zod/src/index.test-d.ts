@@ -15,7 +15,7 @@ import { test } from 'vitest';
  * - @ts-expect-error is used but no error occurs (unused directive)
  */
 
-test('valid overrides work correctly (no type errors)', () => {
+test('valid overrides compile without errors', () => {
   const schema = defineSchema({
     items: {
       id: s.string(),
@@ -71,7 +71,7 @@ test('extra fields in overrides cause type errors', () => {
   });
 });
 
-test('extra fields in overrides cause type errors when passed in not directly in withZod', () => {
+test('extra fields in const overrides cause type errors', () => {
   const schema = defineSchema({
     items: {
       id: s.string(),
@@ -111,7 +111,7 @@ test('extra entities in overrides cause type errors', () => {
 });
 
 
-test('extra entities in overrides cause type errors when passed in not directly in withZod', () => {
+test('extra entities in const overrides cause type errors', () => {
   const schema = defineSchema({
     items: {
       id: s.string(),
@@ -130,4 +130,17 @@ test('extra entities in overrides cause type errors when passed in not directly 
 
   // @ts-expect-error - 'users' entity does not exist in schema
   withZod(schema, overrides);
+});
+
+test('empty overrides object is valid', () => {
+  const schema = defineSchema({
+    items: {
+      id: s.string(),
+      count: s.number(),
+    },
+  });
+
+  // Empty overrides should NOT cause type errors
+  withZod(schema, {});
+  generateZodSchemas(schema, {});
 });

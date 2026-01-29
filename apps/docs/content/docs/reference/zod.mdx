@@ -117,7 +117,8 @@ If you want to define overrides separately (e.g., in another file), use the `Zod
 import { z } from 'zod';
 import { withZod, ZodOverrides } from '@rippledb/zod';
 
-// Define overrides with full type safety and autocomplete
+// ZodOverrides expects the raw schema type, not SchemaDescriptor
+// Use schema['schema'] to access the underlying descriptor
 const myOverrides: ZodOverrides<typeof schema['schema']> = {
   todos: {
     title: z.string().min(1).max(100),
