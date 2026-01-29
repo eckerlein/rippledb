@@ -128,5 +128,6 @@ test('extra entities in overrides cause type errors when passed in not directly 
     },
   };
 
+  // @ts-expect-error - 'users' entity does not exist in schema
   withZod(schema, overrides);
 });
