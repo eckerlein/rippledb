@@ -4,6 +4,8 @@ CLI tools for RippleDB - schema codegen and utilities.
 
 📖 **[Full Documentation](https://rippledb.dev/docs/reference/cli)**
 
+👉 Config files are **validated at runtime** using a tiny `valibot` schema, so typos/missing keys fail fast before generation runs.
+
 ## Installation
 
 ```bash
