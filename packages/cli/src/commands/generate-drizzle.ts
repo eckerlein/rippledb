@@ -8,6 +8,32 @@ const require = createRequire(import.meta.url);
 const packageJson = require('../../package.json');
 
 /**
+ * Check if a string is a valid JavaScript identifier (can be used as unquoted property name)
+ */
+function isValidIdentifier(name: string): boolean {
+  // Must start with letter, underscore, or $, then contain only those plus digits
+  // Also must not be a reserved word
+  const reservedWords = new Set([
+    'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
+    'delete', 'do', 'else', 'enum', 'export', 'extends', 'false', 'finally', 'for',
+    'function', 'if', 'import', 'in', 'instanceof', 'new', 'null', 'return', 'super',
+    'switch', 'this', 'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with',
+    'yield', 'let', 'static', 'implements', 'interface', 'package', 'private',
+    'protected', 'public', 'await',
+  ]);
+  
+  if (reservedWords.has(name)) return false;
+  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name);
+}
+
+/**
+ * Format a property name for use in generated code (quote if necessary)
+ */
+function formatPropertyName(name: string): string {
+  return isValidIdentifier(name) ? name : JSON.stringify(name);
+}
+
+/**
  * Maps Drizzle column data types to RippleDB field descriptor calls
  */
 function drizzleTypeToRipple(
@@ -134,10 +160,10 @@ export async function generateFromDrizzle(
 
     for (const [columnName, column] of Object.entries(columns)) {
       const fieldType = drizzleTypeToRipple(column.dataType, column.notNull, logger.warn);
-      fieldDefinitions.push(`    ${columnName}: ${fieldType},`);
+      fieldDefinitions.push(`    ${formatPropertyName(columnName)}: ${fieldType},`);
     }
 
-    entityDefinitions.push(`  ${name}: {\n${fieldDefinitions.join('\n')}\n  },`);
+    entityDefinitions.push(`  ${formatPropertyName(name)}: {\n${fieldDefinitions.join('\n')}\n  },`);
   }
 
   // Generate the output file content
