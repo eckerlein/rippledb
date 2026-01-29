@@ -82,7 +82,11 @@ if (result.success) {
 
 ### Custom Refinements
 
-Override specific fields with custom Zod schemas for additional validation:
+Override specific fields with custom Zod schemas for additional validation.
+
+#### Inline Overrides
+
+Pass overrides directly to `withZod()` - you get full autocomplete for entity and field names:
 
 ```ts
 import { z } from 'zod';
@@ -105,8 +109,30 @@ schemaWithRefinements.zod.users.parse({
 });
 ```
 
+#### Typed External Overrides
+
+If you want to define overrides separately (e.g., in another file), use the `ZodOverrides` type:
+
+```ts
+import { z } from 'zod';
+import { withZod, ZodOverrides } from '@rippledb/zod';
+
+// Define overrides with full type safety and autocomplete
+const myOverrides: ZodOverrides<typeof schema['schema']> = {
+  todos: {
+    title: z.string().min(1).max(100),
+  },
+  users: {
+    email: z.string().email(),
+  },
+};
+
+// Pass to withZod later
+const schemaWithRefinements = withZod(schema, myOverrides);
+```
+
 <Callout type="info">
-Override types are fully typed - you'll get autocomplete for valid entity names and field names.
+Both patterns provide full autocomplete for valid entity and field names. Use inline for simple cases, typed external when overrides need to be shared or organized separately.
 </Callout>
 
 ### generateZodSchemas()
