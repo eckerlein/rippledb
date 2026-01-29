@@ -10,15 +10,26 @@ import type {
 // ============================================================================
 
 /**
+ * Helper type to validate that overrides only contain valid entities and fields.
+ * When used with `as const`, this helps catch extra properties even when assigned to variables.
+ */
+type ValidateOverrides<S extends DescriptorSchema, O> = 
+  // Check that all entity keys in O are valid entities in S
+  keyof O extends keyof S
+    ? // For each entity, check that all field keys are valid
+      {
+        [E in keyof O]: E extends keyof S
+          ? keyof O[E] extends keyof S[E]
+            ? unknown // Valid
+            : never // Invalid - has extra fields
+          : never; // Invalid - entity doesn't exist
+      }[keyof O] extends never
+        ? never // At least one entity has invalid fields
+        : O // All valid
+    : never; // Has extra entities
+
+/**
  * Typed overrides for Zod schemas - constrained to valid entities and fields.
- * 
- * TypeScript's structural typing allows extra properties in object literals when
- * assigned to variables. However, when passed directly to `withZod()` or 
- * `generateZodSchemas()`, TypeScript will check compatibility more strictly.
- * 
- * To test for type errors, use a `.test-d.ts` file with `@ts-expect-error` comments.
- * Note: Due to TypeScript limitations, extra properties may not always be caught
- * at compile time. Consider runtime validation if strict enforcement is required.
  */
 export type ZodOverrides<S extends DescriptorSchema> = {
   [E in keyof S]?: {
@@ -132,9 +143,9 @@ function fieldDescriptorToZod(field: FieldDescriptorLike): z.ZodTypeAny {
  * });
  * ```
  */
-export function withZod<S extends DescriptorSchema>(
+export function withZod<S extends DescriptorSchema, O extends ZodOverrides<S>>(
   schema: SchemaDescriptor<S>,
-  overrides?: ZodOverrides<S>,
+  overrides?: O & ValidateOverrides<S, O>,
 ): SchemaDescriptorWithZod<S> {
   const zodSchemas = {} as Record<string, z.ZodObject<Record<string, z.ZodTypeAny>>>;
 
@@ -169,9 +180,9 @@ export function withZod<S extends DescriptorSchema>(
  * @param overrides - Optional Zod schema overrides
  * @returns Generated Zod schemas for each entity
  */
-export function generateZodSchemas<S extends DescriptorSchema>(
+export function generateZodSchemas<S extends DescriptorSchema, O extends ZodOverrides<S>>(
   schema: SchemaDescriptor<S>,
-  overrides?: ZodOverrides<S>,
+  overrides?: O & ValidateOverrides<S, O>,
 ): ZodSchemas<S> {
   const zodSchemas = {} as Record<string, z.ZodObject<Record<string, z.ZodTypeAny>>>;
 

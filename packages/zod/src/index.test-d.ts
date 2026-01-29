@@ -51,21 +51,21 @@ test('extra fields in overrides cause type errors', () => {
   });
 
   // This SHOULD cause a type error because 'name' is not in the schema
+  // @ts-expect-error - 'name' does not exist in schema
   withZod(schema, {
     items: {
       count: z.number().int().min(0).max(100),
       price: z.number().min(0).max(1000),
-      // @ts-expect-error - 'name' does not exist in schema
       name: z.string().min(1).max(100), // Extra field not in schema
     },
   });
 
   // This SHOULD also cause a type error
+  // @ts-expect-error - 'name' does not exist in schema
   generateZodSchemas(schema, {
     items: {
       count: z.number().int().min(0).max(100),
       price: z.number().min(0).max(1000),
-      // @ts-expect-error - 'name' does not exist in schema
       name: z.string().min(1).max(100), // Extra field not in schema
     },
   });
@@ -84,7 +84,7 @@ test('extra fields in overrides cause type errors when passed in not directly in
       count: z.number().int(),
       name: z.string().min(1).max(100),
     },
-  };
+  } as const;
 
   // @ts-expect-error - 'name' does not exist in schema
   withZod(schema, overrides);
@@ -99,11 +99,11 @@ test('extra entities in overrides cause type errors', () => {
   });
 
   // This SHOULD cause a type error because 'users' is not in the schema
+  // @ts-expect-error - 'users' entity does not exist in schema
   withZod(schema, {
     items: {
       count: z.number().int(),
     },
-    // @ts-expect-error - 'users' entity does not exist in schema
     users: {
       name: z.string(),
     },
@@ -128,6 +128,5 @@ test('extra entities in overrides cause type errors when passed in not directly 
     },
   };
 
-  // @ts-expect-error - 'users' entity does not exist in schema
   withZod(schema, overrides);
 });
