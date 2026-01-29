@@ -10,6 +10,28 @@ import type {
 // ============================================================================
 
 /**
+ * Helper type to validate that overrides only contain valid entities and fields.
+ * When used with `as const`, this helps catch extra properties even when assigned to variables.
+ */
+type ValidateOverrides<S extends DescriptorSchema, O> =
+  // Special case: empty overrides object is always valid
+  [keyof O] extends [never]
+    ? O
+    : // Check that all entity keys in O are valid entities in S
+      keyof O extends keyof S
+      ? // For each entity, check that all field keys are valid
+        {
+          [E in keyof O]: E extends keyof S
+            ? keyof O[E] extends keyof S[E]
+              ? unknown // Valid
+              : never // Invalid - has extra fields
+            : never; // Invalid - entity doesn't exist
+        }[keyof O] extends never
+        ? never // At least one entity has invalid fields
+        : O // All valid
+      : never; // Has extra entities
+
+/**
  * Typed overrides for Zod schemas - constrained to valid entities and fields.
  */
 export type ZodOverrides<S extends DescriptorSchema> = {
@@ -124,9 +146,9 @@ function fieldDescriptorToZod(field: FieldDescriptorLike): z.ZodTypeAny {
  * });
  * ```
  */
-export function withZod<S extends DescriptorSchema>(
+export function withZod<S extends DescriptorSchema, O extends ZodOverrides<S>>(
   schema: SchemaDescriptor<S>,
-  overrides?: ZodOverrides<S>,
+  overrides?: O & ValidateOverrides<S, O>,
 ): SchemaDescriptorWithZod<S> {
   const zodSchemas = {} as Record<string, z.ZodObject<Record<string, z.ZodTypeAny>>>;
 
@@ -161,9 +183,9 @@ export function withZod<S extends DescriptorSchema>(
  * @param overrides - Optional Zod schema overrides
  * @returns Generated Zod schemas for each entity
  */
-export function generateZodSchemas<S extends DescriptorSchema>(
+export function generateZodSchemas<S extends DescriptorSchema, O extends ZodOverrides<S>>(
   schema: SchemaDescriptor<S>,
-  overrides?: ZodOverrides<S>,
+  overrides?: O & ValidateOverrides<S, O>,
 ): ZodSchemas<S> {
   const zodSchemas = {} as Record<string, z.ZodObject<Record<string, z.ZodTypeAny>>>;
 

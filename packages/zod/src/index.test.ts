@@ -233,6 +233,10 @@ describe('@rippledb/zod', () => {
       expect(invalidResult.success).toBe(false);
     });
 
+    // Note: Type error tests for extra fields/entities are in index.test-d.ts
+    // Vitest runs .test-d.ts files through tsc and will fail tests if type errors
+    // occur unexpectedly or if @ts-expect-error directives are unused.
+
     it('supports enum fields', () => {
       const schema = defineSchema({
         tasks: {
