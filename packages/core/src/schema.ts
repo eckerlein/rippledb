@@ -241,7 +241,8 @@ export type InferEntity<E extends Record<string, FieldDescriptorLike>> = {
  * // }
  * ```
  */
-export type InferSchema<D extends SchemaDescriptor<DescriptorSchema>> = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type InferSchema<D extends SchemaDescriptor<any>> = {
   [E in keyof D['schema']]: InferEntity<D['schema'][E]>;
 };
 
