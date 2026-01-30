@@ -65,6 +65,40 @@ function getModifiedPackageJsonFiles(baseSha: string, headSha: string): {
   }
 }
 
+function getChangedPackageDirs(baseSha: string, headSha: string): string[] {
+  try {
+    const output = execSync(
+      `git diff "${baseSha}".."${headSha}" --name-only --diff-filter=AM`,
+      { encoding: 'utf-8' }
+    );
+
+    const dirs = new Set<string>();
+    for (const line of output.split('\n')) {
+      const match = line.match(/^packages\/([^/]+)\//);
+      if (match) dirs.add(match[1]);
+    }
+
+    return Array.from(dirs).sort();
+  } catch {
+    return [];
+  }
+}
+
+function hasChangesetFile(baseSha: string, headSha: string): boolean {
+  try {
+    const output = execSync(
+      `git diff "${baseSha}".."${headSha}" --name-only --diff-filter=AM -- .changeset/*.md`,
+      { encoding: 'utf-8' }
+    );
+
+    return output
+      .split('\n')
+      .some((line) => line.trim().endsWith('.md'));
+  } catch {
+    return false;
+  }
+}
+
 function hasVersionFieldChanged(baseSha: string, headSha: string, file: string): boolean {
   try {
     const diff = execSync(
@@ -166,6 +200,15 @@ function main(): void {
 
   if (added.length > 0) {
     console.log(`✓ All new packages have valid initial versions: ${added.join(', ')}`);
+  }
+
+  const changedPackageDirs = getChangedPackageDirs(baseSha, headSha);
+  if (changedPackageDirs.length > 0 && !hasChangesetFile(baseSha, headSha)) {
+    console.error('');
+    console.error('::error::Package changes detected without a changeset');
+    console.error('::error::Please add a changeset file in .changeset/');
+    console.error(`::error::Changed packages: ${changedPackageDirs.join(', ')}`);
+    process.exit(1);
   }
 
   if (modified.length === 0) {
