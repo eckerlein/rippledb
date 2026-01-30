@@ -4,6 +4,7 @@ description: Build a production-ready RippleDB server
 ---
 
 import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
 # Server Setup
@@ -21,28 +22,26 @@ This guide walks through setting up a RippleDB server with HTTP endpoints for sy
 <Step>
 ### Install Dependencies
 
-<NestedInstallCommandTabs
-  options={[
-    {
-      value: 'sqlite',
-      label: 'SQLite',
-      packages: ['@rippledb/core', '@rippledb/db-sqlite', '@rippledb/materialize-db', 'better-sqlite3', 'express'],
-      devPackages: ['typescript', '@types/better-sqlite3', '@types/express', 'tsx'],
-    },
-    {
-      value: 'turso',
-      label: 'Turso',
-      packages: ['@rippledb/core', '@rippledb/db-turso', '@rippledb/materialize-db', '@libsql/client', 'express'],
-      devPackages: ['typescript', '@types/express', 'tsx'],
-    },
-    {
-      value: 'drizzle',
-      label: 'Drizzle',
-      packages: ['@rippledb/core', '@rippledb/db-drizzle', '@rippledb/materialize-drizzle', 'drizzle-orm', 'better-sqlite3', 'express'],
-      devPackages: ['typescript', '@types/better-sqlite3', '@types/express', 'tsx'],
-    },
-  ]}
-/>
+<Tabs items={['SQLite', 'Turso', 'Drizzle']} groupId="database-type">
+  <Tab value="SQLite">
+    <InstallCommandTabs
+      packages={['@rippledb/core', '@rippledb/db-sqlite', '@rippledb/materialize-db', 'better-sqlite3', 'express']}
+      devPackages={['typescript', '@types/better-sqlite3', '@types/express', 'tsx']}
+    />
+  </Tab>
+  <Tab value="Turso">
+    <InstallCommandTabs
+      packages={['@rippledb/core', '@rippledb/db-turso', '@rippledb/materialize-db', '@libsql/client', 'express']}
+      devPackages={['typescript', '@types/express', 'tsx']}
+    />
+  </Tab>
+  <Tab value="Drizzle">
+    <InstallCommandTabs
+      packages={['@rippledb/core', '@rippledb/db-drizzle', '@rippledb/materialize-drizzle', 'drizzle-orm', 'better-sqlite3', 'express']}
+      devPackages={['typescript', '@types/better-sqlite3', '@types/express', 'tsx']}
+    />
+  </Tab>
+</Tabs>
 </Step>
 
 <Step>

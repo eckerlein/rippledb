@@ -6,7 +6,6 @@ import { ArchitectureBento } from '@/components/architecture/architecture-bento'
 import { ArchitectureStack } from '@/components/architecture-stack';
 import { Diagram } from '@/components/diagram';
 import { InstallCommandTabs } from '@/components/install-command-tabs';
-import { NestedInstallCommandTabs } from '@/components/nested-install-command-tabs';
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
   return {
@@ -18,7 +17,6 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     ArchitectureStack,
     Diagram,
     InstallCommandTabs,
-    NestedInstallCommandTabs,
     ...components,
   };
 }
