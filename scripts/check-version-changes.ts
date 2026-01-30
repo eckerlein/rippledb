@@ -146,6 +146,7 @@ function isValidInitialVersion(version: string): boolean {
 
 function main(): void {
   const headRef = getHeadRef();
+  let hasErrors = false;
   
   // Check if this is a changeset-release branch
   if (isChangesetReleaseBranch(headRef)) {
@@ -195,7 +196,7 @@ function main(): void {
     console.error('');
     console.error('::error::New packages must start with version "0.1.0"');
     console.error('::error::Please set the version field to "0.1.0" for new packages.');
-    process.exit(1);
+    hasErrors = true;
   }
 
   if (added.length > 0) {
@@ -208,30 +209,32 @@ function main(): void {
     console.error('::error::Package changes detected without a changeset');
     console.error('::error::Please add a changeset file in .changeset/');
     console.error(`::error::Changed packages: ${changedPackageDirs.join(', ')}`);
-    process.exit(1);
+    hasErrors = true;
   }
 
   if (modified.length === 0) {
     console.log('No existing package.json files in packages/ were modified');
-    process.exit(0);
-  }
+  } else {
+    // Check each modified (existing) package.json for version field changes
+    // We only check modified files, not added files (new packages)
+    const filesWithVersionChanges: string[] = [];
 
-  // Check each modified (existing) package.json for version field changes
-  // We only check modified files, not added files (new packages)
-  const filesWithVersionChanges: string[] = [];
+    for (const file of modified) {
+      if (hasVersionFieldChanged(baseSha, headSha, file)) {
+        console.error(`❌ Version field changed in ${file}`);
+        filesWithVersionChanges.push(file);
+      }
+    }
 
-  for (const file of modified) {
-    if (hasVersionFieldChanged(baseSha, headSha, file)) {
-      console.error(`❌ Version field changed in ${file}`);
-      filesWithVersionChanges.push(file);
+    if (filesWithVersionChanges.length > 0) {
+      console.error('');
+      console.error('::error::Version changes detected in package.json files within packages/ directory');
+      console.error('::error::Version changes should only come from changeset-release/* branches');
+      console.error('::error::Please remove version changes from this PR. Versions are managed automatically by changesets.');
+      hasErrors = true;
     }
   }
-
-  if (filesWithVersionChanges.length > 0) {
-    console.error('');
-    console.error('::error::Version changes detected in package.json files within packages/ directory');
-    console.error('::error::Version changes should only come from changeset-release/* branches');
-    console.error('::error::Please remove version changes from this PR. Versions are managed automatically by changesets.');
+  if (hasErrors) {
     process.exit(1);
   }
 
