@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SqliteStore } from './index';
 import { tickHlc, createHlcState, makeUpsert, makeDelete, defineSchema, s } from '@rippledb/core';
-import type { InferSchema } from '@rippledb/core';
 
 const testSchema = defineSchema({
   todos: {
@@ -10,13 +9,11 @@ const testSchema = defineSchema({
   },
 });
 
-type TestSchema = InferSchema<typeof testSchema>;
-
 describe('SqliteStore', () => {
-  let store: SqliteStore<TestSchema>;
+  let store: SqliteStore<typeof testSchema>;
 
   beforeEach(() => {
-    store = new SqliteStore<TestSchema>({ 
+    store = new SqliteStore<typeof testSchema>({ 
       filename: ':memory:', 
       schema: testSchema,
     });

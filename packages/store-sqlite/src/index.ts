@@ -1,9 +1,10 @@
 import Database from 'better-sqlite3';
-import type { Change, RippleSchema, EntityName, Hlc, SchemaDescriptor } from '@rippledb/core';
+import type { Change, EntityName, Hlc, SchemaDescriptor, InferSchema } from '@rippledb/core';
 import { compareHlc } from '@rippledb/core';
 import type { DbEvent, Store } from '@rippledb/client';
 
-export type SqliteStoreOptions<S extends RippleSchema = RippleSchema> = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type SqliteStoreOptions<D extends SchemaDescriptor<any> = SchemaDescriptor<any>> = {
   /**
    * SQLite database file path or ':memory:' for in-memory database.
    */
@@ -26,15 +27,14 @@ export type SqliteStoreOptions<S extends RippleSchema = RippleSchema> = {
    * Schema descriptor for creating domain tables with proper columns.
    * Required to enable SQL WHERE clauses and proper column-based queries.
    * Use the same schema descriptor as your backend for consistency.
-   * This is only used at runtime to create tables - not part of the type system.
+   * The RippleSchema type is inferred from this descriptor.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schema: SchemaDescriptor<any>;
+  schema: D;
   /**
    * Optional field mapping from schema field names to database column names.
    * If omitted, field names are used as column names.
    */
-  fieldMap?: Partial<Record<EntityName<S>, Record<string, string>>>;
+  fieldMap?: Partial<Record<EntityName<InferSchema<D>>, Record<string, string>>>;
 };
 
 type TagsRow = {
@@ -80,20 +80,20 @@ function convertValueForSqlite(value: unknown, fieldType: string): unknown {
   return value;
 }
 
-export class SqliteStore<S extends RippleSchema = RippleSchema> implements Store<S, string> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>> implements Store<InferSchema<D>, string> {
   private db: Database.Database;
   private ownsDb: boolean;
-  private subscribers = new Set<(event: DbEvent<S>) => void>();
+  private subscribers = new Set<(event: DbEvent<InferSchema<D>>) => void>();
   private tagsTable: string;
   private loadTags: Database.Statement<[string, string], TagsRow>;
   private saveTags: Database.Statement<[string, string, string, string], Database.RunResult>;
   private removeTags: Database.Statement<[string, string, string, string, string | null], Database.RunResult>;
   private entityTableCache = new Set<string>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private schema: SchemaDescriptor<any>;
-  private fieldMap?: Partial<Record<EntityName<S>, Record<string, string>>>;
+  private schema: D;
+  private fieldMap?: Partial<Record<EntityName<InferSchema<D>>, Record<string, string>>>;
 
-  constructor(opts: SqliteStoreOptions<S>) {
+  constructor(opts: SqliteStoreOptions<D>) {
     if (opts.db) {
       this.db = opts.db;
       this.ownsDb = false;
@@ -148,13 +148,13 @@ export class SqliteStore<S extends RippleSchema = RippleSchema> implements Store
     );
   }
 
-  onEvent(cb: (event: DbEvent<S>) => void) {
+  onEvent(cb: (event: DbEvent<InferSchema<D>>) => void) {
     this.subscribers.add(cb);
     return () => this.subscribers.delete(cb);
   }
 
   private getColumnName(entity: string, field: string): string {
-    const map = this.fieldMap?.[entity as EntityName<S>];
+    const map = this.fieldMap?.[entity as EntityName<InferSchema<D>>];
     return map?.[field] ?? field;
   }
 
@@ -195,10 +195,10 @@ export class SqliteStore<S extends RippleSchema = RippleSchema> implements Store
     return `"${identifier.replace(/"/g, '""')}"`;
   }
 
-  async applyChanges(changes: Change<S>[]): Promise<void> {
-    const events: DbEvent<S>[] = [];
+  async applyChanges(changes: Change<InferSchema<D>>[]): Promise<void> {
+    const events: DbEvent<InferSchema<D>>[] = [];
 
-    const tx = this.db.transaction((changes: Change<S>[]) => {
+    const tx = this.db.transaction((changes: Change<InferSchema<D>>[]) => {
       for (const change of changes) {
         this.ensureEntityTable(change.entity);
         const entityTableName = this.escapeIdentifier(change.entity);
@@ -323,7 +323,7 @@ export class SqliteStore<S extends RippleSchema = RippleSchema> implements Store
     }
   }
 
-  async getRow<E extends EntityName<S>>(entity: E, id: string): Promise<S[E] | null> {
+  async getRow<E extends EntityName<InferSchema<D>>>(entity: E, id: string): Promise<InferSchema<D>[E] | null> {
     this.ensureEntityTable(entity);
     const entityTableName = this.escapeIdentifier(entity);
 
@@ -336,22 +336,22 @@ export class SqliteStore<S extends RippleSchema = RippleSchema> implements Store
     const row = stmt.get(id) as Record<string, unknown> | undefined;
     if (!row || (row.deleted as number) === 1) return null;
 
-    const result = {} as S[E];
-    for (const field of fields) {
-      const columnName = this.getColumnName(entity, field);
-      let value = row[columnName];
-      const fieldDesc = this.schema.getFieldDescriptor(entity, field);
-      // Convert boolean back from integer
-      if (fieldDesc && '_type' in fieldDesc && fieldDesc._type === 'boolean') {
-        value = value === 1;
+      const result = {} as InferSchema<D>[E];
+      for (const field of fields) {
+        const columnName = this.getColumnName(entity, field);
+        let value = row[columnName];
+        const fieldDesc = this.schema.getFieldDescriptor(entity, field);
+        // Convert boolean back from integer
+        if (fieldDesc && '_type' in fieldDesc && fieldDesc._type === 'boolean') {
+          value = value === 1;
+        }
+        result[field as keyof InferSchema<D>[E]] = value as InferSchema<D>[E][keyof InferSchema<D>[E]];
       }
-      result[field as keyof S[E]] = value as S[E][keyof S[E]];
-    }
-    return result;
+      return result;
   }
 
-  async getRows<E extends EntityName<S>>(entity: E, ids: string[]): Promise<Map<string, S[E]>> {
-    const result = new Map<string, S[E]>();
+  async getRows<E extends EntityName<InferSchema<D>>>(entity: E, ids: string[]): Promise<Map<string, InferSchema<D>[E]>> {
+    const result = new Map<string, InferSchema<D>[E]>();
     if (ids.length === 0) return result;
 
     this.ensureEntityTable(entity);
@@ -366,21 +366,21 @@ export class SqliteStore<S extends RippleSchema = RippleSchema> implements Store
     );
     const rows = stmt.all(...ids) as Array<Record<string, unknown>>;
 
-    for (const row of rows) {
-      const id = row.id as string;
-      const resultRow = {} as S[E];
-      for (const field of fields) {
-        const columnName = this.getColumnName(entity, field);
-        let value = row[columnName];
-        const fieldDesc = this.schema.getFieldDescriptor(entity, field);
-        // Convert boolean back from integer
-        if (fieldDesc && '_type' in fieldDesc && fieldDesc._type === 'boolean') {
-          value = value === 1;
+      for (const row of rows) {
+        const id = row.id as string;
+        const resultRow = {} as InferSchema<D>[E];
+        for (const field of fields) {
+          const columnName = this.getColumnName(entity, field);
+          let value = row[columnName];
+          const fieldDesc = this.schema.getFieldDescriptor(entity, field);
+          // Convert boolean back from integer
+          if (fieldDesc && '_type' in fieldDesc && fieldDesc._type === 'boolean') {
+            value = value === 1;
+          }
+          resultRow[field as keyof InferSchema<D>[E]] = value as InferSchema<D>[E][keyof InferSchema<D>[E]];
         }
-        resultRow[field as keyof S[E]] = value as S[E][keyof S[E]];
+        result.set(id, resultRow);
       }
-      result.set(id, resultRow);
-    }
 
     return result;
   }
@@ -397,16 +397,16 @@ export class SqliteStore<S extends RippleSchema = RippleSchema> implements Store
    *                validate/whitelist them to prevent SQL injection.
    * @returns Array of entity objects matching the query
    */
-  async listRows(query: string): Promise<Array<S[EntityName<S>]>> {
+  async listRows(query: string): Promise<Array<InferSchema<D>[EntityName<InferSchema<D>>]>> {
     const rows = this.db.prepare(query).all() as Array<Record<string, unknown>>;
 
-    const result: Array<S[EntityName<S>]> = [];
+    const result: Array<InferSchema<D>[EntityName<InferSchema<D>>]> = [];
     for (const row of rows) {
       // If query includes deleted column, filter it out
       if (row.deleted !== undefined && (row.deleted as number) === 1) continue;
 
       // Return row as-is (columns match schema fields)
-      result.push(row as S[EntityName<S>]);
+      result.push(row as InferSchema<D>[EntityName<InferSchema<D>>]);
     }
 
     return result;
