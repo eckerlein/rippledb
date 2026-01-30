@@ -1,5 +1,34 @@
 # @rippledb/zod
 
+## 0.2.0
+
+### Minor Changes
+
+- [#18](https://github.com/eckerlein/rippledb/pull/18) [`14fb351`](https://github.com/eckerlein/rippledb/commit/14fb35170e1a380e4c039c59987d96f0938fca73) Thanks [@Jan-Eckerlein](https://github.com/Jan-Eckerlein)! - feat(core): Runtime schema descriptors with field type metadata
+  - Add field descriptor types (`StringField`, `NumberField`, `BooleanField`, `EnumField`)
+  - Add `s.string()`, `s.number()`, `s.boolean()`, `s.enum()` builder functions with `.optional()` modifier
+  - Add `InferSchema<D>` type helper for deriving TypeScript types from field descriptors
+  - Add `SchemaDescriptor` runtime API with entity discovery, field metadata, and extensibility
+
+  feat(zod): Auto-generated Zod schemas from field descriptors
+  - Add `withZod()` wrapper that auto-generates Zod schemas from schema descriptors
+  - Support typed overrides for custom field validation refinements
+
+  fix(client-query): Update to use new schema descriptor types
+  - Use `InferSchema` and `DescriptorSchema` for proper type inference
+  - Update `createClientQueryApi` to derive schema types from descriptors
+
+- [`ae30641`](https://github.com/eckerlein/rippledb/commit/ae3064169e1f353e75ad79a54af27c75a9f1873f) Thanks [@Jan-Eckerlein](https://github.com/Jan-Eckerlein)! - Add strict type validation for `withZod()` overrides
+  - Added `ValidateOverrides` type helper that ensures override objects only contain valid entity and field keys
+  - Added type tests using `.test-d.ts` pattern with `@ts-expect-error` directives
+  - Updated documentation with inline and typed external override patterns
+  - Empty override objects are now correctly handled
+
+### Patch Changes
+
+- Updated dependencies [[`14fb351`](https://github.com/eckerlein/rippledb/commit/14fb35170e1a380e4c039c59987d96f0938fca73)]:
+  - @rippledb/core@0.2.0
+
 ## 0.1.4
 
 ### Patch Changes
