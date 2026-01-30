@@ -1,0 +1,256 @@
+---
+title: store-sqlite
+description: SQLite-based client-side Store with persistent storage
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# @rippledb/store-sqlite
+
+A SQLite-based client-side Store implementation with persistent storage. Uses the same schema descriptor as your backend for consistency.
+
+<Callout type="info">
+This store requires a schema descriptor to create tables with proper columns, enabling SQL WHERE clauses on individual fields.
+</Callout>
+
+## Installation
+
+<Tabs items={['pnpm', 'npm', 'yarn']}>
+  <Tab value="pnpm">
+```bash
+pnpm add @rippledb/store-sqlite better-sqlite3
+```
+  </Tab>
+  <Tab value="npm">
+```bash
+npm install @rippledb/store-sqlite better-sqlite3
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @rippledb/store-sqlite better-sqlite3
+```
+  </Tab>
+</Tabs>
+
+## Basic Usage
+
+```ts
+import { SqliteStore } from '@rippledb/store-sqlite';
+import { defineSchema, s, InferSchema } from '@rippledb/core';
+
+// Define your schema (same as backend!)
+const schema = defineSchema({
+  todos: {
+    id: s.string(),
+    title: s.string(),
+    done: s.boolean(),
+  },
+});
+
+type MySchema = InferSchema<typeof schema>;
+
+// Create store with schema
+const store = new SqliteStore({
+  filename: './data.db',
+  schema, // Required - used to create tables with proper columns
+});
+
+// Subscribe to events
+store.onEvent((ev) => {
+  console.log(ev); // { entity, kind, id? }
+});
+
+// Apply changes
+await store.applyChanges([change]);
+
+// Read data
+const todo = await store.getRow('todos', 'todo-1');
+const todos = await store.getRows('todos', ['todo-1', 'todo-2']);
+
+// SQL queries with WHERE clauses!
+const activeTodos = await store.listRows(
+  'SELECT * FROM todos WHERE done = 0 AND deleted = 0'
+);
+```
+
+## Schema Descriptor
+
+The schema descriptor is **required** and serves two purposes:
+
+1. **Type safety**: TypeScript infers the `RippleSchema` from the descriptor
+2. **Table creation**: Creates domain tables with proper column types
+
+Share the schema descriptor between backend and frontend:
+
+```ts
+// shared/schema.ts
+export const schema = defineSchema({
+  todos: {
+    id: s.string(),
+    title: s.string(),
+    done: s.boolean(),
+  },
+});
+
+// backend/db.ts
+import { schema } from '../shared/schema';
+const db = new SqliteDb({ filename: './server.db', materializer: ... });
+
+// client/store.ts
+import { schema } from '../shared/schema';
+const store = new SqliteStore({ filename: './client.db', schema });
+```
+
+## Options
+
+### `schema: SchemaDescriptor` (required)
+
+Schema descriptor for creating domain tables with proper columns. Required to enable SQL WHERE clauses.
+
+```ts
+const store = new SqliteStore({
+  schema: mySchemaDescriptor,
+});
+```
+
+### `filename?: string`
+
+SQLite database file path or `:memory:` for an in-memory database. Defaults to `:memory:`.
+
+```ts
+// File-based storage
+const store = new SqliteStore({
+  filename: './data.db',
+  schema,
+});
+
+// In-memory (data lost on close)
+const store = new SqliteStore({
+  filename: ':memory:',
+  schema,
+});
+```
+
+### `db?: Database`
+
+Existing `better-sqlite3` Database instance. If provided, `filename` is ignored and the store will not close the database connection.
+
+```ts
+import Database from 'better-sqlite3';
+
+const db = new Database('./data.db');
+const store = new SqliteStore({
+  db,
+  schema,
+});
+```
+
+### `pragmas?: string[]`
+
+SQLite pragmas to apply when creating a new database connection. Defaults to `['journal_mode = WAL']`.
+
+```ts
+const store = new SqliteStore({
+  filename: './data.db',
+  schema,
+  pragmas: ['journal_mode = WAL', 'foreign_keys = ON'],
+});
+```
+
+### `tagsTable?: string`
+
+Name of the tags table for HLC conflict resolution. Defaults to `'ripple_tags'`.
+
+```ts
+const store = new SqliteStore({
+  filename: './data.db',
+  schema,
+  tagsTable: 'custom_tags_table',
+});
+```
+
+### `fieldMap?: Record<EntityName, Record<string, string>>`
+
+Optional field mapping from schema field names to database column names. Useful for naming conventions (e.g., camelCase → snake_case).
+
+```ts
+const store = new SqliteStore({
+  filename: './data.db',
+  schema,
+  fieldMap: {
+    todos: {
+      userId: 'user_id',        // camelCase → snake_case
+      createdAt: 'created_at',  // camelCase → snake_case
+      isDone: 'is_done',         // camelCase → snake_case
+    },
+  },
+});
+
+// Schema uses: userId, createdAt, isDone
+// Database columns: user_id, created_at, is_done
+// SQL queries use column names:
+const todos = await store.listRows(
+  'SELECT * FROM todos WHERE user_id = ? AND is_done = 0',
+  ['user-123']
+);
+```
+
+## SQL Queries
+
+With a schema descriptor, you can use SQL WHERE clauses on actual columns:
+
+```ts
+// Query with WHERE clause
+const activeTodos = await store.listRows(
+  'SELECT * FROM todos WHERE done = 0 AND deleted = 0'
+);
+
+// Query with parameters (use better-sqlite3's parameter binding)
+const userTodos = await store.listRows(
+  'SELECT * FROM todos WHERE user_id = ? AND deleted = 0',
+  ['user-123']
+);
+```
+
+<Callout type="warning">
+**Security**: The `listRows` method executes raw SQL with no validation. If queries come from untrusted sources, validate/whitelist them to prevent SQL injection.
+</Callout>
+
+## How It Works
+
+1. **Tags Table**: Stores HLC tags and metadata for conflict resolution (`ripple_tags`)
+2. **Domain Tables**: Created dynamically from schema with proper column types
+3. **Conflict Resolution**: Field-level Last-Write-Wins using HLC tags
+4. **Tombstones**: Deletes are stored as `deleted = true` with `deleted_tag` to prevent resurrection
+
+## Comparison with store-memory
+
+| Feature | store-memory | store-sqlite |
+|---------|--------------|--------------|
+| Persistence | ❌ No | ✅ Yes |
+| SQL WHERE clauses | ❌ No | ✅ Yes |
+| Schema required | ❌ No | ✅ Yes |
+| Best for | Tests, prototypes | Production apps |
+
+## Type Safety
+
+The store infers the `RippleSchema` type from the schema descriptor:
+
+```ts
+const schema = defineSchema({
+  todos: {
+    id: s.string(),
+    title: s.string(),
+    done: s.boolean(),
+  },
+});
+
+// Type is inferred automatically!
+const store = new SqliteStore({ schema });
+// store.applyChanges() expects Change<InferSchema<typeof schema>>[]
+// store.getRow('todos', id) returns InferSchema<typeof schema>['todos'] | null
+```
+
+This ensures `applyChanges` is properly type-checked against your schema.

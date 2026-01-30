@@ -13,6 +13,7 @@
     "materialize-drizzle",
     "---Stores---",
     "store-memory",
+    "store-sqlite",
     "---Bindings---",
     "bind-tanstack-query",
     "controllers"

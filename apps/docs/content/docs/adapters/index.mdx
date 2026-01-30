@@ -63,6 +63,7 @@ RippleDB uses adapters to integrate with different runtimes, databases, and ORMs
 | `db-drizzle` | Existing Drizzle projects | Both | Database-agnostic |
 | `db-memory` | Unit tests | Sync | No persistence |
 | `store-memory` | Unit tests | Sync | Client truth store, no persistence |
+| `store-sqlite` | Production client apps | Sync | Persistent, SQL WHERE clauses |
 | `materialize-db` | Raw SQL projects | Both | Works with db-sqlite, db-turso |
 | `materialize-drizzle` | Drizzle projects | Both | Type-safe queries |
 
@@ -142,6 +143,11 @@ Stores implement the client-side `Store` contract (`@rippledb/client`). They are
     title="store-memory"
     description="In-memory Store implementation for tests and examples"
     href="/docs/adapters/store-memory"
+  />
+  <Card
+    title="store-sqlite"
+    description="SQLite-based Store with persistent storage and SQL WHERE clauses"
+    href="/docs/adapters/store-sqlite"
   />
 </Cards>
 
