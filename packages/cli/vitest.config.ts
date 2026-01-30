@@ -5,8 +5,10 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
-    deps: {
-      inline: ['drizzle-orm'],
+    server: {
+      deps: {
+        inline: ['drizzle-orm'],
+      },
     },
   },
 });
