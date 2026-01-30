@@ -1,6 +1,7 @@
 'use client';
 
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { DynamicCodeBlock } from 'fumadocs-ui/components/dynamic-codeblock';
 import { getInstallCommand, type PackageManager } from '@/lib/package-manager';
 
 export interface InstallCommandTabsProps {
@@ -20,9 +21,7 @@ export function InstallCommandTabs({
     <Tabs items={packageManagers} groupId="package-manager">
       {packageManagers.map((pm) => (
         <Tab key={pm} value={pm}>
-          <pre>
-            <code className="language-bash">{commands[pm]}</code>
-          </pre>
+          <DynamicCodeBlock lang="bash" code={commands[pm]} />
         </Tab>
       ))}
     </Tabs>
