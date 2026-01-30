@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+### Minor Changes
+
+- [`8946478`](https://github.com/eckerlein/rippledb/commit/8946478cace685916d4842591d294bad62916e79) Thanks [@Jan-Eckerlein](https://github.com/Jan-Eckerlein)! - Add `@rippledb/store-sqlite` - SQLite-based client-side Store with persistent storage and SQL WHERE clause support. Includes schema-based column creation, field-level conflict resolution with HLC, and optional fieldMap for naming conventions.
+
 ## 0.1.2
 
 ### Patch Changes
