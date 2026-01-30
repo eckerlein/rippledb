@@ -3,6 +3,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import type { DrizzleCodegenConfig } from '../config.js';
 import { createRequire } from 'node:module';
 import { createConsoleLogger, type Logger } from '../logger.js';
+import { getInstallCommand } from '../utils/package-manager.js';
 
 const require = createRequire(import.meta.url);
 const packageJson = require('../../package.json');
@@ -111,7 +112,7 @@ export async function generateFromDrizzle(
     drizzleOrm = await import('drizzle-orm');
   } catch {
     logger.error?.('Error: drizzle-orm is required for Drizzle codegen');
-    logger.error?.('Install it with: pnpm add -D drizzle-orm');
+    logger.error?.(`Install it with: ${getInstallCommand('drizzle-orm', { dev: true, cwd })}`);
     process.exit(1);
   }
 
