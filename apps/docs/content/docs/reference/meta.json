@@ -9,6 +9,7 @@
     "remote-http",
     "remote-trpc",
     "server-trpc",
-    "zod"
+    "zod",
+    "cli"
   ]
 }
