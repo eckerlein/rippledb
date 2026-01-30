@@ -1,0 +1,45 @@
+{
+  "name": "@rippledb/store-sqlite",
+  "version": "0.1.1",
+  "private": false,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@rippledb/core": "workspace:*",
+    "@rippledb/client": "workspace:*",
+    "better-sqlite3": "^11.7.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "eslint": "^9.37.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "lint": "eslint ."
+  },
+  "tsup": {
+    "entry": [
+      "src/index.ts"
+    ],
+    "format": [
+      "esm"
+    ],
+    "dts": false,
+    "sourcemap": true,
+    "clean": true
+  }
+}
