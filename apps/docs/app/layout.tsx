@@ -3,6 +3,7 @@ import './global.css';
 import { Inter } from 'next/font/google';
 import SearchDialog from '@/components/search';
 import { Metadata } from 'next';
+import { PackageManagerProvider } from '@/components/package-manager-context';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -39,7 +40,9 @@ export default function Layout({ children }: LayoutProps<'/'>) {
             defaultTheme: 'system',
           }}
         >
-          {children}
+          <PackageManagerProvider>
+            {children}
+          </PackageManagerProvider>
         </RootProvider>
       </body>
     </html>
