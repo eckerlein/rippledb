@@ -22,7 +22,7 @@ This guide walks through setting up a RippleDB server with HTTP endpoints for sy
 <Step>
 ### Install Dependencies
 
-<Tabs items={['SQLite', 'Turso', 'Drizzle']} groupId="database-type">
+<Tabs items={['SQLite', 'Turso', 'Drizzle']} groupId="database-adapter">
   <Tab value="SQLite">
     <InstallCommandTabs
       packages={['@rippledb/core', '@rippledb/db-sqlite', '@rippledb/materialize-db', 'better-sqlite3', 'express']}
@@ -87,7 +87,7 @@ In a distributed setup, each server instance needs a unique `NODE_ID`.
 <Step>
 ### Configure the Database
 
-<Tabs items={['SQLite', 'Turso', 'Drizzle']}>
+<Tabs items={['SQLite', 'Turso', 'Drizzle']} groupId="database-adapter">
   <Tab value="SQLite">
 ```ts title="src/db.ts"
 import { SqliteDb } from '@rippledb/db-sqlite';
