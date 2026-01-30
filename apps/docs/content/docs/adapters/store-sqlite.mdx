@@ -3,7 +3,6 @@ title: store-sqlite
 description: SQLite-based client-side Store with persistent storage
 ---
 
-import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
 # @rippledb/store-sqlite
@@ -16,23 +15,7 @@ This store requires a schema descriptor to create tables with proper columns, en
 
 ## Installation
 
-<Tabs items={['pnpm', 'npm', 'yarn']}>
-  <Tab value="pnpm">
-```bash
-pnpm add @rippledb/store-sqlite better-sqlite3
-```
-  </Tab>
-  <Tab value="npm">
-```bash
-npm install @rippledb/store-sqlite better-sqlite3
-```
-  </Tab>
-  <Tab value="yarn">
-```bash
-yarn add @rippledb/store-sqlite better-sqlite3
-```
-  </Tab>
-</Tabs>
+<InstallCommandTabs packages={['@rippledb/store-sqlite', 'better-sqlite3']} />
 
 ## Basic Usage
 

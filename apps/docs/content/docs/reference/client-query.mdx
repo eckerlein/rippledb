@@ -3,7 +3,6 @@ title: "@rippledb/client-query"
 description: Final DX package combining controllers + TanStack Query invalidation
 ---
 
-import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
 # @rippledb/client-query
@@ -17,23 +16,7 @@ It dynamically creates entity controllers from your runtime schema descriptor, s
 
 ## Installation
 
-<Tabs items={['pnpm', 'npm', 'yarn']}>
-  <Tab value="pnpm">
-```bash
-pnpm add @rippledb/client-query @tanstack/query-core
-```
-  </Tab>
-  <Tab value="npm">
-```bash
-npm install @rippledb/client-query @tanstack/query-core
-```
-  </Tab>
-  <Tab value="yarn">
-```bash
-yarn add @rippledb/client-query @tanstack/query-core
-```
-  </Tab>
-</Tabs>
+<InstallCommandTabs packages={['@rippledb/client-query', '@tanstack/query-core']} />
 
 <Callout type="info">
 If you're using a framework-specific TanStack Query adapter (e.g. `@tanstack/react-query`), you already have `@tanstack/query-core` as a dependency.
