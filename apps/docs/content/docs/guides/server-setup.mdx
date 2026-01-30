@@ -22,24 +22,24 @@ This guide walks through setting up a RippleDB server with HTTP endpoints for sy
 <Step>
 ### Install Dependencies
 
-<Tabs items={['SQLite', 'Turso', 'Drizzle']}>
+<Tabs items={['SQLite', 'Turso', 'Drizzle']} groupId="database-adapter">
   <Tab value="SQLite">
-```bash
-npm install @rippledb/core @rippledb/db-sqlite @rippledb/materialize-db better-sqlite3 express
-npm install -D typescript @types/better-sqlite3 @types/express tsx
-```
+    <InstallCommandTabs
+      packages={['@rippledb/core', '@rippledb/db-sqlite', '@rippledb/materialize-db', 'better-sqlite3', 'express']}
+      devPackages={['typescript', '@types/better-sqlite3', '@types/express', 'tsx']}
+    />
   </Tab>
   <Tab value="Turso">
-```bash
-npm install @rippledb/core @rippledb/db-turso @rippledb/materialize-db @libsql/client express
-npm install -D typescript @types/express tsx
-```
+    <InstallCommandTabs
+      packages={['@rippledb/core', '@rippledb/db-turso', '@rippledb/materialize-db', '@libsql/client', 'express']}
+      devPackages={['typescript', '@types/express', 'tsx']}
+    />
   </Tab>
   <Tab value="Drizzle">
-```bash
-npm install @rippledb/core @rippledb/db-drizzle @rippledb/materialize-drizzle drizzle-orm better-sqlite3 express
-npm install -D typescript @types/better-sqlite3 @types/express tsx
-```
+    <InstallCommandTabs
+      packages={['@rippledb/core', '@rippledb/db-drizzle', '@rippledb/materialize-drizzle', 'drizzle-orm', 'better-sqlite3', 'express']}
+      devPackages={['typescript', '@types/better-sqlite3', '@types/express', 'tsx']}
+    />
   </Tab>
 </Tabs>
 </Step>
@@ -87,7 +87,7 @@ In a distributed setup, each server instance needs a unique `NODE_ID`.
 <Step>
 ### Configure the Database
 
-<Tabs items={['SQLite', 'Turso', 'Drizzle']}>
+<Tabs items={['SQLite', 'Turso', 'Drizzle']} groupId="database-adapter">
   <Tab value="SQLite">
 ```ts title="src/db.ts"
 import { SqliteDb } from '@rippledb/db-sqlite';

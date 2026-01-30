@@ -3,7 +3,6 @@ title: bind-tanstack-query
 description: TanStack Query invalidation binding for RippleDB
 ---
 
-import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
 # @rippledb/bind-tanstack-query
@@ -16,23 +15,7 @@ This package is used internally by `@rippledb/client-query` to provide a complet
 
 ## Installation
 
-<Tabs items={['pnpm', 'npm', 'yarn']}>
-  <Tab value="pnpm">
-```bash
-pnpm add @rippledb/bind-tanstack-query @tanstack/query-core
-```
-  </Tab>
-  <Tab value="npm">
-```bash
-npm install @rippledb/bind-tanstack-query @tanstack/query-core
-```
-  </Tab>
-  <Tab value="yarn">
-```bash
-yarn add @rippledb/bind-tanstack-query @tanstack/query-core
-```
-  </Tab>
-</Tabs>
+<InstallCommandTabs packages={['@rippledb/bind-tanstack-query', '@tanstack/query-core']} />
 
 <Callout type="info">
 If you're using a framework-specific TanStack Query (e.g. `@tanstack/react-query`), you already have `@tanstack/query-core` as a dependency.

@@ -3,7 +3,6 @@ title: db-drizzle
 description: Database-agnostic adapter using Drizzle ORM
 ---
 
-import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 import { Callout } from 'fumadocs-ui/components/callout';
 
 # @rippledb/db-drizzle
@@ -12,23 +11,7 @@ A database-agnostic adapter that uses [Drizzle ORM](https://orm.drizzle.team/) f
 
 ## Installation
 
-<Tabs items={['pnpm', 'npm', 'yarn']}>
-  <Tab value="pnpm">
-```bash
-pnpm add @rippledb/db-drizzle drizzle-orm
-```
-  </Tab>
-  <Tab value="npm">
-```bash
-npm install @rippledb/db-drizzle drizzle-orm
-```
-  </Tab>
-  <Tab value="yarn">
-```bash
-yarn add @rippledb/db-drizzle drizzle-orm
-```
-  </Tab>
-</Tabs>
+<InstallCommandTabs packages={['@rippledb/db-drizzle', 'drizzle-orm']} />
 
 Plus your database driver:
 
