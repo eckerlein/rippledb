@@ -44,19 +44,23 @@ To project changes into domain tables, add a materializer:
 
 ```ts
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
+import { createSyncSqlExecutor } from '@rippledb/materialize-db';
 
 const db = new SqliteDb<MySchema>({
   filename: './data.db',
-  materializer: ({ db }) =>
-    createMaterializerConfig({
-      db,
-      dialect: SqliteDialect,
+  materializer: ({ db }) => {
+    const sqlConfig = {
+      dialect: 'sqlite',
       tableMap: { todos: 'todos' },
       fieldMap: {
         todos: { id: 'id', title: 'title', done: 'done' },
       },
-    }),
+    } as const;
+    return {
+      ...sqlConfig,
+      executor: createSyncSqlExecutor(db, sqlConfig),
+    };
+  },
 });
 ```
 
@@ -110,13 +114,21 @@ Default: `['journal_mode = WAL']`
 Factory function that returns a materializer configuration. Called with `{ db }` containing the SQLite database instance.
 
 ```ts
+import { createSyncSqlExecutor } from '@rippledb/materialize-db';
+
 new SqliteDb({
   filename: './data.db',
-  materializer: ({ db }) => ({
-    tableMap: { todos: 'todos' },
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-    executor: createSyncSqlExecutor(/* ... */),
-  }),
+  materializer: ({ db }) => {
+    const sqlConfig = {
+      dialect: 'sqlite',
+      tableMap: { todos: 'todos' },
+      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    } as const;
+    return {
+      ...sqlConfig,
+      executor: createSyncSqlExecutor(db, sqlConfig),
+    };
+  },
 });
 ```
 

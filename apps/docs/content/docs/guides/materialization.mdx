@@ -137,16 +137,21 @@ When a change arrives, each field is compared independently:
 
 ```ts
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
+import { createSyncSqlExecutor } from '@rippledb/materialize-db';
 
 const db = new SqliteDb<MySchema>({
   filename: './data.db',
-  materializer: ({ db }) => createMaterializerConfig({
-    db,
-    dialect: SqliteDialect,
-    tableMap: { todos: 'todos' },
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-  }),
+  materializer: ({ db }) => {
+    const sqlConfig = {
+      dialect: 'sqlite',
+      tableMap: { todos: 'todos' },
+      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    } as const;
+    return {
+      ...sqlConfig,
+      executor: createSyncSqlExecutor(db, sqlConfig),
+    };
+  },
 });
 ```
 

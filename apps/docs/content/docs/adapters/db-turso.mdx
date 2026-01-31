@@ -43,20 +43,24 @@ db.close();
 
 ```ts
 import { TursoDb } from '@rippledb/db-turso';
-import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
+import { createSqlExecutor } from '@rippledb/materialize-db';
 
 const db = new TursoDb<MySchema>({
   url: process.env.TURSO_DATABASE_URL!,
   authToken: process.env.TURSO_AUTH_TOKEN!,
-  materializer: ({ db }) =>
-    createMaterializerConfig({
-      db,
-      dialect: SqliteDialect,
+  materializer: ({ db }) => {
+    const sqlConfig = {
+      dialect: 'sqlite',
       tableMap: { todos: 'todos' },
       fieldMap: {
         todos: { id: 'id', title: 'title', done: 'done' },
       },
-    }),
+    } as const;
+    return {
+      ...sqlConfig,
+      executor: createSqlExecutor(sqlConfig, db),
+    };
+  },
 });
 ```
 
