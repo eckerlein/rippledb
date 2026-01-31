@@ -29,25 +29,43 @@ pnpm add @rippledb/core @rippledb/server @rippledb/db-sqlite
 
 ```typescript
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createMaterializerConfig } from '@rippledb/materialize-db';
+import { createSyncSqlExecutor } from '@rippledb/materialize-db';
+import { makeUpsert } from '@rippledb/core';
+import { tickHlc, createHlcState } from '@rippledb/core';
 
 const db = new SqliteDb({
   filename: './data.db',
-  materializer: ({ db }) => createMaterializerConfig({ db }),
+  materializer: ({ db }) => {
+    const sqlConfig = {
+      dialect: 'sqlite',
+      tableMap: { todos: 'todos' },
+      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    } as const;
+    return {
+      ...sqlConfig,
+      executor: createSyncSqlExecutor(db, sqlConfig),
+    };
+  },
 });
 
 // Append a change
-await db.append('my-stream', [{
-  entity: 'todos',
-  entityId: 'todo-1',
-  kind: 'upsert',
-  patch: { title: 'Buy milk', done: false },
-  tags: { title: hlc(), done: hlc() },
-  hlc: hlc(),
-}]);
+const hlc = tickHlc(createHlcState('node-1'), Date.now());
+await db.append({
+  stream: 'my-stream',
+  changes: [makeUpsert({
+    stream: 'my-stream',
+    entity: 'todos',
+    entityId: 'todo-1',
+    patch: { id: 'todo-1', title: 'Buy milk', done: false },
+    hlc,
+  })],
+});
 
 // Pull changes
-const { changes } = await db.pull({ streams: ['my-stream'], since: 0 });
+const { changes, nextCursor } = await db.pull({
+  stream: 'my-stream',
+  cursor: null,
+});
 ```
 
 ## Packages

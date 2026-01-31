@@ -56,21 +56,23 @@ Create `src/db.ts` to configure your RippleDB database:
 
 ```ts title="src/db.ts"
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
+import { createSyncSqlExecutor } from '@rippledb/materialize-db';
 import type { TodosSchema } from './schema';
 
 // Create the database with a materializer
 export const db = new SqliteDb<TodosSchema>({
   filename: './data.db',
-  materializer: ({ db }) =>
-    createMaterializerConfig({
-      db,
-      dialect: SqliteDialect,
+  materializer: ({ db }) => {
+    const sqlConfig = {
+      dialect: 'sqlite',
       tableMap: { todos: 'todos' },
-      fieldMap: {
-        todos: { id: 'id', title: 'title', done: 'done' },
-      },
-    }),
+      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    } as const;
+    return {
+      ...sqlConfig,
+      executor: createSyncSqlExecutor(db, sqlConfig),
+    };
+  },
 });
 ```
 </Step>
@@ -116,7 +118,7 @@ async function main() {
     hlc: hlc(),
   });
 
-  await db.append(stream, [createTodo]);
+  await db.append({ stream, changes: [createTodo] });
   console.log('Created todo:', createTodo);
 
   // Update the todo
@@ -128,13 +130,13 @@ async function main() {
     hlc: hlc(),
   });
 
-  await db.append(stream, [updateTodo]);
+  await db.append({ stream, changes: [updateTodo] });
   console.log('Updated todo:', updateTodo);
 
   // Pull all changes
-  const { changes, cursor } = await db.pull(stream, null);
+  const { changes, nextCursor } = await db.pull({ stream, cursor: null });
   console.log('All changes:', changes);
-  console.log('Cursor for next pull:', cursor);
+  console.log('Cursor for next pull:', nextCursor);
 
   // Delete the todo
   const deleteTodo = makeDelete<TodosSchema>({
@@ -144,7 +146,7 @@ async function main() {
     hlc: hlc(),
   });
 
-  await db.append(stream, [deleteTodo]);
+  await db.append({ stream, changes: [deleteTodo] });
   console.log('Deleted todo');
 
   db.close();

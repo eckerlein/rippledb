@@ -36,20 +36,24 @@ SELECT * FROM todos WHERE id = 'todo-1';
 
 ```ts
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
+import { createSyncSqlExecutor } from '@rippledb/materialize-db';
 
 const db = new SqliteDb<MySchema>({
   filename: './data.db',
-  materializer: ({ db }) =>
-    createMaterializerConfig({
-      db,
-      dialect: SqliteDialect,
+  materializer: ({ db }) => {
+    const sqlConfig = {
+      dialect: 'sqlite',
       tableMap: { todos: 'todos', users: 'users' },
       fieldMap: {
         todos: { id: 'id', title: 'title', done: 'done' },
         users: { id: 'id', name: 'name', email: 'email' },
       },
-    }),
+    } as const;
+    return {
+      ...sqlConfig,
+      executor: createSyncSqlExecutor(db, sqlConfig),
+    };
+  },
 });
 ```
 
@@ -69,15 +73,20 @@ All happens atomically in the same transaction.
 
 Built-in SQL dialect. Currently supported:
 
-- `SqliteDialect` — For SQLite and Turso
+- `'sqlite'` — For SQLite and Turso
 
 ```ts
-import { SqliteDialect } from '@rippledb/materialize-db';
+import { createSyncSqlExecutor } from '@rippledb/materialize-db';
 
-createMaterializerConfig({
-  db,
-  dialect: SqliteDialect,
-  // ...
+const sqlConfig = {
+  dialect: 'sqlite',
+  tableMap: { todos: 'todos' },
+  fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+} as const;
+
+materializer: ({ db }) => ({
+  ...sqlConfig,
+  executor: createSyncSqlExecutor(db, sqlConfig),
 });
 ```
 
@@ -91,12 +100,17 @@ type MySchema = {
   users: { id: string; name: string };
 };
 
-createMaterializerConfig({
-  // ...
+const sqlConfig = {
+  dialect: 'sqlite',
   tableMap: {
     todos: 'todos',      // Entity 'todos' → table 'todos'
     users: 'app_users',  // Entity 'users' → table 'app_users'
   },
+} as const;
+
+materializer: ({ db }) => ({
+  ...sqlConfig,
+  executor: createSyncSqlExecutor(db, sqlConfig),
 });
 ```
 
@@ -105,8 +119,9 @@ createMaterializerConfig({
 Maps schema field names to database column names. If omitted, field names are used as-is.
 
 ```ts
-createMaterializerConfig({
-  // ...
+const sqlConfig = {
+  dialect: 'sqlite',
+  tableMap: { todos: 'todos' },
   fieldMap: {
     todos: {
       id: 'id',
@@ -114,6 +129,11 @@ createMaterializerConfig({
       done: 'is_done',  // Schema field 'done' → column 'is_done'
     },
   },
+} as const;
+
+materializer: ({ db }) => ({
+  ...sqlConfig,
+  executor: createSyncSqlExecutor(db, sqlConfig),
 });
 ```
 
@@ -126,9 +146,15 @@ If `fieldMap` is provided for an entity, changes to that entity will update the 
 Name of the table storing entity tags/metadata. Default: `'ripple_tags'`
 
 ```ts
-createMaterializerConfig({
-  // ...
+const sqlConfig = {
+  dialect: 'sqlite',
+  tableMap: { todos: 'todos' },
   tagsTable: 'my_ripple_tags',
+} as const;
+
+materializer: ({ db }) => ({
+  ...sqlConfig,
+  executor: createSyncSqlExecutor(db, sqlConfig),
 });
 ```
 
@@ -153,8 +179,9 @@ CREATE TABLE ripple_tags (
 For databases not covered by built-in dialects, provide custom SQL commands:
 
 ```ts
-createMaterializerConfig({
-  db,
+import { createSyncSqlExecutor } from '@rippledb/materialize-db';
+
+const sqlConfig = {
   tableMap: { todos: 'todos' },
   loadCommand: (tagsTable) => `
     SELECT data, tags, deleted, deleted_tag 
@@ -179,6 +206,11 @@ createMaterializerConfig({
       deleted = 1,
       deleted_tag = excluded.deleted_tag
   `,
+} as const;
+
+materializer: ({ db }) => ({
+  ...sqlConfig,
+  executor: createSyncSqlExecutor(db, sqlConfig),
 });
 ```
 
@@ -187,7 +219,7 @@ createMaterializerConfig({
 For full control, provide a custom executor:
 
 ```ts
-createMaterializerConfig({
+materializer: ({ db }) => ({
   tableMap: { todos: 'todos' },
   fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
   executor: {
@@ -215,16 +247,39 @@ createMaterializerConfig({
 For SQLite with `better-sqlite3`, use the sync variants:
 
 ```ts
-import { createSyncMaterializer, createSyncSqlExecutor } from '@rippledb/materialize-db';
+import { createSyncSqlExecutor } from '@rippledb/materialize-db';
 
 // Sync executor for better-sqlite3
-const executor = createSyncSqlExecutor({
-  db,
-  dialect: SqliteDialect,
-  tagsTable: 'ripple_tags',
-  tableMap: { todos: 'todos' },
-  fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-});
+materializer: ({ db }) => {
+  const sqlConfig = {
+    dialect: 'sqlite',
+    tagsTable: 'ripple_tags',
+    tableMap: { todos: 'todos' },
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+  } as const;
+  return {
+    ...sqlConfig,
+    executor: createSyncSqlExecutor(db, sqlConfig),
+  };
+}
+```
+
+For async databases (like Turso), use `createSqlExecutor`:
+
+```ts
+import { createSqlExecutor } from '@rippledb/materialize-db';
+
+materializer: ({ db }) => {
+  const sqlConfig = {
+    dialect: 'sqlite',
+    tableMap: { todos: 'todos' },
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+  } as const;
+  return {
+    ...sqlConfig,
+    executor: createSqlExecutor(sqlConfig, db),
+  };
+}
 ```
 
 ## Domain Table Requirements

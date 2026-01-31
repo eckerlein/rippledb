@@ -91,7 +91,7 @@ In a distributed setup, each server instance needs a unique `NODE_ID`.
   <Tab value="SQLite">
 ```ts title="src/db.ts"
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
+import { createSyncSqlExecutor } from '@rippledb/materialize-db';
 import type { AppSchema } from './schema';
 
 // Create domain tables
@@ -113,9 +113,8 @@ const db = new SqliteDb<AppSchema>({
       );
     `);
 
-    return createMaterializerConfig({
-      db,
-      dialect: SqliteDialect,
+    const sqlConfig = {
+      dialect: 'sqlite',
       tableMap: {
         todos: 'todos',
         users: 'users',
@@ -124,7 +123,12 @@ const db = new SqliteDb<AppSchema>({
         todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' },
         users: { id: 'id', name: 'name', email: 'email' },
       },
-    });
+    } as const;
+
+    return {
+      ...sqlConfig,
+      executor: createSyncSqlExecutor(db, sqlConfig),
+    };
   },
 });
 
@@ -134,24 +138,30 @@ export { db };
   <Tab value="Turso">
 ```ts title="src/db.ts"
 import { TursoDb } from '@rippledb/db-turso';
-import { createMaterializerConfig, SqliteDialect } from '@rippledb/materialize-db';
+import { createSqlExecutor } from '@rippledb/materialize-db';
 import type { AppSchema } from './schema';
 
 const db = new TursoDb<AppSchema>({
   url: process.env.TURSO_DATABASE_URL!,
   authToken: process.env.TURSO_AUTH_TOKEN!,
-  materializer: ({ db }) => createMaterializerConfig({
-    db,
-    dialect: SqliteDialect,
-    tableMap: {
-      todos: 'todos',
-      users: 'users',
-    },
-    fieldMap: {
-      todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' },
-      users: { id: 'id', name: 'name', email: 'email' },
-    },
-  }),
+  materializer: ({ db }) => {
+    const sqlConfig = {
+      dialect: 'sqlite',
+      tableMap: {
+        todos: 'todos',
+        users: 'users',
+      },
+      fieldMap: {
+        todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' },
+        users: { id: 'id', name: 'name', email: 'email' },
+      },
+    } as const;
+
+    return {
+      ...sqlConfig,
+      executor: createSqlExecutor(sqlConfig, db),
+    };
+  },
 });
 
 export { db };
