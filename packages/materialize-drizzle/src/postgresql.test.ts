@@ -1,12 +1,11 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@rippledb/core';
+import { createHlcState, makeDelete, makeUpsert, tickHlc, defineSchema, s } from '@rippledb/core';
 import { materializeChange } from '@rippledb/materialize-core';
-import { createCustomMaterializer } from '@rippledb/materialize-db';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Client } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { getTableConfig, integer, pgTable, text } from 'drizzle-orm/pg-core';
-import { createDrizzleMaterializerConfig } from './index';
+import { createDrizzleMaterializer } from './index';
 
 type TestSchema = {
   todos: {
@@ -15,6 +14,14 @@ type TestSchema = {
     done: boolean;
   };
 };
+
+const schema = defineSchema({
+  todos: {
+    id: s.string(),
+    title: s.string(),
+    done: s.boolean(),
+  },
+});
 
 const todosTable = pgTable('todos', {
   id: text('id').primaryKey(),
@@ -104,14 +111,14 @@ describe('materialize-drizzle (postgresql)', () => {
   it('materializes upserts into tags and entity tables', async () => {
     if (!client) throw new Error('Client not connected');
     const db = drizzle(client);
-    const config = createDrizzleMaterializerConfig<TestSchema>(db, {
+    const adapter = createDrizzleMaterializer({
+      schema,
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
-      getTableConfig: (table) => getTableConfig(table as typeof todosTable),
+      getTableConfig,
       fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
       normalizeValue: (value) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
     });
-    const adapter = createCustomMaterializer<TestSchema>(config);
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
     const change = makeUpsert<TestSchema>({
@@ -122,7 +129,7 @@ describe('materialize-drizzle (postgresql)', () => {
       hlc,
     });
 
-    await materializeChange(adapter, change);
+    await materializeChange(adapter, db, change);
 
     const tagsRow = await client.query(
       'SELECT data, tags, deleted FROM ripple_tags WHERE entity = $1 AND id = $2',
@@ -142,14 +149,14 @@ describe('materialize-drizzle (postgresql)', () => {
   it('handles deletes by marking tags', async () => {
     if (!client) throw new Error('Client not connected');
     const db = drizzle(client);
-    const config = createDrizzleMaterializerConfig<TestSchema>(db, {
+    const adapter = createDrizzleMaterializer({
+      schema,
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
-      getTableConfig: (table) => getTableConfig(table as typeof todosTable),
+      getTableConfig,
       fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
       normalizeValue: (value) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
     });
-    const adapter = createCustomMaterializer<TestSchema>(config);
 
     const hlc1 = tickHlc(createHlcState('node-1'), 100);
     const change1 = makeUpsert<TestSchema>({
@@ -159,7 +166,7 @@ describe('materialize-drizzle (postgresql)', () => {
       patch: { id: 'todo-1', title: 'Buy milk', done: false },
       hlc: hlc1,
     });
-    await materializeChange(adapter, change1);
+    await materializeChange(adapter, db, change1);
 
     const hlc2 = tickHlc(createHlcState('node-1'), 101);
     const change2 = makeDelete<TestSchema>({
@@ -168,7 +175,7 @@ describe('materialize-drizzle (postgresql)', () => {
       entityId: 'todo-1',
       hlc: hlc2,
     });
-    await materializeChange(adapter, change2);
+    await materializeChange(adapter, db, change2);
 
     const tagsRow = await client.query(
       'SELECT deleted, deleted_tag FROM ripple_tags WHERE entity = $1 AND id = $2',

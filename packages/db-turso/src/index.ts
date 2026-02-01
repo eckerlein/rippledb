@@ -1,5 +1,5 @@
 import { createClient, type Client } from '@libsql/client';
-import type { Change, RippleSchema } from '@rippledb/core';
+import type { Change, RippleSchema, MaterializerDb, SchemaDescriptor } from '@rippledb/core';
 import type {
   AppendRequest,
   AppendResult,
@@ -9,14 +9,14 @@ import type {
   PullResponse,
 } from '@rippledb/server';
 import { applyChangeToState } from '@rippledb/materialize-core';
-import type { CustomMaterializerConfig } from '@rippledb/materialize-db';
-import { createCustomMaterializer } from '@rippledb/materialize-db';
-import type { Db as MaterializerDb } from '@rippledb/materialize-db';
+import type { MaterializerFactory, MaterializerAdapter } from '@rippledb/materialize-core';
 
 type TursoDbOptions<S extends RippleSchema = RippleSchema> = {
   url: string;
   authToken: string;
-  materializer?: (ctx: { db: MaterializerDb }) => CustomMaterializerConfig<S>;
+  materializer?: MaterializerFactory<MaterializerDb, S, MaterializerAdapter<S, MaterializerDb>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: SchemaDescriptor<any>;
 };
 
 type SqlStatement = {
@@ -83,6 +83,9 @@ function decodeCursor(cursor: Cursor | null): number {
 export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
   private client: Client;
   private materializerFactory: TursoDbOptions<S>['materializer'];
+  private materializer: MaterializerAdapter<S, MaterializerDb> | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private schema: SchemaDescriptor<any>;
 
   constructor(opts: TursoDbOptions<S>) {
     this.client = createClient({
@@ -93,8 +96,24 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
     // Initialize tables
     this.initTables();
 
-    // Store materializer factory for per-request use
+    // Store materializer factory and schema
     this.materializerFactory = opts.materializer;
+    this.schema = opts.schema;
+
+    // Cache materializer adapter if factory is provided
+    // Create temp CollectingDb for initialization
+    // Factory returns adapter directly (ensureTagsTable runs during factory execution with tempDb)
+    if (this.materializerFactory) {
+      const tempDb = new CollectingDb(this.client);
+      const factory = this.materializerFactory as MaterializerFactory<
+        MaterializerDb,
+        S,
+        MaterializerAdapter<S, MaterializerDb>
+      >;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ctx: { db: MaterializerDb; schema: SchemaDescriptor<any> } = { db: tempDb, schema: this.schema };
+      this.materializer = factory(ctx);
+    }
   }
 
   private async initTables(): Promise<void> {
@@ -149,21 +168,21 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
     }
 
     // Materialize changes if materializer is configured
-    if (this.materializerFactory) {
+    // Use cached materializer (created in constructor)
+    // Create transaction-specific CollectingDb
+    if (this.materializer) {
       const collectingDb = new CollectingDb(this.client);
-      const materializerConfig = this.materializerFactory({ db: collectingDb });
-      const materializer = createCustomMaterializer(materializerConfig);
 
       // Load current states (executes immediately)
       for (const change of req.changes) {
-        const current = await materializer.load(change.entity, change.entityId);
+        const current = await this.materializer.load(collectingDb, change.entity, change.entityId);
         const result = applyChangeToState(current, change);
 
         if (result.changed) {
           if (result.deleted) {
-            await materializer.remove(change.entity, change.entityId, result.state);
+            await this.materializer.remove(collectingDb, change.entity, change.entityId, result.state);
           } else {
-            await materializer.save(change.entity, change.entityId, result.state);
+            await this.materializer.save(collectingDb, change.entity, change.entityId, result.state);
           }
         }
       }

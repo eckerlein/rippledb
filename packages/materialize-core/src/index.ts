@@ -1,5 +1,33 @@
-import type { Change, ChangeTags, RippleSchema, EntityName, Hlc } from '@rippledb/core';
+import type { Change, ChangeTags, RippleSchema, EntityName, Hlc, SchemaDescriptor, MaterializerDb } from '@rippledb/core';
 import { compareHlc } from '@rippledb/core';
+
+/**
+ * Factory function type for creating materializer adapters.
+ * 
+ * Each adapter specifies its own TDb type (the transaction-bound database instance).
+ * The factory receives both the database instance and schema descriptor, and returns
+ * a MaterializerAdapter directly.
+ * 
+ * @example
+ * ```ts
+ * // SQLite adapter
+ * type SqliteDbOptions<S> = {
+ *   materializer?: MaterializerFactory<SqliteDatabase, S>;
+ *   schema: SchemaDescriptor;
+ * };
+ * 
+ * // Turso adapter
+ * type TursoDbOptions<S> = {
+ *   materializer?: MaterializerFactory<MaterializerDb, S>;
+ *   schema: SchemaDescriptor;
+ * };
+ * ```
+ */
+export type MaterializerFactory<
+  TDb = unknown,
+  S extends RippleSchema = RippleSchema,
+  TAdapter = MaterializerAdapter<S, TDb>,
+> = (ctx: { db: TDb; schema: SchemaDescriptor }) => TAdapter;
 
 type FieldKey<T extends Record<string, unknown>> = Extract<keyof T, string>;
 
@@ -13,10 +41,13 @@ export type MaterializerState<
   deletedTag: Hlc | null;
 };
 
-export type MaterializerAdapter<S extends RippleSchema = RippleSchema> = {
-  load<E extends EntityName<S>>(entity: E, id: string): Promise<MaterializerState<S, E> | null>;
-  save<E extends EntityName<S>>(entity: E, id: string, state: MaterializerState<S, E>): Promise<void>;
-  remove<E extends EntityName<S>>(entity: E, id: string, state: MaterializerState<S, E>): Promise<void>;
+export type MaterializerAdapter<
+  S extends RippleSchema = RippleSchema,
+  TDb = MaterializerDb,
+> = {
+  load<E extends EntityName<S>>(db: TDb, entity: E, id: string): Promise<MaterializerState<S, E> | null>;
+  save<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): Promise<void>;
+  remove<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): Promise<void>;
 };
 
 type ApplyResult<S extends RippleSchema, E extends EntityName<S>> = {
@@ -96,28 +127,31 @@ export function applyChangeToState<
 export async function materializeChange<
   S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
+  TDb = MaterializerDb,
 >(
-  adapter: MaterializerAdapter<S>,
+  adapter: MaterializerAdapter<S, TDb>,
+  db: TDb,
   change: Change<S, E>,
 ): Promise<'noop' | 'saved' | 'removed'> {
-  const current = await adapter.load(change.entity, change.entityId);
+  const current = await adapter.load(db, change.entity, change.entityId);
   const result = applyChangeToState(current, change);
 
   if (!result.changed) return 'noop';
   if (result.deleted) {
-    await adapter.remove(change.entity, change.entityId, result.state);
+    await adapter.remove(db, change.entity, change.entityId, result.state);
     return 'removed';
   }
 
-  await adapter.save(change.entity, change.entityId, result.state);
+  await adapter.save(db, change.entity, change.entityId, result.state);
   return 'saved';
 }
 
 export async function materializeChanges<
   S extends RippleSchema = RippleSchema,
->(adapter: MaterializerAdapter<S>, changes: Change<S>[]): Promise<void> {
+  TDb = MaterializerDb,
+>(adapter: MaterializerAdapter<S, TDb>, db: TDb, changes: Change<S>[]): Promise<void> {
   for (const change of changes) {
-    await materializeChange(adapter, change);
+    await materializeChange(adapter, db, change);
   }
 }
 

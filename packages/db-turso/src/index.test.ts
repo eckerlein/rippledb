@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeUpsert, tickHlc, type Change } from '@rippledb/core';
+import { createHlcState, makeUpsert, tickHlc, type Change, defineSchema, s } from '@rippledb/core';
 import { TursoDb } from './index';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { unlinkSync } from 'node:fs';
 import { createClient } from '@libsql/client';
-import { createSqlExecutor } from '@rippledb/materialize-db';
+import { createMaterializer, createSqlExecutor } from '@rippledb/materialize-db';
 
 type TestSchema = {
   todos: {
@@ -14,6 +14,14 @@ type TestSchema = {
     done: boolean;
   };
 };
+
+const schema = defineSchema({
+  todos: {
+    id: s.string(),
+    title: s.string(),
+    done: s.boolean(),
+  },
+});
 
 describe('TursoDb', () => {
   let db: TursoDb<TestSchema>;
@@ -25,6 +33,7 @@ describe('TursoDb', () => {
     db = new TursoDb({
       url: `file:${dbPath}`,
       authToken: '', // Not needed for local file mode
+      schema,
     });
   });
 
@@ -125,17 +134,20 @@ describe('TursoDb', () => {
     const dbWithMaterializer = new TursoDb<TestSchema>({
       url: `file:${dbPath}`,
       authToken: '',
-      materializer: ({ db }) => {
+      schema,
+      materializer: ({ db, schema }) => {
         const sqlConfig = {
           dialect: 'sqlite',
           tableMap: { todos: 'todos' },
           fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
         } as const;
-        return {
+        return createMaterializer({
+          schema,
+          db,
+          dialect: 'sqlite',
           tableMap: sqlConfig.tableMap,
           fieldMap: sqlConfig.fieldMap,
-          executor: createSqlExecutor(sqlConfig, db),
-        };
+        });
       },
     });
 
@@ -252,17 +264,15 @@ describe('TursoDb', () => {
     const dbWithMaterializer = new TursoDb<TestSchema>({
       url: `file:${dbPath}`,
       authToken: '',
-      materializer: ({ db }) => {
-        const sqlConfig = {
+      schema,
+      materializer: ({ db, schema }) => {
+        return createMaterializer({
+          schema,
+          db,
           dialect: 'sqlite',
           tableMap: { todos: 'todos' },
           fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-        } as const;
-        return {
-          tableMap: sqlConfig.tableMap,
-          fieldMap: sqlConfig.fieldMap,
-          executor: createSqlExecutor(sqlConfig, db),
-        };
+        });
       },
     });
 
@@ -393,13 +403,14 @@ describe('TursoDb', () => {
     ]);
     setupClient.close();
 
-    // Create a materializer with a custom saveEntityCommand that generates invalid SQL
+    // Create a materializer with a custom executor that generates invalid SQL
     // This will cause the batch to fail, testing atomicity through the adapter
     const dbWithInvalidMaterializer = new TursoDb<TestSchema>({
       url: `file:${dbPath}`,
       authToken: '',
-      materializer: ({ db }) => {
-        const sqlConfig = {
+      schema,
+      materializer: ({ db, schema }) => {
+        const executor = createSqlExecutor({
           tableMap: { todos: 'todos' },
           fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
           // Custom commands that will generate invalid SQL
@@ -414,12 +425,14 @@ describe('TursoDb', () => {
             sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')}, invalid_column) VALUES (?, ${values.map(() => '?').join(', ')}, ?)`,
             params: [id, ...values, 'invalid'],
           }),
-        };
-        return {
-          tableMap: sqlConfig.tableMap,
-          fieldMap: sqlConfig.fieldMap,
-          executor: createSqlExecutor(sqlConfig, db),
-        };
+        });
+        return createMaterializer({
+          schema,
+          db,
+          executor,
+          tableMap: { todos: 'todos' },
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+        });
       },
     });
 

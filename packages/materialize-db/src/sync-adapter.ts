@@ -4,11 +4,12 @@ import type {
   RippleSchema,
   EntityName,
   Hlc,
+  MaterializerDb,
+  SchemaDescriptor,
+  InferSchema,
 } from '@rippledb/core';
 import type { MaterializerState } from '@rippledb/materialize-core';
 import type {
-  EntityFieldMap,
-  MaterializerConfigBase,
   SqlMaterializerConfig,
   TagsRow,
 } from './types';
@@ -17,25 +18,65 @@ import { dialects } from './dialects';
 /**
  * Synchronous materializer adapter for SQLite.
  * All methods are synchronous and use the same SQLite connection.
+ * Methods receive db as first parameter (stateless).
  */
-export type SyncMaterializerAdapter<S extends RippleSchema = RippleSchema> = {
-  load<E extends EntityName<S>>(entity: E, id: string): MaterializerState<S, E> | null;
-  save<E extends EntityName<S>>(entity: E, id: string, state: MaterializerState<S, E>): void;
-  remove<E extends EntityName<S>>(entity: E, id: string, state: MaterializerState<S, E>): void;
+export type SyncMaterializerAdapter<
+  S extends RippleSchema = RippleSchema,
+  TDb = MaterializerDb,
+> = {
+  load<E extends EntityName<S>>(db: TDb, entity: E, id: string): MaterializerState<S, E> | null;
+  save<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): void;
+  remove<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): void;
 };
 
-export type SyncMaterializerExecutor = {
-  ensureTagsTable?: () => void;
-  loadTags: (entity: string, id: string) => TagsRow | null;
-  saveTags: (entity: string, id: string, dataJson: string, tagsJson: string) => void;
+/**
+ * Synchronous executor for materialization operations.
+ * 
+ * Executors are stateless - they receive the transaction-bound database instance
+ * as the first parameter to all methods. This allows executors to be created once
+ * and reused across transactions.
+ * 
+ * For SQLite, the db parameter will be a SqliteDatabase instance (better-sqlite3),
+ * which implements MaterializerDb with synchronous methods.
+ */
+export type SyncMaterializerExecutor<TDb = MaterializerDb> = {
+  /**
+   * Ensure tags table/collection exists. Optional.
+   * Receives the transaction-bound database instance.
+   */
+  ensureTagsTable?: (db: TDb) => void;
+
+  /**
+   * Load tags row for a specific entity + id.
+   * Receives the transaction-bound database instance as first parameter.
+   */
+  loadTags: (db: TDb, entity: string, id: string) => TagsRow | null;
+
+  /**
+   * Save tags row for a specific entity + id.
+   * Receives the transaction-bound database instance as first parameter.
+   */
+  saveTags: (db: TDb, entity: string, id: string, dataJson: string, tagsJson: string) => void;
+
+  /**
+   * Remove (tombstone) tags row for a specific entity + id.
+   * Receives the transaction-bound database instance as first parameter.
+   */
   removeTags: (
+    db: TDb,
     entity: string,
     id: string,
     dataJson: string,
     tagsJson: string,
     deletedTag: string,
   ) => void;
+
+  /**
+   * Save entity values to the domain table/collection (when fieldMap is provided).
+   * Receives the transaction-bound database instance as first parameter.
+   */
   saveEntity?: (
+    db: TDb,
     tableName: string,
     id: string,
     columns: string[],
@@ -46,10 +87,13 @@ export type SyncMaterializerExecutor = {
 
 /**
  * Create a synchronous SQL executor for SQLite using dialect/custom commands.
+ * 
+ * Executor is stateless - it receives db as parameter in all methods.
+ * Table initialization is handled by the materializer constructor.
  */
 export function createSyncSqlExecutor<
   S extends RippleSchema = RippleSchema,
->(db: Database.Database, config: SqlMaterializerConfig<S>): SyncMaterializerExecutor {
+>(config: SqlMaterializerConfig<S>): SyncMaterializerExecutor<Database.Database> {
   const tagsTable = config.tagsTable ?? 'ripple_tags';
   const dialect =
     'dialect' in config && config.dialect ? dialects[config.dialect] : undefined;
@@ -104,42 +148,40 @@ export function createSyncSqlExecutor<
     throw new Error('No saveEntityCommand provided and no dialect specified');
   };
 
-  // Ensure tags table exists before preparing statements (required for SQLite)
-  if (dialect) {
-    const createSql = dialect.createTagsTable(tagsTable);
-    db.exec(createSql);
-  }
-
   // Pre-compute commands (they're static templates)
   const loadCmd = getLoadCommand();
   const saveCmd = getSaveCommand();
   const removeCmd = getRemoveCommand();
 
-  // Pre-prepare statements for better performance
-  const loadStmt = db.prepare(loadCmd);
-  const saveStmt = db.prepare(saveCmd);
-  const removeStmt = db.prepare(removeCmd);
-
   return {
-    ensureTagsTable: () => {
-      // Already done above during executor creation
+    ensureTagsTable: (db: Database.Database) => {
+      // Initialize tags table using the provided db instance
+      if (dialect) {
+        const createSql = dialect.createTagsTable(tagsTable);
+        db.exec(createSql);
+      }
     },
-    loadTags: (entity: string, id: string): TagsRow | null => {
-      return (loadStmt.get(entity, id) as TagsRow | undefined) ?? null;
+    loadTags: (db: Database.Database, entity: string, id: string): TagsRow | null => {
+      const stmt = db.prepare(loadCmd);
+      return (stmt.get(entity, id) as TagsRow | undefined) ?? null;
     },
-    saveTags: (entity: string, id: string, dataJson: string, tagsJson: string): void => {
-      saveStmt.run(entity, id, dataJson, tagsJson);
+    saveTags: (db: Database.Database, entity: string, id: string, dataJson: string, tagsJson: string): void => {
+      const stmt = db.prepare(saveCmd);
+      stmt.run(entity, id, dataJson, tagsJson);
     },
     removeTags: (
+      db: Database.Database,
       entity: string,
       id: string,
       dataJson: string,
       tagsJson: string,
       deletedTag: string,
     ): void => {
-      removeStmt.run(entity, id, dataJson, tagsJson, deletedTag);
+      const stmt = db.prepare(removeCmd);
+      stmt.run(entity, id, dataJson, tagsJson, deletedTag);
     },
     saveEntity: (
+      db: Database.Database,
       tableName: string,
       id: string,
       columns: string[],
@@ -154,119 +196,158 @@ export function createSyncSqlExecutor<
 }
 
 /**
+ * Options for creating a synchronous materializer adapter.
+ */
+type CreateSyncMaterializerOptions<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  D extends SchemaDescriptor<any>,
+> = {
+  schema: D;
+  db: Database.Database;  // Required for ensureTagsTable (creates tables)
+  tableMap?: Partial<Record<EntityName<InferSchema<D>>, string>>;
+  fieldMap?: Partial<Record<EntityName<InferSchema<D>>, Record<string, string>>>;
+  tagsTable?: string;
+} & (
+  | { executor: SyncMaterializerExecutor<Database.Database>; dialect?: never }
+  | { executor?: never; dialect: 'sqlite' }
+);
+
+/**
  * Create a synchronous materializer adapter for SQLite.
- * Uses the same SQLite connection and all operations are synchronous.
+ * Uses schema for entity/field discovery and creates adapter directly.
  *
  * @example
  * ```ts
- * const sqlConfig = {
+ * const schema = defineSchema({
+ *   todos: { id: s.string(), title: s.string(), done: s.boolean() },
+ * });
+ * 
+ * const adapter = createSyncMaterializer({
+ *   schema,
+ *   db,
  *   dialect: 'sqlite',
- *   tableMap: { todos: 'todos' },
- *   fieldMap: { todos: { title: 'todo_title', done: 'is_done' } }
- * };
- * const executor = createSyncSqlExecutor(db, sqlConfig);
- * const adapter = createSyncMaterializer({ ...sqlConfig, executor });
+ *   // Optional overrides:
+ *   tableMap: { todos: 'app_todos' },
+ *   fieldMap: { todos: { done: 'is_done' } },
+ * });
  * ```
  */
 export function createSyncMaterializer<
-  S extends RippleSchema = RippleSchema,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  D extends SchemaDescriptor<any>,
 >(
-  config: MaterializerConfigBase<S> & { executor: SyncMaterializerExecutor },
-): SyncMaterializerAdapter<S> {
-  const executor: SyncMaterializerExecutor = config.executor;
-
-  // Initialize tags table on first use
-  let tagsTableInitialized = false;
-  const initTagsTable = () => {
-    if (!tagsTableInitialized) {
-      if (executor.ensureTagsTable) {
-        executor.ensureTagsTable();
-      }
-      tagsTableInitialized = true;
-    }
-  };
-
-  const getTableName = <E extends EntityName<S>>(entity: E): string => {
-    const table = config.tableMap[entity];
+  opts: CreateSyncMaterializerOptions<D>
+): SyncMaterializerAdapter<InferSchema<D>, Database.Database> {
+  // Store schema directly in closure (source of truth)
+  const schema = opts.schema;
+  
+  // Derive tableMap from schema.entities (with optional overrides)
+  const tableMap: Record<EntityName<InferSchema<D>>, string> = {} as Record<EntityName<InferSchema<D>>, string>;
+  for (const entity of schema.entities) {
+    tableMap[entity as EntityName<InferSchema<D>>] = opts.tableMap?.[entity as EntityName<InferSchema<D>>] ?? entity;
+  }
+  
+  // Store fieldMap as optional overrides only
+  const fieldMap = opts.fieldMap;
+  
+  // Get executor
+  const executor: SyncMaterializerExecutor<Database.Database> = opts.executor ?? createSyncSqlExecutor({
+    dialect: opts.dialect!,
+    tableMap,
+    fieldMap,
+    tagsTable: opts.tagsTable,
+  });
+  
+  // Initialize tags table immediately
+  if (executor.ensureTagsTable) {
+    executor.ensureTagsTable(opts.db);
+  }
+  
+  const getTableName = <E extends EntityName<InferSchema<D>>>(entity: E): string => {
+    const table = tableMap[entity];
     if (!table) {
       throw new Error(`No table mapping for entity: ${entity}`);
     }
     return table;
   };
-
-  const getFieldMap = <E extends EntityName<S>>(
+  
+  const getColumnName = <E extends EntityName<InferSchema<D>>>(
     entity: E,
-  ): EntityFieldMap | null => {
-    return (config.fieldMap?.[entity] as EntityFieldMap | undefined) ?? null;
+    field: string,
+  ): string => {
+    return fieldMap?.[entity]?.[field] ?? field;
   };
-
+  
   return {
-    load<E extends EntityName<S>>(
+    load<E extends EntityName<InferSchema<D>>>(
+      db: Database.Database,
       entity: E,
       id: string,
-    ): MaterializerState<S, E> | null {
-      initTagsTable();
-      const row = executor.loadTags(entity, id);
-
+    ): MaterializerState<InferSchema<D>, E> | null {
+      const row = executor.loadTags(db, entity, id);
+      
       if (!row) return null;
-
+      
       return {
-        values: JSON.parse(row.data) as Partial<S[E]>,
-        tags: JSON.parse(row.tags) as ChangeTags<S, E>,
+        values: JSON.parse(row.data) as Partial<InferSchema<D>[E]>,
+        tags: JSON.parse(row.tags) as ChangeTags<InferSchema<D>, E>,
         deleted: row.deleted === 1,
         deletedTag: row.deleted_tag as Hlc | null,
       };
     },
-
-    save<E extends EntityName<S>>(
+    
+    save<E extends EntityName<InferSchema<D>>>(
+      db: Database.Database,
       entity: E,
       id: string,
-      state: MaterializerState<S, E>,
+      state: MaterializerState<InferSchema<D>, E>,
     ): void {
-      initTagsTable();
       const tableName = getTableName(entity);
-      const fieldMap = getFieldMap(entity);
       const dataJson = JSON.stringify(state.values);
       const tagsJson = JSON.stringify(state.tags);
-
+      
       // Save to tags table
-      executor.saveTags(entity, id, dataJson, tagsJson);
-
+      executor.saveTags(db, entity, id, dataJson, tagsJson);
+      
       // Optionally save values to actual table columns if fieldMap is provided
-      if (fieldMap && Object.keys(state.values).length > 0) {
+      if (fieldMap?.[entity] && Object.keys(state.values).length > 0) {
         const columns: string[] = [];
         const values: unknown[] = [];
         const updates: string[] = [];
-
-        for (const [field, value] of Object.entries(state.values)) {
-          // Skip 'id' field - it's handled separately as the first parameter in saveEntityCommand
+        
+        // Use schema.getFields() for field iteration
+        const fields = schema.getFields(entity);
+        for (const field of fields) {
+          if (!(field in state.values)) continue;
+          // Skip 'id' field - it's handled separately
           if (field === 'id') continue;
-          const column = fieldMap[field] ?? field;
+          const column = getColumnName(entity, field);
+          const value = state.values[field as keyof typeof state.values];
           columns.push(column);
           values.push(value);
           updates.push(`${column} = ?`);
         }
-
+        
         if (columns.length > 0) {
           if (!executor.saveEntity) {
             throw new Error('No saveEntity executor provided for fieldMap');
           }
-          executor.saveEntity(tableName, id, columns, values, updates);
+          executor.saveEntity(db, tableName, id, columns, values, updates);
         }
       }
     },
-
-    remove<E extends EntityName<S>>(
+    
+    remove<E extends EntityName<InferSchema<D>>>(
+      db: Database.Database,
       entity: E,
       id: string,
-      state: MaterializerState<S, E>,
+      state: MaterializerState<InferSchema<D>, E>,
     ): void {
-      initTagsTable();
       const dataJson = JSON.stringify(state.values);
       const tagsJson = JSON.stringify(state.tags);
       const deletedTag = state.deletedTag ?? '';
-
-      executor.removeTags(entity, id, dataJson, tagsJson, deletedTag);
+      
+      executor.removeTags(db, entity, id, dataJson, tagsJson, deletedTag);
     },
   };
 }

@@ -1,13 +1,20 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@rippledb/core';
+import { createHlcState, makeDelete, makeUpsert, tickHlc, defineSchema, s } from '@rippledb/core';
 import { materializeChange, materializeChanges, type MaterializerAdapter } from '@rippledb/materialize-core';
-import { createCustomMaterializer, createSqlExecutor } from './adapter';
+import { createMaterializer } from './adapter';
 import type { Db } from './types';
 import { createSqliteDb, type TestSchema } from './test-helpers';
 
-describe('createCustomMaterializer - SQLite dialect', () => {
+describe('createMaterializer - SQLite dialect', () => {
   let db: Db;
   let adapter: MaterializerAdapter<TestSchema>;
+  const schema = defineSchema({
+    todos: {
+      id: s.string(),
+      title: s.string(),
+      done: s.boolean(),
+    },
+  });
 
   beforeEach(async () => {
     db = createSqliteDb();
@@ -16,13 +23,11 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       'CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)',
       [],
     );
-    const sqlConfig = {
+    adapter = createMaterializer({
+      schema,
+      db,
       dialect: 'sqlite',
       tableMap: { todos: 'todos' },
-    } as const;
-    adapter = createCustomMaterializer<TestSchema>({
-      tableMap: sqlConfig.tableMap,
-      executor: createSqlExecutor(sqlConfig, db),
     });
   });
 
@@ -36,7 +41,7 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       hlc,
     });
 
-    await materializeChange(adapter, change);
+    await materializeChange(adapter, db, change);
 
     // Verify tags table exists and has data
     const row = await db.get<{ data: string; tags: string; deleted: number }>(
@@ -49,15 +54,12 @@ describe('createCustomMaterializer - SQLite dialect', () => {
   });
 
   it('saves entity to both tags table and entity table', async () => {
-    const sqlConfig = {
+    const adapterWithFieldMap = createMaterializer({
+      schema,
+      db,
       dialect: 'sqlite',
       tableMap: { todos: 'todos' },
       fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-    } as const;
-    const adapterWithFieldMap = createCustomMaterializer<TestSchema>({
-      tableMap: sqlConfig.tableMap,
-      fieldMap: sqlConfig.fieldMap,
-      executor: createSqlExecutor(sqlConfig, db),
     });
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
@@ -69,7 +71,7 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       hlc,
     });
 
-    await materializeChange(adapterWithFieldMap, change);
+    await materializeChange(adapterWithFieldMap, db, change);
 
     // Check entity table
     const entityRow = await db.get<{ id: string; title: string; done: number }>(
@@ -85,15 +87,12 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       'CREATE TABLE todos (id TEXT PRIMARY KEY, todo_title TEXT, is_done INTEGER)',
       [],
     );
-    const sqlConfig = {
+    const adapter2 = createMaterializer({
+      schema,
+      db: db2,
       dialect: 'sqlite',
       tableMap: { todos: 'todos' },
       fieldMap: { todos: { id: 'id', title: 'todo_title', done: 'is_done' } },
-    } as const;
-    const adapter2 = createCustomMaterializer<TestSchema>({
-      tableMap: sqlConfig.tableMap,
-      fieldMap: sqlConfig.fieldMap,
-      executor: createSqlExecutor(sqlConfig, db2),
     });
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
@@ -105,7 +104,7 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       hlc,
     });
 
-    await materializeChange(adapter2, change);
+    await materializeChange(adapter2, db2, change);
 
     const row = await db2.get<{ id: string; todo_title: string; is_done: number }>(
       'SELECT id, todo_title, is_done FROM todos WHERE id = ?',
@@ -123,9 +122,9 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       patch: { id: 'todo-1', title: 'Buy milk', done: false },
       hlc: hlc1,
     });
-    await materializeChange(adapter, change1);
+    await materializeChange(adapter, db, change1);
 
-    const state = await adapter.load('todos', 'todo-1');
+    const state = await adapter.load(db, 'todos', 'todo-1');
     expect(state).toBeTruthy();
     expect(state!.values).toEqual({ id: 'todo-1', title: 'Buy milk', done: false });
     expect(state!.tags.title).toBe(hlc1);
@@ -141,7 +140,7 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       patch: { id: 'todo-1', title: 'Buy milk', done: false },
       hlc: hlc1,
     });
-    await materializeChange(adapter, change1);
+    await materializeChange(adapter, db, change1);
 
     const hlc2 = tickHlc(createHlcState('node-1'), 101);
     const change2 = makeDelete<TestSchema>({
@@ -150,10 +149,10 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       entityId: 'todo-1',
       hlc: hlc2,
     });
-    const result = await materializeChange(adapter, change2);
+    const result = await materializeChange(adapter, db, change2);
     expect(result).toBe('removed');
 
-    const state = await adapter.load('todos', 'todo-1');
+    const state = await adapter.load(db, 'todos', 'todo-1');
     expect(state).toBeTruthy();
     expect(state!.deleted).toBe(true);
     expect(state!.deletedTag).toBe(hlc2);
@@ -188,23 +187,21 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       }),
     ];
 
-    await materializeChanges(adapter, changes);
+    await materializeChanges(adapter, db, changes);
 
-    const state1 = await adapter.load('todos', 'todo-1');
+    const state1 = await adapter.load(db, 'todos', 'todo-1');
     expect(state1!.values).toEqual({ id: 'todo-1', title: 'Buy milk', done: true });
 
-    const state2 = await adapter.load('todos', 'todo-2');
+    const state2 = await adapter.load(db, 'todos', 'todo-2');
     expect(state2!.values).toEqual({ id: 'todo-2', title: 'Buy bread', done: false });
   });
 
-  it('throws error for missing table mapping', async () => {
-    const sqlConfig = {
+  it('uses schema-derived table mapping when tableMap is empty', async () => {
+    const adapter = createMaterializer({
+      schema,
+      db,
       dialect: 'sqlite',
       tableMap: {} as Record<keyof TestSchema, string>,
-    };
-    const badAdapter = createCustomMaterializer<TestSchema>({
-      tableMap: sqlConfig.tableMap,
-      executor: createSqlExecutor(sqlConfig, db),
     });
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
@@ -216,18 +213,16 @@ describe('createCustomMaterializer - SQLite dialect', () => {
       hlc,
     });
 
-    await expect(materializeChange(badAdapter, change)).rejects.toThrow('No table mapping for entity: todos');
+    await expect(materializeChange(adapter, db, change)).resolves.toBe('saved');
   });
 
   it('throws error for invalid dialect', () => {
     expect(() => {
-      const sqlConfig = {
+      createMaterializer({
+        schema,
+        db,
         dialect: 'invalid-dialect' as 'sqlite',
         tableMap: { todos: 'todos' },
-      };
-      createCustomMaterializer<TestSchema>({
-        tableMap: sqlConfig.tableMap,
-        executor: createSqlExecutor(sqlConfig, db),
       });
     }).toThrow('Invalid config: must provide dialect or custom commands');
   });
