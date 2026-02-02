@@ -122,12 +122,14 @@ function loadLimits(): PerformanceLimits {
 function getPackageStatus(
   result: PackageDiagnostics,
   limits?: PerformanceLimits,
+  isCheckMode?: boolean,
 ): string {
   if (result.errors > 0) return "❌";
   if (!limits) return "✅";
 
   const max = limits.packages[result.name];
-  if (!max) return "✅";
+  // In check mode, missing max is an error
+  if (!max) return isCheckMode ? "❌" : "✅";
 
   if (result.time > max) return "❌";
   if (result.time < max * limits.headroomWarningThreshold) return "⚠️";
@@ -137,9 +139,11 @@ function getPackageStatus(
 function PerformanceTable({
   results,
   limits,
+  isCheckMode = false,
 }: {
   results: PackageDiagnostics[];
   limits?: PerformanceLimits;
+  isCheckMode?: boolean;
 }) {
   const sorted = [...results].sort((a, b) => b.time - a.time);
   const hasLimits = limits !== undefined;
@@ -168,7 +172,7 @@ function PerformanceTable({
       </Text>
       <Text>{"-".repeat(hasLimits ? 94 : 82)}</Text>
       {sorted.map(result => {
-        const status = getPackageStatus(result, limits);
+        const status = getPackageStatus(result, limits, isCheckMode);
         const max = limits?.packages[result.name];
         const maxStr = max ? max.toString() : "-";
 
@@ -262,7 +266,12 @@ function App({ isCheckMode }: { isCheckMode: boolean; }) {
 
           for (const pkg of currentResults) {
             const max = limits.packages[pkg.name];
-            if (!max) continue;
+            if (!max) {
+              errors.push(
+                `Package "${pkg.name}": No performance limit defined in .github/tsc-performance-limits.json`,
+              );
+              continue;
+            }
 
             if (pkg.time > max) {
               errors.push(
@@ -341,7 +350,11 @@ function App({ isCheckMode }: { isCheckMode: boolean; }) {
       <Text>📊 Summary (updating live)</Text>
       <Text></Text>
       {results.length > 0 && (
-        <PerformanceTable results={results} limits={limits || undefined} />
+        <PerformanceTable
+          results={results}
+          limits={limits || undefined}
+          isCheckMode={isCheckMode}
+        />
       )}
       {checkResult && (
         <>

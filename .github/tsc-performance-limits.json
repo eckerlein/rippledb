@@ -19,6 +19,7 @@
     "materialize-core": 465,
     "store-memory": 465,
     "server-trpc": 450,
+    "scripts-perf": 450,
     "remote-trpc": 435,
     "db-memory": 330,
     "server": 345,
