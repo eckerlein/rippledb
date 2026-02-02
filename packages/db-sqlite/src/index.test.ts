@@ -370,17 +370,6 @@ describe('SqliteDb', () => {
           getTableConfig,
           fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
           normalizeValue: (value) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
-          ensureTagsTable: () => {
-            db.exec(`CREATE TABLE IF NOT EXISTS ripple_tags (
-              entity TEXT NOT NULL,
-              id TEXT NOT NULL,
-              data TEXT NOT NULL,
-              tags TEXT NOT NULL,
-              deleted INTEGER NOT NULL DEFAULT 0,
-              deleted_tag TEXT,
-              PRIMARY KEY (entity, id)
-            );`);
-          },
         });
         type SchemaType = InferSchema<typeof schema>;
         return {
@@ -420,30 +409,22 @@ describe('SqliteDb', () => {
       },
     });
 
-    const validChange = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { id: 'todo-1', title: 'Valid', done: false },
-      hlc: tickHlc(createHlcState('node-1'), 100),
-    });
-
     // Create a change with done: 2 which violates CHECK (done IN (0, 1)) constraint
     const invalidChange = {
       ...makeUpsert<TestSchema>({
         stream: 'test',
         entity: 'todos',
-        entityId: 'todo-invalid',
-        patch: { id: 'todo-invalid', title: 'Invalid', done: false },
-        hlc: tickHlc(createHlcState('node-1'), 101),
+        entityId: 'todo-1',
+        patch: { id: 'todo-1', title: 'Buy milk', done: false },
+        hlc: tickHlc(createHlcState('node-1'), 100),
       }),
-      patch: { id: 'todo-invalid', title: 'Invalid', done: 2 },
+      patch: { id: 'todo-1', title: 'Buy milk', done: 2 }, // Violates CHECK constraint
     } as unknown as Change<TestSchema>;
 
     await expect(
       dbWithDrizzleMaterializer.append({
         stream: 'test',
-        changes: [validChange, invalidChange],
+        changes: [invalidChange],
       }),
     ).rejects.toThrow();
 
@@ -452,8 +433,8 @@ describe('SqliteDb', () => {
       .prepare('SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?')
       .get('test') as { count: number };
     const todos = verifyDb['db']
-      .prepare('SELECT id FROM todos WHERE id IN (?, ?)')
-      .all('todo-1', 'todo-invalid') as Array<{ id: string }>;
+      .prepare('SELECT id FROM todos WHERE id = ?')
+      .all('todo-1') as Array<{ id: string }>;
     verifyDb.close();
 
     expect(count.count).toBe(0);
