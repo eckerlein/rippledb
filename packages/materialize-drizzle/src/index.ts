@@ -665,7 +665,7 @@ export function createDrizzleSyncMaterializer<
       const deletedTag = state.deletedTag ?? '';
       executor.removeTags(db, entity, id, dataJson, tagsJson, deletedTag);
     },
-  } as unknown as MaterializerAdapter<InferSchema<D>, DrizzleDbClient<TTable, TTagsTable>>;
+  };
 
   return adapter;
 }
