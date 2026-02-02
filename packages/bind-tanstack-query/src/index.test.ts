@@ -10,9 +10,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineListRegistry, wireTanstackInvalidation } from "./index";
 
 type TestSchema = {
-  todos: { id: string; title: string };
-  tags: { id: string; name: string };
-  users: { id: string; name: string };
+  todos: { id: string; title: string; };
+  tags: { id: string; name: string; };
+  users: { id: string; name: string; };
 };
 
 // Helper to create a store and HLC state
@@ -199,7 +199,7 @@ describe("wireTanstackInvalidation", () => {
     // Now should have invalidated (coalesced)
     expect(spy).toHaveBeenCalled();
     // Should have invalidated todos, users, and individual rows
-    const queryKeys = spy.mock.calls.map((c) => c[0]?.queryKey);
+    const queryKeys = spy.mock.calls.map(c => c[0]?.queryKey);
 
     expect(queryKeys).toContainEqual(["todos"]);
     expect(queryKeys).toContainEqual(["users"]);

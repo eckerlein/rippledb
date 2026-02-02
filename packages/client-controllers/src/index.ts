@@ -112,8 +112,8 @@ export function createBatchLoader<
     ).requestAnimationFrame;
 
     if (
-      typeof raf === "function" &&
-      (flushStrategy === "raf" || flushStrategy === "auto")
+      typeof raf === "function"
+      && (flushStrategy === "raf" || flushStrategy === "auto")
     ) {
       raf(() => {
         void flush();
@@ -269,9 +269,8 @@ export function createEntityController<
   return {
     async create(patch: Partial<S[E]>): Promise<S[E]> {
       // Extract ID from patch if present, otherwise generate one
-      const id =
-        ((patch as Record<string, unknown>).id as string | undefined) ??
-        generateId();
+      const id = ((patch as Record<string, unknown>).id as string | undefined)
+        ?? generateId();
       const hlc = getHlc();
 
       await store.applyChanges([

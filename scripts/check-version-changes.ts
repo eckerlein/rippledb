@@ -55,12 +55,12 @@ function getModifiedPackageJsonFiles(
 
     const added = addedOutput
       .split("\n")
-      .filter((line) => line.trim())
+      .filter(line => line.trim())
       .filter(filterPackageJson);
 
     const modified = modifiedOutput
       .split("\n")
-      .filter((line) => line.trim())
+      .filter(line => line.trim())
       .filter(filterPackageJson);
 
     return { added, modified };
@@ -95,7 +95,7 @@ function hasChangesetFile(baseSha: string, headSha: string): boolean {
       { encoding: "utf-8" },
     );
 
-    return output.split("\n").some((line) => line.trim().endsWith(".md"));
+    return output.split("\n").some(line => line.trim().endsWith(".md"));
   } catch {
     return false;
   }

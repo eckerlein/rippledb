@@ -9,7 +9,7 @@ export const generateCommand = new Command("generate")
   .description("Generate RippleDB schemas from external sources")
   .option("-c, --config <path>", "Path to config file", "ripple.config.ts")
   .option("-q, --quiet", "Suppress informational logs", false)
-  .action(async (options) => {
+  .action(async options => {
     const configPath = resolve(process.cwd(), options.config);
 
     if (!existsSync(configPath)) {

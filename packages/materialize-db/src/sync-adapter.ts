@@ -118,10 +118,9 @@ export function createSyncSqlExecutor<S extends RippleSchema = RippleSchema>(
   config: SqlMaterializerConfig<S>,
 ): SyncMaterializerExecutor<Database.Database> {
   const tagsTable = config.tagsTable ?? "ripple_tags";
-  const dialect =
-    "dialect" in config && config.dialect
-      ? dialects[config.dialect]
-      : undefined;
+  const dialect = "dialect" in config && config.dialect
+    ? dialects[config.dialect]
+    : undefined;
 
   if (!dialect && !("loadCommand" in config)) {
     throw new Error("Invalid config: must provide dialect or custom commands");
@@ -163,7 +162,7 @@ export function createSyncSqlExecutor<S extends RippleSchema = RippleSchema>(
     columns: string[],
     values: unknown[],
     updates: string[],
-  ): { sql: string; params: unknown[] } => {
+  ): { sql: string; params: unknown[]; } => {
     if ("saveEntityCommand" in config && config.saveEntityCommand) {
       return config.saveEntityCommand(tableName, id, columns, values, updates);
     }
@@ -242,21 +241,23 @@ export function createSyncSqlExecutor<S extends RippleSchema = RippleSchema>(
 type CreateSyncMaterializerOptions<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   D extends SchemaDescriptor<any>,
-> = {
-  schema: D;
-  db: Database.Database; // Required for ensureTagsTable (creates tables)
-  tableMap?: Partial<Record<EntityName<InferSchema<D>>, string>>;
-  fieldMap?: Partial<
-    Record<EntityName<InferSchema<D>>, Record<string, string>>
-  >;
-  tagsTable?: string;
-} & (
-  | {
+> =
+  & {
+    schema: D;
+    db: Database.Database; // Required for ensureTagsTable (creates tables)
+    tableMap?: Partial<Record<EntityName<InferSchema<D>>, string>>;
+    fieldMap?: Partial<
+      Record<EntityName<InferSchema<D>>, Record<string, string>>
+    >;
+    tagsTable?: string;
+  }
+  & (
+    | {
       executor: SyncMaterializerExecutor<Database.Database>;
       dialect?: never;
     }
-  | { executor?: never; dialect: "sqlite" }
-);
+    | { executor?: never; dialect: "sqlite"; }
+  );
 
 /**
  * Create a synchronous materializer adapter for SQLite.
@@ -301,9 +302,8 @@ export function createSyncMaterializer<
   const fieldMap = opts.fieldMap;
 
   // Get executor
-  const executor: SyncMaterializerExecutor<Database.Database> =
-    opts.executor ??
-    createSyncSqlExecutor({
+  const executor: SyncMaterializerExecutor<Database.Database> = opts.executor
+    ?? createSyncSqlExecutor({
       dialect: opts.dialect!,
       tableMap,
       fieldMap,

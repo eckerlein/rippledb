@@ -1,6 +1,8 @@
 import { cn } from "@/lib/utils";
 
-export interface GradientTextProps extends React.HTMLAttributes<HTMLSpanElement> {
+export interface GradientTextProps
+  extends React.HTMLAttributes<HTMLSpanElement>
+{
   /**
    * The gradient colors. Can be Tailwind color classes or custom colors.
    * @default Uses theme-aware icon colors
@@ -41,9 +43,9 @@ export function GradientText({
       style={{
         ...(animate
           ? {
-              backgroundSize: "200% auto",
-              animation: `gradient-shift ${duration}s ease-in-out infinite`,
-            }
+            backgroundSize: "200% auto",
+            animation: `gradient-shift ${duration}s ease-in-out infinite`,
+          }
           : {}),
         fontFeatureSettings: '"liga" 1, "kern" 1',
         textRendering: "optimizeLegibility",

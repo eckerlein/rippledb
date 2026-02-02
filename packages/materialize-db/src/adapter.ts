@@ -42,10 +42,9 @@ export function createSqlExecutor<S extends RippleSchema = RippleSchema>(
   config: SqlMaterializerConfig<S>,
 ): MaterializerExecutor {
   const tagsTable = config.tagsTable ?? "ripple_tags";
-  const dialect =
-    "dialect" in config && config.dialect
-      ? dialects[config.dialect]
-      : undefined;
+  const dialect = "dialect" in config && config.dialect
+    ? dialects[config.dialect]
+    : undefined;
 
   if (!dialect && !("loadCommand" in config)) {
     throw new Error("Invalid config: must provide dialect or custom commands");
@@ -87,7 +86,7 @@ export function createSqlExecutor<S extends RippleSchema = RippleSchema>(
     columns: string[],
     values: unknown[],
     updates: string[],
-  ): { sql: string; params: unknown[] } => {
+  ): { sql: string; params: unknown[]; } => {
     if ("saveEntityCommand" in config && config.saveEntityCommand) {
       return config.saveEntityCommand(tableName, id, columns, values, updates);
     }
@@ -183,18 +182,20 @@ export function createSqlExecutor<S extends RippleSchema = RippleSchema>(
 type CreateMaterializerOptions<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   D extends SchemaDescriptor<any>,
-> = {
-  schema: D;
-  db: MaterializerDb; // Required for ensureTagsTable (creates tables)
-  tableMap?: Partial<Record<EntityName<InferSchema<D>>, string>>;
-  fieldMap?: Partial<
-    Record<EntityName<InferSchema<D>>, Record<string, string>>
-  >;
-  tagsTable?: string;
-} & (
-  | { executor: MaterializerExecutor; dialect?: never }
-  | { executor?: never; dialect: "sqlite" | "postgresql" }
-);
+> =
+  & {
+    schema: D;
+    db: MaterializerDb; // Required for ensureTagsTable (creates tables)
+    tableMap?: Partial<Record<EntityName<InferSchema<D>>, string>>;
+    fieldMap?: Partial<
+      Record<EntityName<InferSchema<D>>, Record<string, string>>
+    >;
+    tagsTable?: string;
+  }
+  & (
+    | { executor: MaterializerExecutor; dialect?: never; }
+    | { executor?: never; dialect: "sqlite" | "postgresql"; }
+  );
 
 /**
  * Create a materializer adapter for any database.
@@ -237,9 +238,8 @@ export function createMaterializer<
   const fieldMap = opts.fieldMap;
 
   // Get executor
-  const executor: MaterializerExecutor =
-    opts.executor ??
-    createSqlExecutor({
+  const executor: MaterializerExecutor = opts.executor
+    ?? createSqlExecutor({
       dialect: opts.dialect!,
       tableMap,
       fieldMap,
@@ -252,7 +252,7 @@ export function createMaterializer<
     // If async, we can't await here, but that's okay - first use will handle it
     if (initResult instanceof Promise) {
       // Fire and forget - errors will surface on first use
-      initResult.catch((err) => {
+      initResult.catch(err => {
         console.error(
           "Failed to initialize tags table in materialize-db adapter:",
           err,

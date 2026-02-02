@@ -37,7 +37,7 @@ export function withPackageManager<T>(
  */
 export function getInstallCommand(
   pkg: string,
-  options: { dev?: boolean; cwd?: string } = {},
+  options: { dev?: boolean; cwd?: string; } = {},
 ): string {
   const { dev = false, cwd } = options;
 

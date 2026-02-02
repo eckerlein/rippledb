@@ -35,7 +35,7 @@ export type MaterializerFactory<
   TDb = unknown,
   S extends RippleSchema = RippleSchema,
   TAdapter = MaterializerAdapter<S, TDb>,
-> = (ctx: { db: TDb; schema: SchemaDescriptor }) => TAdapter;
+> = (ctx: { db: TDb; schema: SchemaDescriptor; }) => TAdapter;
 
 type FieldKey<T extends Record<string, unknown>> = Extract<keyof T, string>;
 
@@ -117,9 +117,8 @@ export function applyChangeToState<
   current: MaterializerState<S, E> | null,
   change: Change<S, E>,
 ): ApplyResult<S, E> {
-  const state: MaterializerState<S, E> =
-    current ??
-    ({
+  const state: MaterializerState<S, E> = current
+    ?? ({
       values: {},
       tags: {},
       deleted: false,
@@ -136,9 +135,11 @@ export function applyChangeToState<
   }
 
   let changed = false;
-  for (const [field, value] of Object.entries(
-    change.patch as Record<string, unknown>,
-  )) {
+  for (
+    const [field, value] of Object.entries(
+      change.patch as Record<string, unknown>,
+    )
+  ) {
     const tag = (change.tags as Record<string, Hlc | undefined>)[field];
     if (!tag) continue;
     if (isNewer(tag, (state.tags as Record<string, Hlc | undefined>)[field])) {

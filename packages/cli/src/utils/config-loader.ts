@@ -38,13 +38,14 @@ export async function loadConfig(configPath: string): Promise<RippleConfig> {
   try {
     const configModule = (await jiti.import(configPath)) as
       | {
-          default?: RippleConfig;
-        }
+        default?: RippleConfig;
+      }
       | RippleConfig;
 
     // Handle both default export and named export
-    const config =
-      "default" in configModule ? configModule.default : configModule;
+    const config = "default" in configModule
+      ? configModule.default
+      : configModule;
 
     if (!config) {
       throw new Error("Config file must export a configuration object");

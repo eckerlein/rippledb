@@ -190,27 +190,20 @@ export const s = {
 /**
  * Infers the TypeScript type from a field descriptor.
  */
-export type InferField<F> = F extends { _type: "string"; _optional: true }
+export type InferField<F> = F extends { _type: "string"; _optional: true; }
   ? string | undefined
-  : F extends { _type: "string" }
-    ? string
-    : F extends { _type: "number"; _optional: true }
-      ? number | undefined
-      : F extends { _type: "number" }
-        ? number
-        : F extends { _type: "boolean"; _optional: true }
-          ? boolean | undefined
-          : F extends { _type: "boolean" }
-            ? boolean
-            : F extends { _type: "enum"; values: infer V; _optional: true }
-              ? V extends readonly string[]
-                ? V[number] | undefined
-                : never
-              : F extends { _type: "enum"; values: infer V }
-                ? V extends readonly string[]
-                  ? V[number]
-                  : never
-                : never;
+  : F extends { _type: "string"; } ? string
+  : F extends { _type: "number"; _optional: true; } ? number | undefined
+  : F extends { _type: "number"; } ? number
+  : F extends { _type: "boolean"; _optional: true; } ? boolean | undefined
+  : F extends { _type: "boolean"; } ? boolean
+  : F extends { _type: "enum"; values: infer V; _optional: true; }
+    ? V extends readonly string[] ? V[number] | undefined
+    : never
+  : F extends { _type: "enum"; values: infer V; }
+    ? V extends readonly string[] ? V[number]
+    : never
+  : never;
 
 /**
  * Infers the TypeScript type for an entity from its field descriptors.
@@ -446,8 +439,10 @@ export function defineSchema<S extends DescriptorSchema>(
     getFields<E extends keyof S & string>(
       entity: E,
     ): readonly (keyof S[E] & string)[] {
-      return (entityFields.get(entity) ?? []) as readonly (keyof S[E] &
-        string)[];
+      return (entityFields.get(entity) ?? []) as readonly (
+        & keyof S[E]
+        & string
+      )[];
     },
 
     hasField<E extends keyof S & string>(entity: E, field: string): boolean {

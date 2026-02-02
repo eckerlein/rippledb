@@ -447,7 +447,7 @@ export class DrizzleDb<
         MaterializerAdapter<S, TDb>
       >;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ctx: { db: TDb; schema: SchemaDescriptor<any> } = {
+      const ctx: { db: TDb; schema: SchemaDescriptor<any>; } = {
         db: this.db,
         schema: this.schema,
       };
@@ -466,7 +466,7 @@ export class DrizzleDb<
     const dbClient = this.db as unknown as DrizzleClient<TTable>;
 
     // Run everything in a synchronous transaction for atomicity
-    const result = dbClient.transaction((tx) => {
+    const result = dbClient.transaction(tx => {
       // Check idempotency if provided
       if (req.idempotencyKey) {
         const existingRows = loadRowsSync(
@@ -514,8 +514,8 @@ export class DrizzleDb<
             >),
         );
         if (
-          inserted &&
-          typeof (inserted as Record<string, unknown>).seq === "number"
+          inserted
+          && typeof (inserted as Record<string, unknown>).seq === "number"
         ) {
           lastSeq = (inserted as Record<string, unknown>).seq as number;
         }
@@ -600,7 +600,7 @@ export class DrizzleDb<
     const dbClient = this.db as unknown as DrizzleClient<TTable>;
 
     // Run everything in an async transaction for atomicity
-    const result = await dbClient.transaction(async (tx) => {
+    const result = await dbClient.transaction(async tx => {
       // Check idempotency if provided
       if (req.idempotencyKey) {
         const existingRows = await loadRows(
@@ -648,8 +648,8 @@ export class DrizzleDb<
             >),
         );
         if (
-          inserted &&
-          typeof (inserted as Record<string, unknown>).seq === "number"
+          inserted
+          && typeof (inserted as Record<string, unknown>).seq === "number"
         ) {
           lastSeq = (inserted as Record<string, unknown>).seq as number;
         }
@@ -732,9 +732,9 @@ export class DrizzleDb<
 
     const rows = this.isSync ? loadRowsSync(query) : await loadRows(query);
 
-    type ChangeRow = { seq: number; change_json: string };
+    type ChangeRow = { seq: number; change_json: string; };
     const changes = rows.map(
-      (row) => JSON.parse((row as ChangeRow).change_json) as Change<S>,
+      row => JSON.parse((row as ChangeRow).change_json) as Change<S>,
     );
     const last = rows[rows.length - 1] as ChangeRow | undefined;
 

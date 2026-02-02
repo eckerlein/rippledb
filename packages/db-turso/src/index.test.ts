@@ -127,7 +127,8 @@ describe("TursoDb", () => {
     });
     await setupClient.batch([
       {
-        sql: "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)",
+        sql:
+          "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)",
         args: [],
       },
       {
@@ -180,7 +181,7 @@ describe("TursoDb", () => {
     });
 
     // Small delay to ensure batch execution completes
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Verify materialization: check that the todo was saved to the todos table
     const verifyClient = createClient({
@@ -257,7 +258,8 @@ describe("TursoDb", () => {
     });
     await setupClient.batch([
       {
-        sql: "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)",
+        sql:
+          "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)",
         args: [],
       },
       {
@@ -326,7 +328,8 @@ describe("TursoDb", () => {
       args: [],
     });
     await setupClient2.execute({
-      sql: "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER CHECK (done IN (0, 1)))",
+      sql:
+        "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER CHECK (done IN (0, 1)))",
       args: [],
     });
     setupClient2.close();
@@ -399,7 +402,8 @@ describe("TursoDb", () => {
     });
     await setupClient.batch([
       {
-        sql: "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)",
+        sql:
+          "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)",
         args: [],
       },
       {
@@ -441,11 +445,15 @@ describe("TursoDb", () => {
             columns: string[],
             values: unknown[],
           ) => ({
-            sql: `INSERT INTO ${tableName} (id, ${columns.join(
-              ", ",
-            )}, invalid_column) VALUES (?, ${values
-              .map(() => "?")
-              .join(", ")}, ?)`,
+            sql: `INSERT INTO ${tableName} (id, ${
+              columns.join(
+                ", ",
+              )
+            }, invalid_column) VALUES (?, ${
+              values
+                .map(() => "?")
+                .join(", ")
+            }, ?)`,
             params: [id, ...values, "invalid"],
           }),
         });

@@ -5,7 +5,7 @@ import type { Dialect } from "./types";
  */
 export const dialects: Record<string, Dialect> = {
   sqlite: {
-    createTagsTable: (tagsTable) =>
+    createTagsTable: tagsTable =>
       `CREATE TABLE IF NOT EXISTS ${tagsTable} (
         entity TEXT NOT NULL,
         id TEXT NOT NULL,
@@ -15,9 +15,9 @@ export const dialects: Record<string, Dialect> = {
         deleted_tag TEXT,
         PRIMARY KEY (entity, id)
       )`,
-    loadCommand: (tagsTable) =>
+    loadCommand: tagsTable =>
       `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = ? AND id = ?`,
-    saveCommand: (tagsTable) =>
+    saveCommand: tagsTable =>
       `INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
        VALUES (?, ?, ?, ?, 0, NULL)
        ON CONFLICT(entity, id) DO UPDATE SET
@@ -25,7 +25,7 @@ export const dialects: Record<string, Dialect> = {
          tags = excluded.tags,
          deleted = 0,
          deleted_tag = NULL`,
-    removeCommand: (tagsTable) =>
+    removeCommand: tagsTable =>
       `INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
        VALUES (?, ?, ?, ?, 1, ?)
        ON CONFLICT(entity, id) DO UPDATE SET
@@ -50,7 +50,7 @@ export const dialects: Record<string, Dialect> = {
     },
   },
   postgresql: {
-    createTagsTable: (tagsTable) =>
+    createTagsTable: tagsTable =>
       `CREATE TABLE IF NOT EXISTS ${tagsTable} (
         entity TEXT NOT NULL,
         id TEXT NOT NULL,
@@ -60,9 +60,9 @@ export const dialects: Record<string, Dialect> = {
         deleted_tag TEXT,
         PRIMARY KEY (entity, id)
       )`,
-    loadCommand: (tagsTable) =>
+    loadCommand: tagsTable =>
       `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = $1 AND id = $2`,
-    saveCommand: (tagsTable) =>
+    saveCommand: tagsTable =>
       `INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
        VALUES ($1, $2, $3, $4, 0, NULL)
        ON CONFLICT (entity, id) DO UPDATE SET
@@ -70,7 +70,7 @@ export const dialects: Record<string, Dialect> = {
          tags = EXCLUDED.tags,
          deleted = 0,
          deleted_tag = NULL`,
-    removeCommand: (tagsTable) =>
+    removeCommand: tagsTable =>
       `INSERT INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag)
        VALUES ($1, $2, $3, $4, 1, $5)
        ON CONFLICT (entity, id) DO UPDATE SET
@@ -87,7 +87,7 @@ export const dialects: Record<string, Dialect> = {
       const convertedValues = values.map(convertValue);
       const insertPlaceholders = columns.map((_, i) => `$${i + 2}`).join(", ");
       const updateClauses = updates.map((u, i) =>
-        u.replace("?", `$${i + 2 + columns.length}`),
+        u.replace("?", `$${i + 2 + columns.length}`)
       );
       return {
         sql: `INSERT INTO ${tableName} (id, ${columns.join(", ")})

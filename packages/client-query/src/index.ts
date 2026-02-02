@@ -67,26 +67,28 @@ export type QueryOptions<S extends RippleSchema = RippleSchema, T = unknown> = {
 export type ClientQueryApi<
   S extends RippleSchema = RippleSchema,
   ListQuery = unknown,
-> = {
-  /**
-   * Entity controllers, dynamically created from schema.entities.
-   * Each entity gets a controller with CRUD operations.
-   */
-  [K in EntityName<S>]: EntityController<S, K, ListQuery>;
-} & {
-  /**
-   * Query helper that registers a query with automatic invalidation.
-   *
-   * @param options - Query options with key, deps, and fn
-   * @returns The result of the query function
-   */
-  query<T>(options: QueryOptions<S, T>): Promise<T>;
+> =
+  & {
+    /**
+     * Entity controllers, dynamically created from schema.entities.
+     * Each entity gets a controller with CRUD operations.
+     */
+    [K in EntityName<S>]: EntityController<S, K, ListQuery>;
+  }
+  & {
+    /**
+     * Query helper that registers a query with automatic invalidation.
+     *
+     * @param options - Query options with key, deps, and fn
+     * @returns The result of the query function
+     */
+    query<T>(options: QueryOptions<S, T>): Promise<T>;
 
-  /**
-   * Cleanup function to unsubscribe from invalidation events.
-   */
-  cleanup(): void;
-};
+    /**
+     * Cleanup function to unsubscribe from invalidation events.
+     */
+    cleanup(): void;
+  };
 
 export type CreateClientQueryApiOptions<
   D extends DescriptorSchema = DescriptorSchema,
@@ -214,7 +216,7 @@ export function createClientQueryApi<
 
   const registerQueryIfNeeded = (opts: QueryOptions<S, unknown>) => {
     // Avoid duplicate registrations for identical query keys (shallow compare)
-    const exists = registry.entries.some((e) => {
+    const exists = registry.entries.some(e => {
       if (e.queryKey.length !== opts.key.length) return false;
       for (let i = 0; i < e.queryKey.length; i += 1) {
         if (!Object.is(e.queryKey[i], opts.key[i])) return false;

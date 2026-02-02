@@ -141,7 +141,7 @@ describe("materialize-drizzle (postgresql)", () => {
       tagsTableDef: tagsTable,
       getTableConfig,
       fieldMap: { todos: { id: "id", title: "title", done: "done" } },
-      normalizeValue: (value) =>
+      normalizeValue: value =>
         typeof value === "boolean" ? (value ? 1 : 0) : value,
     });
 
@@ -188,7 +188,7 @@ describe("materialize-drizzle (postgresql)", () => {
       tagsTableDef: tagsTable,
       getTableConfig,
       fieldMap: { todos: { id: "id", title: "title", done: "done" } },
-      normalizeValue: (value) =>
+      normalizeValue: value =>
         typeof value === "boolean" ? (value ? 1 : 0) : value,
     });
 

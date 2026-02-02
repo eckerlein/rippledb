@@ -30,13 +30,12 @@ export function InstallCommandTabs({
 
   return (
     <Tabs items={packageManagers} groupId="package-manager">
-      {packageManagers.map((pm) => {
-        const combinedCommand =
-          commands && devCommands
-            ? `${commands[pm]}\n${devCommands[pm]}`
-            : commands
-              ? commands[pm]
-              : devCommands![pm];
+      {packageManagers.map(pm => {
+        const combinedCommand = commands && devCommands
+          ? `${commands[pm]}\n${devCommands[pm]}`
+          : commands
+          ? commands[pm]
+          : devCommands![pm];
 
         return (
           <Tab key={pm} value={pm}>

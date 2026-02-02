@@ -57,10 +57,9 @@ export function makeUpsert<
   S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 >(input: UpsertChangeInput<S, E>): Change<S, E> {
-  const tags =
-    input.tags ??
-    (Object.fromEntries(
-      Object.keys(input.patch).map((key) => [key, input.hlc]),
+  const tags = input.tags
+    ?? (Object.fromEntries(
+      Object.keys(input.patch).map(key => [key, input.hlc]),
     ) as ChangeTags<S, E>);
 
   return {

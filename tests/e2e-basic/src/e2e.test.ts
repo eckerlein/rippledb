@@ -10,7 +10,7 @@ import { MemoryStore } from "@rippledb/store-memory";
 import { describe, expect, it } from "vitest";
 
 type DemoSchema = {
-  todo: { id: string; title: string };
+  todo: { id: string; title: string; };
 };
 
 function makeHlc(nodeId: string, nowMs: number) {

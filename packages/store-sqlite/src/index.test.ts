@@ -171,7 +171,7 @@ describe("SqliteStore", () => {
         "SELECT id, title FROM todos WHERE deleted = 0",
       );
       expect(rows).toHaveLength(3);
-      expect(rows.map((r) => r.id)).toEqual(["1", "2", "3"]);
+      expect(rows.map(r => r.id)).toEqual(["1", "2", "3"]);
     });
 
     it("excludes deleted rows", async () => {
@@ -211,8 +211,8 @@ describe("SqliteStore", () => {
 
   describe("onEvent", () => {
     it("emits events when changes are applied", async () => {
-      const events: Array<{ entity: string; kind: string; id?: string }> = [];
-      const unsubscribe = store.onEvent((event) => {
+      const events: Array<{ entity: string; kind: string; id?: string; }> = [];
+      const unsubscribe = store.onEvent(event => {
         events.push(event);
       });
 

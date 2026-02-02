@@ -298,10 +298,10 @@ describe("DrizzleDb with SQLite", () => {
         "SELECT data, tags, deleted FROM ripple_tags WHERE entity = ? AND id = ?",
       )
       .get("todos", "todo-1") as {
-      data: string;
-      tags: string;
-      deleted: number;
-    };
+        data: string;
+        tags: string;
+        deleted: number;
+      };
 
     expect(tagsRow).toBeTruthy();
     expect(JSON.parse(tagsRow.data)).toEqual({
@@ -373,13 +373,13 @@ describe("DrizzleDb with SQLite", () => {
     // Verify no changes were persisted (transaction rolled back)
     const changeCount = sqlite
       .prepare("SELECT COUNT(*) as count FROM ripple_changes")
-      .get() as { count: number };
+      .get() as { count: number; };
     expect(changeCount.count).toBe(0);
 
     // Verify no tags were persisted
     const tagsCount = sqlite
       .prepare("SELECT COUNT(*) as count FROM ripple_tags")
-      .get() as { count: number };
+      .get() as { count: number; };
     expect(tagsCount.count).toBe(0);
 
     rippleDb.close();

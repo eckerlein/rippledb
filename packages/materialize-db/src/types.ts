@@ -53,7 +53,7 @@ export type Dialect = {
     columns: string[],
     values: unknown[],
     updates: string[],
-  ) => { sql: string; params: unknown[] };
+  ) => { sql: string; params: unknown[]; };
 };
 
 /**
@@ -160,14 +160,15 @@ type DialectConfig<S extends RippleSchema> = MaterializerConfigBase<S> & {
     columns: string[],
     values: unknown[],
     updates: string[],
-  ) => { sql: string; params: unknown[] };
+  ) => { sql: string; params: unknown[]; };
 };
 
 /**
  * Configuration when providing all custom commands.
  */
 type CustomCommandsConfig<S extends RippleSchema> =
-  MaterializerConfigBase<S> & {
+  & MaterializerConfigBase<S>
+  & {
     dialect?: never;
     /**
      * Custom command for loading entity state.
@@ -200,7 +201,7 @@ type CustomCommandsConfig<S extends RippleSchema> =
       columns: string[],
       values: unknown[],
       updates: string[],
-    ) => { sql: string; params: unknown[] };
+    ) => { sql: string; params: unknown[]; };
   };
 
 /**

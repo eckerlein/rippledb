@@ -36,7 +36,7 @@ export function ArchitectureStack() {
       <div className="border-x border-b border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800/50 px-6 py-4">
         <div className="flex flex-wrap justify-center gap-3">
           {["db-sqlite", "db-turso", "db-drizzle", "db-memory"].map(
-            (adapter) => (
+            adapter => (
               <span
                 key={adapter}
                 className="rounded-md bg-white dark:bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-600 shadow-sm"

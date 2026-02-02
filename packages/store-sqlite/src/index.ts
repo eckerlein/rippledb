@@ -10,7 +10,7 @@ import { compareHlc } from "@rippledb/core";
 import Database from "better-sqlite3";
 
 export type SqliteStoreOptions<
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   D extends SchemaDescriptor<any> = SchemaDescriptor<any>,
 > = {
   /**
@@ -94,7 +94,7 @@ function convertValueForSqlite(value: unknown, fieldType: string): unknown {
 }
 
 export class SqliteStore<
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   D extends SchemaDescriptor<any> = SchemaDescriptor<any>,
 > implements Store<InferSchema<D>, string> {
   private db: Database.Database;
@@ -149,14 +149,18 @@ export class SqliteStore<
 
     // Prepare statements for tags table operations
     this.loadTags = this.db.prepare(
-      `SELECT data, tags, deleted, deleted_tag FROM ${this.escapeIdentifier(
-        this.tagsTable,
-      )} WHERE entity = ? AND id = ?`,
+      `SELECT data, tags, deleted, deleted_tag FROM ${
+        this.escapeIdentifier(
+          this.tagsTable,
+        )
+      } WHERE entity = ? AND id = ?`,
     );
     this.saveTags = this.db.prepare(
-      `INSERT INTO ${this.escapeIdentifier(
-        this.tagsTable,
-      )} (entity, id, data, tags, deleted, deleted_tag)
+      `INSERT INTO ${
+        this.escapeIdentifier(
+          this.tagsTable,
+        )
+      } (entity, id, data, tags, deleted, deleted_tag)
        VALUES (?, ?, ?, ?, 0, NULL)
        ON CONFLICT(entity, id) DO UPDATE SET
          data = excluded.data,
@@ -165,9 +169,11 @@ export class SqliteStore<
          deleted_tag = NULL`,
     );
     this.removeTags = this.db.prepare(
-      `INSERT INTO ${this.escapeIdentifier(
-        this.tagsTable,
-      )} (entity, id, data, tags, deleted, deleted_tag)
+      `INSERT INTO ${
+        this.escapeIdentifier(
+          this.tagsTable,
+        )
+      } (entity, id, data, tags, deleted, deleted_tag)
        VALUES (?, ?, ?, ?, 1, ?)
        ON CONFLICT(entity, id) DO UPDATE SET
          data = excluded.data,
@@ -292,8 +298,8 @@ export class SqliteStore<
 
         // Handle upsert
         let changed = false;
-        const changeTags =
-          (change.tags as Record<string, Hlc | undefined>) || {};
+        const changeTags = (change.tags as Record<string, Hlc | undefined>)
+          || {};
         const patch = (change.patch as Record<string, unknown>) || {};
 
         for (const [field, value] of Object.entries(patch)) {
@@ -335,8 +341,9 @@ export class SqliteStore<
               change.entity,
               field,
             );
-            const sqlType =
-              fieldDesc && "_type" in fieldDesc ? fieldDesc._type : "string";
+            const sqlType = fieldDesc && "_type" in fieldDesc
+              ? fieldDesc._type
+              : "string";
             const convertedValue = convertValueForSqlite(value, sqlType);
 
             columns.push(this.escapeIdentifier(columnName));
@@ -385,13 +392,15 @@ export class SqliteStore<
 
     // Read from proper columns
     const fields = this.schema.getFields(entity);
-    const columns = fields.map((f) =>
-      this.escapeIdentifier(this.getColumnName(entity, f)),
+    const columns = fields.map(f =>
+      this.escapeIdentifier(this.getColumnName(entity, f))
     );
     const stmt = this.db.prepare(
-      `SELECT ${columns.join(
-        ", ",
-      )}, deleted FROM ${entityTableName} WHERE id = ?`,
+      `SELECT ${
+        columns.join(
+          ", ",
+        )
+      }, deleted FROM ${entityTableName} WHERE id = ?`,
     );
     const row = stmt.get(id) as Record<string, unknown> | undefined;
     if (!row || (row.deleted as number) === 1) return null;
@@ -405,8 +414,9 @@ export class SqliteStore<
       if (fieldDesc && "_type" in fieldDesc && fieldDesc._type === "boolean") {
         value = value === 1;
       }
-      result[field as keyof InferSchema<D>[E]] =
-        value as InferSchema<D>[E][keyof InferSchema<D>[E]];
+      result[field as keyof InferSchema<D>[E]] = value as InferSchema<
+        D
+      >[E][keyof InferSchema<D>[E]];
     }
     return result;
   }
@@ -423,14 +433,16 @@ export class SqliteStore<
 
     // Read from proper columns
     const fields = this.schema.getFields(entity);
-    const columns = fields.map((f) =>
-      this.escapeIdentifier(this.getColumnName(entity, f)),
+    const columns = fields.map(f =>
+      this.escapeIdentifier(this.getColumnName(entity, f))
     );
     const placeholders = ids.map(() => "?").join(",");
     const stmt = this.db.prepare(
-      `SELECT id, ${columns.join(
-        ", ",
-      )}, deleted FROM ${entityTableName} WHERE id IN (${placeholders}) AND deleted = 0`,
+      `SELECT id, ${
+        columns.join(
+          ", ",
+        )
+      }, deleted FROM ${entityTableName} WHERE id IN (${placeholders}) AND deleted = 0`,
     );
     const rows = stmt.all(...ids) as Array<Record<string, unknown>>;
 
@@ -443,14 +455,15 @@ export class SqliteStore<
         const fieldDesc = this.schema.getFieldDescriptor(entity, field);
         // Convert boolean back from integer
         if (
-          fieldDesc &&
-          "_type" in fieldDesc &&
-          fieldDesc._type === "boolean"
+          fieldDesc
+          && "_type" in fieldDesc
+          && fieldDesc._type === "boolean"
         ) {
           value = value === 1;
         }
-        resultRow[field as keyof InferSchema<D>[E]] =
-          value as InferSchema<D>[E][keyof InferSchema<D>[E]];
+        resultRow[field as keyof InferSchema<D>[E]] = value as InferSchema<
+          D
+        >[E][keyof InferSchema<D>[E]];
       }
       result.set(id, resultRow);
     }

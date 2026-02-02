@@ -59,11 +59,11 @@ export class MemoryDb<S extends RippleSchema = RippleSchema> implements Db<S> {
     const afterSeq = decodeCursor(req.cursor);
     const limit = req.limit ?? 500;
 
-    const startIdx = state.entries.findIndex((e) => e.seq > afterSeq);
+    const startIdx = state.entries.findIndex(e => e.seq > afterSeq);
     if (startIdx === -1) return { changes: [], nextCursor: req.cursor };
 
     const slice = state.entries.slice(startIdx, startIdx + limit);
-    const changes = slice.map((e) => e.change);
+    const changes = slice.map(e => e.change);
     const last = slice[slice.length - 1];
 
     return {

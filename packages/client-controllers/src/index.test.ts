@@ -4,8 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBatchLoader, createEntityController } from "./index";
 
 type TestSchema = {
-  todos: { id: string; title: string; done: boolean };
-  users: { id: string; name: string };
+  todos: { id: string; title: string; done: boolean; };
+  users: { id: string; name: string; };
 };
 
 describe("createBatchLoader", () => {
@@ -220,8 +220,8 @@ describe("createEntityController", () => {
     const todos = await controller.list({ entity: "todos" });
 
     expect(todos.length).toBe(2);
-    expect(todos.some((t) => t.title === "One")).toBe(true);
-    expect(todos.some((t) => t.title === "Two")).toBe(true);
+    expect(todos.some(t => t.title === "One")).toBe(true);
+    expect(todos.some(t => t.title === "Two")).toBe(true);
   });
 
   it("batches multiple read calls", async () => {

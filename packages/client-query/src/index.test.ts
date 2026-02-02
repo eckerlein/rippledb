@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClientQueryApi } from "./index";
 
 type TestSchema = {
-  todos: { id: string; title: string; done: boolean };
-  users: { id: string; name: string; email: string };
+  todos: { id: string; title: string; done: boolean; };
+  users: { id: string; name: string; email: string; };
 };
 
 describe("createClientQueryApi", () => {
@@ -219,6 +219,6 @@ describe("createClientQueryApi", () => {
 
     // The registry should now have the new entry added by api.query()
     expect(registry.entries.length).toBe(initialEntryCount + 1);
-    expect(registry.entries.some((e) => e.queryKey[0] === "users")).toBe(true);
+    expect(registry.entries.some(e => e.queryKey[0] === "users")).toBe(true);
   });
 });

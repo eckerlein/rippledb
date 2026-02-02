@@ -7,7 +7,7 @@ import { join } from "path";
 export const revalidate = false;
 export const dynamic = "force-static";
 
-function CustomOGImage({ description }: { description?: string }) {
+function CustomOGImage({ description }: { description?: string; }) {
   return (
     <div
       style={{
@@ -196,20 +196,20 @@ export async function GET(
       height: 630,
       fonts: interSemiBold
         ? [
-            {
-              name: "Inter",
-              data: interSemiBold,
-              style: "normal",
-              weight: 600, // SemiBold
-            },
-          ]
+          {
+            name: "Inter",
+            data: interSemiBold,
+            style: "normal",
+            weight: 600, // SemiBold
+          },
+        ]
         : undefined,
     },
   );
 }
 
 export function generateStaticParams() {
-  return source.getPages().map((page) => ({
+  return source.getPages().map(page => ({
     slug: getPageImage(page).segments,
   }));
 }

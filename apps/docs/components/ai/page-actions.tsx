@@ -36,7 +36,7 @@ export function LLMCopyButton({
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
-          "text/plain": fetch(markdownUrl).then(async (res) => {
+          "text/plain": fetch(markdownUrl).then(async res => {
             const content = await res.text();
             cache.set(markdownUrl, content);
 
@@ -82,10 +82,9 @@ export function ViewOptions({
   githubUrl: string;
 }) {
   const items = useMemo(() => {
-    const fullMarkdownUrl =
-      typeof window !== "undefined"
-        ? new URL(markdownUrl, window.location.origin)
-        : "loading";
+    const fullMarkdownUrl = typeof window !== "undefined"
+      ? new URL(markdownUrl, window.location.origin)
+      : "loading";
     const q = `Read ${fullMarkdownUrl}, I want to ask questions about it.`;
 
     return [
@@ -223,7 +222,7 @@ export function ViewOptions({
         <ChevronDown className="size-3.5 text-fd-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent className="flex flex-col">
-        {items.map((item) => (
+        {items.map(item => (
           <a
             key={item.href}
             href={item.href}

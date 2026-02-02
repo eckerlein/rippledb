@@ -29,8 +29,8 @@ import { MemoryStore } from "@rippledb/store-memory";
 import { QueryClient } from "@tanstack/query-core";
 
 type Schema = {
-  todos: { id: string; title: string; done: boolean };
-  users: { id: string; name: string; email: string };
+  todos: { id: string; title: string; done: boolean; };
+  users: { id: string; name: string; email: string; };
 };
 
 const store = new MemoryStore<Schema>();

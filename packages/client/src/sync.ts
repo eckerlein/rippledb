@@ -34,7 +34,7 @@ export class InMemoryOutbox<
 
   size(stream?: string) {
     if (!stream) return this.items.length;
-    return this.items.filter((i) => i.stream === stream).length;
+    return this.items.filter(i => i.stream === stream).length;
   }
 }
 
@@ -83,7 +83,7 @@ export type Remote<S extends RippleSchema = RippleSchema> = {
     stream: string;
     idempotencyKey?: string;
     changes: Change<S>[];
-  }): Promise<{ accepted: number }>;
+  }): Promise<{ accepted: number; }>;
 };
 
 /**
@@ -102,7 +102,7 @@ export async function syncOnce<S extends RippleSchema = RippleSchema>(
     await store.applyChanges(pulled.changes);
   }
 
-  const pending = outbox.drain(stream).map((e) => e.change);
+  const pending = outbox.drain(stream).map(e => e.change);
   let pushed = 0;
   if (pending.length > 0) {
     const res = await remote.append({

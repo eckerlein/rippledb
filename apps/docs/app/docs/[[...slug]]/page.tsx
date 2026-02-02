@@ -18,7 +18,7 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
 
   const MDX = page.data.body;
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  const slugs = source.getPages().map((p) => p.slugs);
+  const slugs = source.getPages().map(p => p.slugs);
   const parentSet = new Set<string>();
   for (const slug of slugs) {
     for (let i = 1; i < slug.length; i++) {

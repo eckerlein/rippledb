@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { MemoryStore } from "./index";
 
 type TestSchema = {
-  todos: { id: string; title: string };
+  todos: { id: string; title: string; };
 };
 
 describe("MemoryStore getRows", () => {

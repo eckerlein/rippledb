@@ -35,9 +35,8 @@ export class MemoryStore<
     for (const change of changes) {
       const table = this.getTable(change.entity);
       const existing = table.get(change.entityId);
-      const rec: RecordState =
-        existing ??
-        ({
+      const rec: RecordState = existing
+        ?? ({
           values: {},
           tags: {},
           deleted: false,
@@ -60,9 +59,11 @@ export class MemoryStore<
       }
 
       let changed = false;
-      for (const [field, value] of Object.entries(
-        change.patch as Record<string, unknown>,
-      )) {
+      for (
+        const [field, value] of Object.entries(
+          change.patch as Record<string, unknown>,
+        )
+      ) {
         const tag = (change.tags as Record<string, Hlc | undefined>)[field];
         if (!tag) continue;
         if (isNewer(tag, rec.tags[field])) {

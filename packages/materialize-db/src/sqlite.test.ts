@@ -55,7 +55,7 @@ describe("createMaterializer - SQLite dialect", () => {
     await materializeChange(adapter, db, change);
 
     // Verify tags table exists and has data
-    const row = await db.get<{ data: string; tags: string; deleted: number }>(
+    const row = await db.get<{ data: string; tags: string; deleted: number; }>(
       "SELECT data, tags, deleted FROM ripple_tags WHERE entity = ? AND id = ?",
       ["todos", "todo-1"],
     );
@@ -89,7 +89,9 @@ describe("createMaterializer - SQLite dialect", () => {
     await materializeChange(adapterWithFieldMap, db, change);
 
     // Check entity table
-    const entityRow = await db.get<{ id: string; title: string; done: number }>(
+    const entityRow = await db.get<
+      { id: string; title: string; done: number; }
+    >(
       "SELECT id, title, done FROM todos WHERE id = ?",
       ["todo-1"],
     );

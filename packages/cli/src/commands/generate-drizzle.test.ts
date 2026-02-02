@@ -16,7 +16,7 @@ async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 }
 
 test("loadConfig rejects invalid drizzle configuration", async () => {
-  await withTempDir(async (dir) => {
+  await withTempDir(async dir => {
     const path = join(dir, "bad-config.ts");
     await writeFile(
       path,
@@ -27,7 +27,7 @@ test("loadConfig rejects invalid drizzle configuration", async () => {
 });
 
 test("loadConfig parses valid configuration", async () => {
-  await withTempDir(async (dir) => {
+  await withTempDir(async dir => {
     const path = join(dir, "good-config.ts");
     await writeFile(
       path,
@@ -51,7 +51,7 @@ export default {
 });
 
 test("generateFromDrizzle writes schema file with table definitions", async () => {
-  await withTempDir(async (dir) => {
+  await withTempDir(async dir => {
     const entitiesPath = join(dir, "entities.ts");
     await writeFile(
       entitiesPath,

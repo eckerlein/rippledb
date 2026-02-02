@@ -10,7 +10,7 @@ function keyOf(slug: string[]) {
 
 function buildParentSlugSet() {
   const parent = new Set<string>();
-  const slugs = source.getPages().map((p) => p.slugs);
+  const slugs = source.getPages().map(p => p.slugs);
   for (const slug of slugs) {
     for (let i = 1; i < slug.length; i++) {
       parent.add(keyOf(slug.slice(0, i)));
@@ -24,14 +24,13 @@ export async function GET(
   { params }: RouteContext<"/llms.mdx/docs/[[...slug]]">,
 ) {
   const { slug } = await params;
-  const resolvedSlug =
-    !slug || slug.length === 0
-      ? []
-      : slug.length === 1 && slug[0] === "index"
-        ? []
-        : slug[slug.length - 1] === "index"
-          ? slug.slice(0, -1)
-          : slug;
+  const resolvedSlug = !slug || slug.length === 0
+    ? []
+    : slug.length === 1 && slug[0] === "index"
+    ? []
+    : slug[slug.length - 1] === "index"
+    ? slug.slice(0, -1)
+    : slug;
   const page = source.getPage(resolvedSlug);
   if (!page) notFound();
 
@@ -45,7 +44,7 @@ export async function GET(
 export function generateStaticParams() {
   const parentSet = buildParentSlugSet();
 
-  return source.getPages().map((page) => {
+  return source.getPages().map(page => {
     // Avoid generating `/llms.mdx/docs/<folder>` as a file if `<folder>/...` exists.
     // Instead export to `/llms.mdx/docs/<folder>/index`.
     const slug = page.slugs.length === 0 ? ["index"] : page.slugs;

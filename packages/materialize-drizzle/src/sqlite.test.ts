@@ -93,7 +93,7 @@ describe("materialize-drizzle (sqlite)", () => {
       tagsTableDef: tagsTable,
       getTableConfig,
       fieldMap: { todos: { id: "id", title: "title", done: "done" } },
-      normalizeValue: (value) =>
+      normalizeValue: value =>
         typeof value === "boolean" ? (value ? 1 : 0) : value,
     });
 
@@ -113,12 +113,12 @@ describe("materialize-drizzle (sqlite)", () => {
         "SELECT data, tags, deleted FROM ripple_tags WHERE entity = ? AND id = ?",
       )
       .get("todos", "todo-1") as
-      | {
+        | {
           data: string;
           tags: string;
           deleted: number;
         }
-      | undefined;
+        | undefined;
     expect(tagsRow).toBeTruthy();
     expect(JSON.parse(tagsRow!.data)).toEqual({
       id: "todo-1",
@@ -129,7 +129,9 @@ describe("materialize-drizzle (sqlite)", () => {
 
     const todoRow = sqlite
       .prepare("SELECT id, title, done FROM todos WHERE id = ?")
-      .get("todo-1") as { id: string; title: string; done: number } | undefined;
+      .get("todo-1") as
+        | { id: string; title: string; done: number; }
+        | undefined;
     expect(todoRow).toEqual({ id: "todo-1", title: "Buy milk", done: 0 });
   });
 
@@ -141,7 +143,7 @@ describe("materialize-drizzle (sqlite)", () => {
       tagsTableDef: tagsTable,
       getTableConfig,
       fieldMap: { todos: { id: "id", title: "title", done: "done" } },
-      normalizeValue: (value) =>
+      normalizeValue: value =>
         typeof value === "boolean" ? (value ? 1 : 0) : value,
     });
 
@@ -169,11 +171,11 @@ describe("materialize-drizzle (sqlite)", () => {
         "SELECT deleted, deleted_tag FROM ripple_tags WHERE entity = ? AND id = ?",
       )
       .get("todos", "todo-1") as
-      | {
+        | {
           deleted: number;
           deleted_tag: string | null;
         }
-      | undefined;
+        | undefined;
     expect(tagsRow).toBeTruthy();
     expect(tagsRow!.deleted).toBe(1);
     expect(tagsRow!.deleted_tag).toBeTruthy();

@@ -53,8 +53,8 @@ export function AdrBento({ className }: Props) {
           </div>
           <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
             <li>
-              <span className="text-foreground/80">Read in order</span> (0001 →
-              0013) to build the mental model.
+              <span className="text-foreground/80">Read in order</span>{" "}
+              (0001 → 0013) to build the mental model.
             </li>
             <li>
               If you contradict an ADR,{" "}
@@ -62,15 +62,15 @@ export function AdrBento({ className }: Props) {
               explaining why.
             </li>
             <li>
-              Prefer <span className="text-foreground/80">small ADRs</span> over
-              huge ones.
+              Prefer <span className="text-foreground/80">small ADRs</span>{" "}
+              over huge ones.
             </li>
           </ul>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {CATEGORY_ORDER.map((category) => {
+        {CATEGORY_ORDER.map(category => {
           const items = groups.get(category) ?? [];
           if (items.length === 0) return null;
 
@@ -84,7 +84,7 @@ export function AdrBento({ className }: Props) {
               </div>
 
               <div className="divide-y rounded-xl border bg-background">
-                {items.map((adr) => (
+                {items.map(adr => (
                   <Link
                     key={adr.id}
                     href={adr.href}

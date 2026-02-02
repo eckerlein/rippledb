@@ -6,7 +6,7 @@ export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
  */
 export function getInstallCommand(
   packages: string | string[],
-  options: { dev?: boolean } = {},
+  options: { dev?: boolean; } = {},
 ): Record<PackageManager, string> {
   const { dev = false } = options;
   const pkgList = Array.isArray(packages) ? packages.join(" ") : packages;

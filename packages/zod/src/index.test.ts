@@ -28,7 +28,7 @@ import {
 } from "./index";
 
 type TestSchema = {
-  todo: { id: string; title: string; done: boolean };
+  todo: { id: string; title: string; done: boolean; };
 };
 
 function makeHlc(nodeId: string, nowMs: number) {

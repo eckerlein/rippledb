@@ -2,12 +2,12 @@
 
 import { useMemo } from "react";
 
-type AbsolutePosition = { x: number; y: number };
+type AbsolutePosition = { x: number; y: number; };
 
 type RelativePosition = {
   relativeTo: string;
   anchor: "right" | "left" | "top" | "bottom";
-  offset?: { x?: number; y?: number };
+  offset?: { x?: number; y?: number; };
   alignY?: "top" | "center" | "bottom";
   alignX?: "left" | "center" | "right";
 };
@@ -37,7 +37,7 @@ type EdgeDef = {
   /** Position of label along edge: 0 = start, 0.5 = middle, 1 = end. Default: 0.3 */
   labelPosition?: number;
   /** Offset for label { x, y } to fine-tune position */
-  labelOffset?: { x?: number; y?: number };
+  labelOffset?: { x?: number; y?: number; };
   dashed?: boolean;
   animated?: boolean;
   /** Use orthogonal (axis-aligned) routing with 90° bends */
@@ -67,7 +67,7 @@ function getNodeDimensions(node: {
   variant?: "step" | "label";
 }) {
   const lines = getTextLines(node.label);
-  const maxLineLength = Math.max(...lines.map((l) => l.length));
+  const maxLineLength = Math.max(...lines.map(l => l.length));
 
   if (node.variant === "label") {
     // Text label: no padding, just text dimensions
@@ -230,7 +230,7 @@ function getAnchorPoint(
   }
 }
 
-function Node({ node }: { node: ResolvedNode }) {
+function Node({ node }: { node: ResolvedNode; }) {
   const lines = getTextLines(node.label);
   const { width, height } = getNodeDimensions(node);
 
@@ -282,11 +282,11 @@ function Node({ node }: { node: ResolvedNode }) {
 
 // Calculate orthogonal path points (L-shape or straight)
 function getOrthogonalPath(
-  start: { x: number; y: number },
-  end: { x: number; y: number },
+  start: { x: number; y: number; },
+  end: { x: number; y: number; },
   fromSide: "top" | "bottom" | "left" | "right",
   toSide: "top" | "bottom" | "left" | "right",
-): { x: number; y: number }[] {
+): { x: number; y: number; }[] {
   // If already aligned, just return straight line
   const isHorizontal = fromSide === "left" || fromSide === "right";
   const isVertical = fromSide === "top" || fromSide === "bottom";
@@ -301,7 +301,7 @@ function getOrthogonalPath(
   }
 
   // Create L-shaped or step path
-  const points: { x: number; y: number }[] = [start];
+  const points: { x: number; y: number; }[] = [start];
 
   if (fromSide === "bottom" && toSide === "top") {
     // Vertical flow with horizontal offset
@@ -357,7 +357,7 @@ function getOrthogonalPath(
 
 // Build SVG path string from points with optional rounded corners
 function buildPathString(
-  points: { x: number; y: number }[],
+  points: { x: number; y: number; }[],
   rounded = true,
 ): string {
   if (points.length < 2) return "";
@@ -411,9 +411,9 @@ function buildPathString(
   return d;
 }
 
-function Edge({ edge, nodes }: { edge: EdgeDef; nodes: ResolvedNode[] }) {
-  const fromNode = nodes.find((n) => n.id === edge.from);
-  const toNode = nodes.find((n) => n.id === edge.to);
+function Edge({ edge, nodes }: { edge: EdgeDef; nodes: ResolvedNode[]; }) {
+  const fromNode = nodes.find(n => n.id === edge.from);
+  const toNode = nodes.find(n => n.id === edge.to);
 
   if (!fromNode || !toNode) return null;
 
@@ -590,9 +590,7 @@ export function Diagram({
         ))}
 
         {/* Render nodes */}
-        {resolvedNodes.map((node) => (
-          <Node key={node.id} node={node} />
-        ))}
+        {resolvedNodes.map(node => <Node key={node.id} node={node} />)}
       </svg>
     </div>
   );

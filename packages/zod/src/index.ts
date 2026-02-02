@@ -15,21 +15,18 @@ import { z } from "zod";
  */
 type ValidateOverrides<S extends DescriptorSchema, O> =
   // Special case: empty overrides object is always valid
-  [keyof O] extends [never]
-    ? O
-    : // Check that all entity keys in O are valid entities in S
-      keyof O extends keyof S
-      ? // For each entity, check that all field keys are valid
-        {
-          [E in keyof O]: E extends keyof S
-            ? keyof O[E] extends keyof S[E]
-              ? unknown // Valid
-              : never // Invalid - has extra fields
-            : never; // Invalid - entity doesn't exist
-        }[keyof O] extends never
-        ? never // At least one entity has invalid fields
-        : O // All valid
-      : never; // Has extra entities
+  [keyof O] extends [never] ? O
+    // Check that all entity keys in O are valid entities in S
+    : keyof O extends keyof S
+    // For each entity, check that all field keys are valid
+      ? {
+        [E in keyof O]: E extends keyof S
+          ? keyof O[E] extends keyof S[E] ? unknown // Valid
+          : never // Invalid - has extra fields
+          : never; // Invalid - entity doesn't exist
+      }[keyof O] extends never ? never // At least one entity has invalid fields
+      : O // All valid
+    : never; // Has extra entities
 
 /**
  * Typed overrides for Zod schemas - constrained to valid entities and fields.
@@ -44,16 +41,19 @@ export type ZodOverrides<S extends DescriptorSchema> = {
  * Generated Zod schemas for each entity.
  */
 export type ZodSchemas<S extends DescriptorSchema> = {
-  [E in keyof S]: z.ZodObject<{
-    [F in keyof S[E]]: z.ZodTypeAny;
-  }>;
+  [E in keyof S]: z.ZodObject<
+    {
+      [F in keyof S[E]]: z.ZodTypeAny;
+    }
+  >;
 };
 
 /**
  * Schema descriptor with typed Zod schema access.
  */
 export type SchemaDescriptorWithZod<S extends DescriptorSchema> =
-  SchemaDescriptor<S> & {
+  & SchemaDescriptor<S>
+  & {
     /**
      * Auto-generated Zod schemas for each entity.
      * Access via `schema.zod.entityName.parse(data)`.
@@ -79,7 +79,7 @@ function fieldDescriptorToZod(field: FieldDescriptorLike): z.ZodTypeAny {
       break;
     case "enum": {
       // Cast to access the values property on enum fields
-      const enumField = field as unknown as { values: readonly string[] };
+      const enumField = field as unknown as { values: readonly string[]; };
       if (!enumField.values || enumField.values.length === 0) {
         schema = z.never();
       } else if (enumField.values.length === 1) {
@@ -166,9 +166,8 @@ export function withZod<S extends DescriptorSchema, O extends ZodOverrides<S>>(
     for (const fieldName of Object.keys(entityDescriptor)) {
       const fieldDescriptor = entityDescriptor[fieldName];
       // Use override if provided, otherwise generate from descriptor
-      shape[fieldName] =
-        entityOverridesObj?.[fieldName] ??
-        fieldDescriptorToZod(fieldDescriptor);
+      shape[fieldName] = entityOverridesObj?.[fieldName]
+        ?? fieldDescriptorToZod(fieldDescriptor);
     }
 
     zodSchemas[entityName] = z.object(shape);
@@ -212,9 +211,8 @@ export function generateZodSchemas<
 
     for (const fieldName of Object.keys(entityDescriptor)) {
       const fieldDescriptor = entityDescriptor[fieldName];
-      shape[fieldName] =
-        entityOverridesObj?.[fieldName] ??
-        fieldDescriptorToZod(fieldDescriptor);
+      shape[fieldName] = entityOverridesObj?.[fieldName]
+        ?? fieldDescriptorToZod(fieldDescriptor);
     }
 
     zodSchemas[entityName] = z.object(shape);

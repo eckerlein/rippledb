@@ -133,7 +133,7 @@ type DrizzleMaterializerOptions<
    */
   normalizeValue?: (
     value: unknown,
-    context: { tableName: string; columnName: string },
+    context: { tableName: string; columnName: string; },
   ) => unknown;
 
   /**
@@ -261,7 +261,7 @@ export function createDrizzleMaterializerExecutor<
     name: string,
   ) => {
     if (Array.isArray(tableConfig.columns)) {
-      const column = tableConfig.columns.find((col) => col.name === name);
+      const column = tableConfig.columns.find(col => col.name === name);
       return column ? column.name : null;
     }
     for (const [key, column] of Object.entries(tableConfig.columns)) {
@@ -275,7 +275,7 @@ export function createDrizzleMaterializerExecutor<
     name: string,
   ): DrizzleColumn | null => {
     if (Array.isArray(tableConfig.columns)) {
-      return tableConfig.columns.find((col) => col.name === name) ?? null;
+      return tableConfig.columns.find(col => col.name === name) ?? null;
     }
     for (const column of Object.values(tableConfig.columns)) {
       if (column.name === name) return column;
@@ -447,7 +447,7 @@ type CreateDrizzleMaterializerOptions<
   >;
   normalizeValue?: (
     value: unknown,
-    context: { tableName: string; columnName: string },
+    context: { tableName: string; columnName: string; },
   ) => unknown;
   ensureTagsTable?: () => Promise<void> | void; // Optional user migration hook
 };
@@ -758,14 +758,14 @@ export function createDrizzleSyncMaterializerExecutor<
   type SelectChain = {
     from: (table: TTable | TTagsTable) => {
       where: (...args: unknown[]) => {
-        limit: (limit: number) => { all: () => unknown[] };
+        limit: (limit: number) => { all: () => unknown[]; };
       };
     };
   };
 
   type InsertChain = {
     values: (values: Record<string, unknown>) => {
-      onConflictDoUpdate: (options: unknown) => { run: () => void };
+      onConflictDoUpdate: (options: unknown) => { run: () => void; };
     };
   };
 
@@ -779,7 +779,7 @@ export function createDrizzleSyncMaterializerExecutor<
     name: string,
   ) => {
     if (Array.isArray(tableConfig.columns)) {
-      const column = tableConfig.columns.find((col) => col.name === name);
+      const column = tableConfig.columns.find(col => col.name === name);
       return column ? column.name : null;
     }
     for (const [key, column] of Object.entries(tableConfig.columns)) {
@@ -793,7 +793,7 @@ export function createDrizzleSyncMaterializerExecutor<
     name: string,
   ): DrizzleColumn | null => {
     if (Array.isArray(tableConfig.columns)) {
-      return tableConfig.columns.find((col) => col.name === name) ?? null;
+      return tableConfig.columns.find(col => col.name === name) ?? null;
     }
     for (const column of Object.values(tableConfig.columns)) {
       if (column.name === name) return column;

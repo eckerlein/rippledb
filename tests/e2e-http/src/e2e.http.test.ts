@@ -12,7 +12,7 @@ import http from "node:http";
 import { describe, expect, it } from "vitest";
 
 type DemoSchema = {
-  todo: { id: string; title: string };
+  todo: { id: string; title: string; };
 };
 
 function makeHlc(nodeId: string, nowMs: number) {
@@ -52,7 +52,7 @@ function startServer(db: MemoryDb<DemoSchema>) {
     return res.end();
   });
 
-  return new Promise<{ server: http.Server; baseUrl: string }>(
+  return new Promise<{ server: http.Server; baseUrl: string; }>(
     (resolve, reject) => {
       server.listen(0, "127.0.0.1", () => {
         const address = server.address();
@@ -119,7 +119,7 @@ describe("rippledb http e2e (memory db server + http remote)", () => {
       await replB.sync();
       expect(await storeB.getRow("todo", "1")).toBeNull();
     } finally {
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await new Promise<void>(resolve => server.close(() => resolve()));
     }
   });
 });

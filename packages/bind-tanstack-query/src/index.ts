@@ -48,7 +48,7 @@ class ListRegistryBuilder implements ListRegistry {
    */
   list(
     queryKey: readonly unknown[],
-    opts: { deps: readonly string[] },
+    opts: { deps: readonly string[]; },
   ): ListRegistryBuilder {
     return new ListRegistryBuilder([
       ...this.entries,
@@ -135,9 +135,8 @@ export function wireTanstackInvalidation<S extends RippleSchema = RippleSchema>(
   } = opts;
 
   // Get the event subscription function (bind to store if using store.onEvent)
-  const subscribe =
-    onEvent ??
-    (store?.onEvent
+  const subscribe = onEvent
+    ?? (store?.onEvent
       ? (cb: (event: DbEvent<S>) => void) => store.onEvent!(cb)
       : undefined);
   if (!subscribe) {
@@ -148,7 +147,7 @@ export function wireTanstackInvalidation<S extends RippleSchema = RippleSchema>(
 
   // Track pending invalidations for debouncing
   let pendingEntities = new Set<string>();
-  let pendingRows: Array<{ entity: string; id: string }> = [];
+  let pendingRows: Array<{ entity: string; id: string; }> = [];
   let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
   const flush = () => {
@@ -164,8 +163,8 @@ export function wireTanstackInvalidation<S extends RippleSchema = RippleSchema>(
     // Invalidate list queries based on registry
     if (registry) {
       for (const entry of registry.entries) {
-        const shouldInvalidate = entry.deps.some((dep) =>
-          pendingEntities.has(dep),
+        const shouldInvalidate = entry.deps.some(dep =>
+          pendingEntities.has(dep)
         );
         if (shouldInvalidate) {
           queryClient.invalidateQueries({ queryKey: [...entry.queryKey] });

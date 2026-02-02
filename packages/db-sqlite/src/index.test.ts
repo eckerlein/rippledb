@@ -187,7 +187,7 @@ describe("SqliteDb", () => {
     });
     const todos = verifyDb["db"]
       .prepare("SELECT id, title, done FROM todos WHERE id = ?")
-      .all("todo-1") as Array<{ id: string; title: string; done: number }>;
+      .all("todo-1") as Array<{ id: string; title: string; done: number; }>;
     verifyDb.close();
 
     expect(todos).toHaveLength(1);
@@ -312,7 +312,7 @@ describe("SqliteDb", () => {
     });
     const count1 = verifyDb1["db"]
       .prepare("SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?")
-      .get("test") as { count: number };
+      .get("test") as { count: number; };
     verifyDb1.close();
     expect(count1.count).toBe(1);
 
@@ -352,7 +352,7 @@ describe("SqliteDb", () => {
     });
     const count2 = verifyDb2["db"]
       .prepare("SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?")
-      .get("test") as { count: number };
+      .get("test") as { count: number; };
     verifyDb2.close();
 
     // Should still be 1 (only the first change from before)
@@ -365,7 +365,7 @@ describe("SqliteDb", () => {
     });
     const todos = verifyDb3["db"]
       .prepare("SELECT id FROM todos WHERE id IN (?, ?)")
-      .all("todo-2", "todo-invalid") as Array<{ id: string }>;
+      .all("todo-2", "todo-invalid") as Array<{ id: string; }>;
     verifyDb3.close();
 
     expect(todos).toHaveLength(0); // Neither should be materialized
@@ -408,7 +408,7 @@ describe("SqliteDb", () => {
           tagsTableDef: tagsTable,
           getTableConfig,
           fieldMap: { todos: { id: "id", title: "title", done: "done" } },
-          normalizeValue: (value) =>
+          normalizeValue: value =>
             typeof value === "boolean" ? (value ? 1 : 0) : value,
         });
         type SchemaType = InferSchema<typeof schema>;
@@ -482,10 +482,10 @@ describe("SqliteDb", () => {
     });
     const count = verifyDb["db"]
       .prepare("SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?")
-      .get("test") as { count: number };
+      .get("test") as { count: number; };
     const todos = verifyDb["db"]
       .prepare("SELECT id FROM todos WHERE id = ?")
-      .all("todo-1") as Array<{ id: string }>;
+      .all("todo-1") as Array<{ id: string; }>;
     verifyDb.close();
 
     expect(count.count).toBe(0);
@@ -531,11 +531,15 @@ describe("SqliteDb", () => {
             columns: string[],
             values: unknown[],
           ) => ({
-            sql: `INSERT INTO ${tableName} (id, ${columns.join(
-              ", ",
-            )}, invalid_column) VALUES (?, ${values
-              .map(() => "?")
-              .join(", ")}, ?)`,
+            sql: `INSERT INTO ${tableName} (id, ${
+              columns.join(
+                ", ",
+              )
+            }, invalid_column) VALUES (?, ${
+              values
+                .map(() => "?")
+                .join(", ")
+            }, ?)`,
             params: [id, ...values, "invalid"],
           }),
         });
@@ -580,7 +584,7 @@ describe("SqliteDb", () => {
     });
     const count = verifyDb["db"]
       .prepare("SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?")
-      .get("test") as { count: number };
+      .get("test") as { count: number; };
     verifyDb.close();
 
     expect(count.count).toBe(0); // No changes should be persisted
@@ -592,7 +596,7 @@ describe("SqliteDb", () => {
     });
     const todos = verifyDb2["db"]
       .prepare("SELECT id FROM todos WHERE id IN (?, ?)")
-      .all("todo-1", "todo-2") as Array<{ id: string }>;
+      .all("todo-1", "todo-2") as Array<{ id: string; }>;
     verifyDb2.close();
 
     expect(todos).toHaveLength(0); // Neither should be materialized
@@ -630,7 +634,7 @@ describe("SqliteDb", () => {
           tagsTableDef: tagsTable,
           getTableConfig,
           fieldMap: { todos: { id: "id", title: "title", done: "done" } },
-          normalizeValue: (value) =>
+          normalizeValue: value =>
             typeof value === "boolean" ? (value ? 1 : 0) : value,
         });
         type SchemaType = InferSchema<typeof schema>;

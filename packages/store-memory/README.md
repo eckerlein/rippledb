@@ -19,7 +19,7 @@ import { MemoryStore } from "@rippledb/store-memory";
 const store = new MemoryStore<MySchema>();
 
 // Subscribe to events
-const unsubscribe = store.onEvent((event) => {
+const unsubscribe = store.onEvent(event => {
   console.log("Change:", event.entity, event.kind, event.id);
 });
 

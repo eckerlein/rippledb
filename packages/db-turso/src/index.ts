@@ -178,7 +178,7 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
         MaterializerAdapter<S, MaterializerDb>
       >;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ctx: { db: MaterializerDb; schema: SchemaDescriptor<any> } = {
+      const ctx: { db: MaterializerDb; schema: SchemaDescriptor<any>; } = {
         db: tempDb,
         schema: this.schema,
       };
@@ -242,7 +242,8 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
     // Check idempotency if provided
     if (req.idempotencyKey) {
       const existing = await this.client.execute({
-        sql: "SELECT last_seq FROM ripple_idempotency WHERE stream = ? AND idempotency_key = ?",
+        sql:
+          "SELECT last_seq FROM ripple_idempotency WHERE stream = ? AND idempotency_key = ?",
         args: [req.stream, req.idempotencyKey],
       });
 
@@ -251,7 +252,8 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
       }
 
       transactionStatements.push({
-        sql: "INSERT INTO ripple_idempotency (stream, idempotency_key, last_seq) VALUES (?, ?, 0)",
+        sql:
+          "INSERT INTO ripple_idempotency (stream, idempotency_key, last_seq) VALUES (?, ?, 0)",
         args: [req.stream, req.idempotencyKey],
       });
     }
@@ -310,7 +312,8 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
       // For now, we'll use a subquery or handle it differently.
       // This is a limitation - we might need to execute in two phases or use a different approach.
       transactionStatements.push({
-        sql: "UPDATE ripple_idempotency SET last_seq = (SELECT MAX(seq) FROM ripple_changes WHERE stream = ?) WHERE stream = ? AND idempotency_key = ?",
+        sql:
+          "UPDATE ripple_idempotency SET last_seq = (SELECT MAX(seq) FROM ripple_changes WHERE stream = ?) WHERE stream = ? AND idempotency_key = ?",
         args: [req.stream, req.stream, req.idempotencyKey],
       });
     }
@@ -320,7 +323,7 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
     // This works for both file: protocol (local SQLite) and remote Turso.
     if (transactionStatements.length > 0) {
       await this.client.batch(
-        transactionStatements.map((stmt) => ({
+        transactionStatements.map(stmt => ({
           sql: stmt.sql,
           args: stmt.args as
             | string[]
@@ -345,11 +348,12 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
     const limit = req.limit ?? 500;
 
     const result = await this.client.execute({
-      sql: "SELECT seq, change_json FROM ripple_changes WHERE stream = ? AND seq > ? ORDER BY seq ASC LIMIT ?",
+      sql:
+        "SELECT seq, change_json FROM ripple_changes WHERE stream = ? AND seq > ? ORDER BY seq ASC LIMIT ?",
       args: [req.stream, afterSeq, limit],
     });
 
-    const changes = result.rows.map((row) => {
+    const changes = result.rows.map(row => {
       const changeJson = row.change_json as string;
       return JSON.parse(changeJson) as Change<S>;
     });

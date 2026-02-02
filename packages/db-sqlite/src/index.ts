@@ -18,26 +18,28 @@ export type SqliteDbOptions<
   S extends RippleSchema = RippleSchema,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   D extends SchemaDescriptor<any> = SchemaDescriptor<any>,
-> = {
-  /**
-   * SQLite pragmas to apply (only when using `filename`).
-   * Default: ['journal_mode = WAL']
-   */
-  pragmas?: string[];
-  materializer?: MaterializerFactory<
-    SqliteDatabase,
-    S,
-    SyncMaterializerAdapter<S, SqliteDatabase>
-  >;
-  schema: D;
-} & (
-  | {
+> =
+  & {
+    /**
+     * SQLite pragmas to apply (only when using `filename`).
+     * Default: ['journal_mode = WAL']
+     */
+    pragmas?: string[];
+    materializer?: MaterializerFactory<
+      SqliteDatabase,
+      S,
+      SyncMaterializerAdapter<S, SqliteDatabase>
+    >;
+    schema: D;
+  }
+  & (
+    | {
       filename: string;
     }
-  | {
+    | {
       db: SqliteDatabase;
     }
-);
+  );
 
 type ChangeRow = {
   seq: number;
@@ -129,7 +131,7 @@ export class SqliteDb<
     // For SQLite, this.db is always the same instance, so we can safely cache the materializer
     if (this.materializerFactory) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ctx: { db: SqliteDatabase; schema: SchemaDescriptor<any> } = {
+      const ctx: { db: SqliteDatabase; schema: SchemaDescriptor<any>; } = {
         db: this.db,
         schema: this.schema,
       };
@@ -217,7 +219,7 @@ export class SqliteDb<
       limit,
     }) as ChangeRow[];
 
-    const changes = rows.map((row) => JSON.parse(row.change_json) as Change<S>);
+    const changes = rows.map(row => JSON.parse(row.change_json) as Change<S>);
     const last = rows[rows.length - 1];
 
     return {
