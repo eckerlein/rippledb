@@ -23,10 +23,14 @@ import type { MaterializerAdapter } from "@rippledb/materialize-core";
  * uses MaybePromise (T | Promise<T>), and sync values (T) are assignable to it.
  * The return types here are the synchronous variants that satisfy MaterializerAdapter.
  */
-export type SyncMaterializerAdapter<
+/**
+ * Synchronous materializer adapter that extends the base MaterializerAdapter.
+ * Uses interface extends instead of intersection for better type checking performance.
+ */
+export interface SyncMaterializerAdapter<
   S extends RippleSchema = RippleSchema,
   TDb = MaterializerDb,
-> = {
+> extends MaterializerAdapter<S, TDb> {
   load<E extends EntityName<S>>(
     db: TDb,
     entity: E,
@@ -44,7 +48,7 @@ export type SyncMaterializerAdapter<
     id: string,
     state: MaterializerState<S, E>,
   ): void;
-} & MaterializerAdapter<S, TDb>;
+}
 
 /**
  * Synchronous executor for materialization operations.

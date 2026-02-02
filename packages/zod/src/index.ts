@@ -69,15 +69,19 @@ export type ZodSchemas<S extends DescriptorSchema> = {
 /**
  * Schema descriptor with typed Zod schema access.
  */
-export type SchemaDescriptorWithZod<S extends DescriptorSchema> =
-  & SchemaDescriptor<S>
-  & {
-    /**
-     * Auto-generated Zod schemas for each entity.
-     * Access via `schema.zod.entityName.parse(data)`.
-     */
-    readonly zod: ZodSchemas<S>;
-  };
+/**
+ * Schema descriptor with typed Zod schema access.
+ * Uses interface extends instead of intersection for better type checking performance.
+ */
+export interface SchemaDescriptorWithZod<S extends DescriptorSchema>
+  extends SchemaDescriptor<S>
+{
+  /**
+   * Auto-generated Zod schemas for each entity.
+   * Access via `schema.zod.entityName.parse(data)`.
+   */
+  readonly zod: ZodSchemas<S>;
+}
 
 /**
  * Converts a field descriptor to a Zod schema.
