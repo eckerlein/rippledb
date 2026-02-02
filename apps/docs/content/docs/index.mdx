@@ -40,24 +40,27 @@ This means:
 ## Quick Example
 
 ```ts
+import { defineSchema, s } from '@rippledb/core';
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createSyncSqlExecutor } from '@rippledb/materialize-db';
+import { createSyncMaterializer } from '@rippledb/materialize-db';
 import { makeUpsert } from '@rippledb/core';
 import { tickHlc, createHlcState } from '@rippledb/core';
 
+const schema = defineSchema({
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+});
+
 const db = new SqliteDb({
   filename: './data.db',
-  materializer: ({ db }) => {
-    const sqlConfig = {
+  schema,
+  materializer: ({ db, schema }) =>
+    createSyncMaterializer({
+      schema,
+      db,
       dialect: 'sqlite',
       tableMap: { todos: 'todos' },
       fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-    } as const;
-    return {
-      ...sqlConfig,
-      executor: createSyncSqlExecutor(db, sqlConfig),
-    };
-  },
+    }),
 });
 
 // Append a change
@@ -66,8 +69,8 @@ await db.append({
   stream: 'my-stream',
   changes: [makeUpsert({
     stream: 'my-stream',
-    entity: 'todos',
-    entityId: 'todo-1',
+  entity: 'todos',
+  entityId: 'todo-1',
     patch: { id: 'todo-1', title: 'Buy milk', done: false },
     hlc,
   })],

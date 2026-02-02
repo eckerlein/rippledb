@@ -48,19 +48,23 @@ This guide walks through setting up a RippleDB server with HTTP endpoints for sy
 ### Define Your Schema
 
 ```ts title="src/schema.ts"
-export type AppSchema = {
+import { defineSchema, s, type InferSchema } from '@rippledb/core';
+
+export const schema = defineSchema({
   todos: {
-    id: string;
-    title: string;
-    done: boolean;
-    createdAt: string;
-  };
+    id: s.string(),
+    title: s.string(),
+    done: s.boolean(),
+    createdAt: s.string(),
+  },
   users: {
-    id: string;
-    name: string;
-    email: string;
-  };
-};
+    id: s.string(),
+    name: s.string(),
+    email: s.string(),
+  },
+});
+
+export type AppSchema = InferSchema<typeof schema>;
 ```
 </Step>
 
@@ -91,13 +95,15 @@ In a distributed setup, each server instance needs a unique `NODE_ID`.
   <Tab value="SQLite">
 ```ts title="src/db.ts"
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createSyncSqlExecutor } from '@rippledb/materialize-db';
+import { createSyncMaterializer } from '@rippledb/materialize-db';
 import type { AppSchema } from './schema';
+import { schema } from './schema';
 
 // Create domain tables
 const db = new SqliteDb<AppSchema>({
   filename: process.env.DB_PATH ?? './data.db',
-  materializer: ({ db }) => {
+  schema,
+  materializer: ({ db, schema }) => {
     // Create domain tables if they don't exist
     db.exec(`
       CREATE TABLE IF NOT EXISTS todos (
@@ -113,7 +119,9 @@ const db = new SqliteDb<AppSchema>({
       );
     `);
 
-    const sqlConfig = {
+    return createSyncMaterializer({
+      schema,
+      db,
       dialect: 'sqlite',
       tableMap: {
         todos: 'todos',
@@ -123,12 +131,7 @@ const db = new SqliteDb<AppSchema>({
         todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' },
         users: { id: 'id', name: 'name', email: 'email' },
       },
-    } as const;
-
-    return {
-      ...sqlConfig,
-      executor: createSyncSqlExecutor(db, sqlConfig),
-    };
+    });
   },
 });
 
@@ -138,14 +141,18 @@ export { db };
   <Tab value="Turso">
 ```ts title="src/db.ts"
 import { TursoDb } from '@rippledb/db-turso';
-import { createSqlExecutor } from '@rippledb/materialize-db';
+import { createMaterializer } from '@rippledb/materialize-db';
 import type { AppSchema } from './schema';
+import { schema } from './schema';
 
 const db = new TursoDb<AppSchema>({
   url: process.env.TURSO_DATABASE_URL!,
   authToken: process.env.TURSO_AUTH_TOKEN!,
-  materializer: ({ db }) => {
-    const sqlConfig = {
+  schema,
+  materializer: ({ db, schema }) =>
+    createMaterializer({
+      schema,
+      db,
       dialect: 'sqlite',
       tableMap: {
         todos: 'todos',
@@ -155,13 +162,7 @@ const db = new TursoDb<AppSchema>({
         todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' },
         users: { id: 'id', name: 'name', email: 'email' },
       },
-    } as const;
-
-    return {
-      ...sqlConfig,
-      executor: createSqlExecutor(sqlConfig, db),
-    };
-  },
+    }),
 });
 
 export { db };
@@ -174,8 +175,9 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { DrizzleDb } from '@rippledb/db-drizzle';
-import { createDrizzleMaterializerConfig } from '@rippledb/materialize-drizzle';
+import { createDrizzleSyncMaterializer } from '@rippledb/materialize-drizzle';
 import type { AppSchema } from './schema';
+import { schema } from './schema';
 
 // Drizzle table definitions
 export const todosTable = sqliteTable('todos', {
@@ -223,12 +225,15 @@ const db = new DrizzleDb<AppSchema, typeof drizzleDb>({
   idempotencyTable,
   getTableConfig,
   isSync: true,
-  materializer: () => createDrizzleMaterializerConfig(drizzleDb, {
-    tableMap: { todos: todosTable },
-    tagsTableDef: tagsTable,
-    getTableConfig,
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' } },
-  }),
+  schema,
+  materializer: ({ schema }) =>
+    createDrizzleSyncMaterializer({
+      schema,
+      tableMap: { todos: todosTable },
+      tagsTableDef: tagsTable,
+      getTableConfig,
+      fieldMap: { todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' } },
+    }),
 });
 
 export { db, drizzleDb, todosTable };

@@ -38,14 +38,17 @@ npm install -D typescript @types/better-sqlite3 tsx
 Create `src/schema.ts` to define the shape of your data:
 
 ```ts title="src/schema.ts"
-// Define your entity types
-export type TodosSchema = {
+import { defineSchema, s, type InferSchema } from '@rippledb/core';
+
+export const schema = defineSchema({
   todos: {
-    id: string;
-    title: string;
-    done: boolean;
-  };
-};
+    id: s.string(),
+    title: s.string(),
+    done: s.boolean(),
+  },
+});
+
+export type TodosSchema = InferSchema<typeof schema>;
 ```
 </Step>
 
@@ -56,23 +59,22 @@ Create `src/db.ts` to configure your RippleDB database:
 
 ```ts title="src/db.ts"
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createSyncSqlExecutor } from '@rippledb/materialize-db';
+import { createSyncMaterializer } from '@rippledb/materialize-db';
 import type { TodosSchema } from './schema';
+import { schema } from './schema';
 
 // Create the database with a materializer
 export const db = new SqliteDb<TodosSchema>({
   filename: './data.db',
-  materializer: ({ db }) => {
-    const sqlConfig = {
+  schema,
+  materializer: ({ db, schema }) =>
+    createSyncMaterializer({
+      schema,
+      db,
       dialect: 'sqlite',
       tableMap: { todos: 'todos' },
       fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-    } as const;
-    return {
-      ...sqlConfig,
-      executor: createSyncSqlExecutor(db, sqlConfig),
-    };
-  },
+    }),
 });
 ```
 </Step>

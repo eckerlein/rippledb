@@ -25,12 +25,17 @@ A type-safe materializer that uses [Drizzle ORM](https://orm.drizzle.team/) tabl
 ## Basic Usage (SQLite)
 
 ```ts
+import { defineSchema, s } from '@rippledb/core';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createDrizzleSyncMaterializerConfig } from '@rippledb/materialize-drizzle';
+import { createDrizzleSyncMaterializer } from '@rippledb/materialize-drizzle';
+
+const schema = defineSchema({
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+});
 
 // Define your domain table
 const todosTable = sqliteTable('todos', {
@@ -51,9 +56,11 @@ const tagsTable = sqliteTable('ripple_tags', {
 
 const db = new SqliteDb<MySchema>({
   filename: './data.db',
-  materializer: ({ db }) => {
+  schema,
+  materializer: ({ db, schema }) => {
     const drizzleDb = drizzle(db);
-    return createDrizzleSyncMaterializerConfig(drizzleDb, {
+    return createDrizzleSyncMaterializer({
+      schema,
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
       getTableConfig,
@@ -68,25 +75,30 @@ Use the right function based on your database driver:
 
 | Driver | Function |
 |--------|----------|
-| `better-sqlite3` | `createDrizzleSyncMaterializerConfig` |
-| `pg`, `mysql2`, `@libsql/client` | `createDrizzleMaterializerConfig` |
+| `better-sqlite3` | `createDrizzleSyncMaterializer` |
+| `pg`, `mysql2`, `@libsql/client` | `createDrizzleMaterializer` |
 
 ```ts
 // Synchronous (SQLite with better-sqlite3)
-import { createDrizzleSyncMaterializerConfig } from '@rippledb/materialize-drizzle';
+import { createDrizzleSyncMaterializer } from '@rippledb/materialize-drizzle';
 
 // Asynchronous (PostgreSQL, MySQL, Turso)
-import { createDrizzleMaterializerConfig } from '@rippledb/materialize-drizzle';
+import { createDrizzleMaterializer } from '@rippledb/materialize-drizzle';
 ```
 
 ## Configuration
+
+### `schema`
+
+Schema descriptor used for field discovery and type inference.
 
 ### `tableMap`
 
 Maps entity names to Drizzle table definitions.
 
 ```ts
-createDrizzleSyncMaterializerConfig(drizzleDb, {
+createDrizzleSyncMaterializer({
+  schema,
   tableMap: {
     todos: todosTable,
     users: usersTable,
@@ -123,7 +135,8 @@ import { getTableConfig } from 'drizzle-orm/mysql-core';
 Optional mapping from schema fields to column names. If omitted, field names are used as-is.
 
 ```ts
-createDrizzleSyncMaterializerConfig(drizzleDb, {
+createDrizzleSyncMaterializer({
+  schema,
   // ...
   fieldMap: {
     todos: {
@@ -144,7 +157,8 @@ Without `fieldMap`, only the `ripple_tags` table is updated. Add `fieldMap` to a
 Transform values before writing to the database. Useful for SQLite boolean conversion:
 
 ```ts
-createDrizzleSyncMaterializerConfig(drizzleDb, {
+createDrizzleSyncMaterializer({
+  schema,
   // ...
   normalizeValue: (value, { tableName, columnName }) => {
     // Convert booleans to integers for SQLite
@@ -161,7 +175,8 @@ createDrizzleSyncMaterializerConfig(drizzleDb, {
 Hook to create the tags table if it doesn't exist:
 
 ```ts
-createDrizzleSyncMaterializerConfig(drizzleDb, {
+createDrizzleSyncMaterializer({
+  schema,
   // ...
   ensureTagsTable: () => {
     db.exec(`
@@ -186,7 +201,7 @@ import { Client } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { pgTable, text, integer, primaryKey } from 'drizzle-orm/pg-core';
 import { getTableConfig } from 'drizzle-orm/pg-core';
-import { createDrizzleMaterializerConfig } from '@rippledb/materialize-drizzle';
+import { createDrizzleMaterializer } from '@rippledb/materialize-drizzle';
 
 const todosTable = pgTable('todos', {
   id: text('id').primaryKey(),
@@ -215,7 +230,8 @@ const rippleDb = new DrizzleDb({
   changesTable,
   idempotencyTable,
   getTableConfig,
-  materializer: () => createDrizzleMaterializerConfig(drizzleDb, {
+  materializer: ({ schema }) => createDrizzleMaterializer({
+    schema,
     tableMap: { todos: todosTable },
     tagsTableDef: tagsTable,
     getTableConfig,
@@ -230,13 +246,15 @@ When using `db-sqlite`, you must use the sync version:
 
 ```ts
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createDrizzleSyncMaterializerConfig } from '@rippledb/materialize-drizzle';
+import { createDrizzleSyncMaterializer } from '@rippledb/materialize-drizzle';
 
 const db = new SqliteDb<MySchema>({
   filename: './data.db',
-  materializer: ({ db }) => {
+  schema,
+  materializer: ({ db, schema }) => {
     const drizzleDb = drizzle(db);
-    return createDrizzleSyncMaterializerConfig(drizzleDb, {
+    return createDrizzleSyncMaterializer({
+      schema,
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
       getTableConfig,
@@ -252,7 +270,7 @@ For the most integrated experience, use both `db-drizzle` and `materialize-drizz
 
 ```ts
 import { DrizzleDb } from '@rippledb/db-drizzle';
-import { createDrizzleMaterializerConfig } from '@rippledb/materialize-drizzle';
+import { createDrizzleMaterializer } from '@rippledb/materialize-drizzle';
 
 const db = new DrizzleDb<MySchema, typeof drizzleDb>({
   db: drizzleDb,
@@ -260,12 +278,15 @@ const db = new DrizzleDb<MySchema, typeof drizzleDb>({
   idempotencyTable,
   getTableConfig,
   isSync: true,
-  materializer: () => createDrizzleMaterializerConfig(drizzleDb, {
-    tableMap: { todos: todosTable },
-    tagsTableDef: tagsTable,
-    getTableConfig,
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-  }),
+  schema,
+  materializer: ({ schema }) =>
+    createDrizzleMaterializer({
+      schema,
+      tableMap: { todos: todosTable },
+      tagsTableDef: tagsTable,
+      getTableConfig,
+      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    }),
 });
 ```
 
