@@ -225,7 +225,9 @@ export function createMaterializer<
     // If async, we can't await here, but that's okay - first use will handle it
     if (initResult instanceof Promise) {
       // Fire and forget - errors will surface on first use
-      initResult.catch(() => {});
+      initResult.catch((err) => {
+        console.error('Failed to initialize tags table in materialize-db adapter:', err);
+      });
     }
   }
   
