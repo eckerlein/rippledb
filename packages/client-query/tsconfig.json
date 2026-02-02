@@ -6,11 +6,5 @@
     "outDir": "./dist"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["dist", "node_modules"],
-  "references": [
-    { "path": "../core" },
-    { "path": "../client" },
-    { "path": "../client-controllers" },
-    { "path": "../bind-tanstack-query" }
-  ]
+  "exclude": ["dist", "node_modules"]
 }
