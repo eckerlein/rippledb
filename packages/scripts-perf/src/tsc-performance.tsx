@@ -27,6 +27,9 @@ interface PackageDiagnostics {
   lines: number;
   time: number;
   errors: number;
+  minTime?: number;
+  maxTime?: number;
+  runs?: number;
 }
 
 interface PerformanceLimits {
@@ -107,6 +110,49 @@ function runDiagnostics(packageName: string): PackageDiagnostics | null {
   }
 }
 
+interface AveragedDiagnostics extends PackageDiagnostics {
+  minTime: number;
+  maxTime: number;
+  runs: number;
+}
+
+async function runDiagnosticsMultiple(
+  packageName: string,
+  runs: number = 3,
+  onProgress?: (current: number, total: number) => void,
+): Promise<AveragedDiagnostics | null> {
+  const results: PackageDiagnostics[] = [];
+
+  for (let i = 0; i < runs; i++) {
+    const result = runDiagnostics(packageName);
+    if (!result) return null;
+    results.push(result);
+
+    // Allow UI to update between runs
+    if (onProgress) {
+      onProgress(i + 1, runs);
+    }
+    if (i < runs - 1) {
+      // Small delay to allow React to render
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+
+  const times = results.map(r => r.time);
+  const avgTime = times.reduce((sum, t) => sum + t, 0) / times.length;
+  const minTime = Math.min(...times);
+  const maxTime = Math.max(...times);
+
+  // Use the first result for files/lines/errors (they should be the same)
+  return {
+    ...results[0],
+    time: avgTime,
+    minTime,
+    maxTime,
+    runs,
+  };
+}
+
 function loadLimits(): PerformanceLimits {
   if (!existsSync(LIMITS_PATH)) {
     throw new Error(`Performance limits file not found: ${LIMITS_PATH}`);
@@ -123,7 +169,9 @@ function getPackageStatus(
   result: PackageDiagnostics,
   limits?: PerformanceLimits,
   isCheckMode?: boolean,
+  isRerunning?: boolean,
 ): string {
+  if (isRerunning) return "🔄";
   if (result.errors > 0) return "❌";
   if (!limits) return "✅";
 
@@ -140,10 +188,12 @@ function PerformanceTable({
   results,
   limits,
   isCheckMode = false,
+  rerunningPackages = new Set(),
 }: {
   results: PackageDiagnostics[];
   limits?: PerformanceLimits;
   isCheckMode?: boolean;
+  rerunningPackages?: Set<string>;
 }) {
   const sorted = [...results].sort((a, b) => b.time - a.time);
   const hasLimits = limits !== undefined;
@@ -172,7 +222,13 @@ function PerformanceTable({
       </Text>
       <Text>{"-".repeat(hasLimits ? 94 : 82)}</Text>
       {sorted.map(result => {
-        const status = getPackageStatus(result, limits, isCheckMode);
+        const isRerunning = rerunningPackages.has(result.name);
+        const status = getPackageStatus(
+          result,
+          limits,
+          isCheckMode,
+          isRerunning,
+        );
         const max = limits?.packages[result.name];
         const maxStr = max ? max.toString() : "-";
 
@@ -215,6 +271,9 @@ function PerformanceTable({
 function App({ isCheckMode }: { isCheckMode: boolean; }) {
   const [results, setResults] = useState<PackageDiagnostics[]>([]);
   const [limits, setLimits] = useState<PerformanceLimits | null>(null);
+  const [rerunningPackages, setRerunningPackages] = useState<Set<string>>(
+    new Set(),
+  );
   const [checkResult, setCheckResult] = useState<
     {
       passed: boolean;
@@ -248,8 +307,152 @@ function App({ isCheckMode }: { isCheckMode: boolean; }) {
 
     const runNext = (index: number) => {
       if (isCancelled || index >= packages.length) {
+        // After initial pass, check for failures and rerun if needed
         if (!isCancelled && isCheckMode && limits) {
-          // Check performance
+          const failedPackages: string[] = [];
+
+          for (const pkg of currentResults) {
+            const max = limits.packages[pkg.name];
+            if (!max || pkg.time > max) {
+              failedPackages.push(pkg.name);
+            }
+          }
+
+          // Rerun failed packages with averaging
+          if (failedPackages.length > 0) {
+            const rerunNext = async (rerunIndex: number) => {
+              if (isCancelled || rerunIndex >= failedPackages.length) {
+                // Final check after reruns
+                const totalTime = currentResults.reduce(
+                  (sum, r) => sum + r.time,
+                  0,
+                );
+                const errors: string[] = [];
+                const warnings: string[] = [];
+
+                if (totalTime > limits.totalMax) {
+                  errors.push(
+                    `Total compilation time ${
+                      totalTime.toFixed(2)
+                    }ms exceeds max ${limits.totalMax}ms (+${
+                      ((totalTime / limits.totalMax - 1) * 100).toFixed(1)
+                    }%)`,
+                  );
+                }
+
+                for (const pkg of currentResults) {
+                  const max = limits.packages[pkg.name];
+                  if (!max) {
+                    errors.push(
+                      `Package "${pkg.name}": No performance limit defined in .github/tsc-performance-limits.json`,
+                    );
+                    continue;
+                  }
+
+                  if (pkg.time > max) {
+                    if (
+                      pkg.runs && pkg.runs > 1 && pkg.minTime && pkg.maxTime
+                    ) {
+                      errors.push(
+                        `Package "${pkg.name}": avg ${
+                          pkg.time.toFixed(2)
+                        }ms (range: ${pkg.minTime.toFixed(2)}-${
+                          pkg.maxTime.toFixed(2)
+                        }ms) exceeds max ${max}ms (+${
+                          ((pkg.time / max - 1) * 100).toFixed(1)
+                        }%)`,
+                      );
+                    } else {
+                      errors.push(
+                        `Package "${pkg.name}": ${
+                          pkg.time.toFixed(2)
+                        }ms exceeds max ${max}ms (+${
+                          ((pkg.time / max - 1) * 100).toFixed(1)
+                        }%)`,
+                      );
+                    }
+                  } else if (
+                    pkg.time < max * limits.headroomWarningThreshold
+                  ) {
+                    warnings.push(
+                      `Package "${pkg.name}": ${pkg.time.toFixed(2)}ms is ${
+                        ((1 - pkg.time / max) * 100).toFixed(1)
+                      }% below max ${max}ms. Consider lowering limit to ${
+                        Math.ceil(pkg.time * 1.3)
+                      }ms`,
+                    );
+                  }
+                }
+
+                setRerunningPackages(new Set());
+                setCheckResult({
+                  passed: errors.length === 0,
+                  errors,
+                  warnings,
+                });
+                return;
+              }
+
+              if (isCancelled) return;
+
+              const packageName = failedPackages[rerunIndex];
+
+              // Set rerunning state and allow React to render
+              setRerunningPackages(prev => new Set(prev).add(packageName));
+              setResults([...currentResults]); // Force re-render
+
+              // Small delay to ensure UI updates
+              await new Promise(resolve => setTimeout(resolve, 100));
+
+              if (isCancelled) return;
+
+              const averaged = await runDiagnosticsMultiple(
+                packageName,
+                3,
+                () => {
+                  // Update UI during rerun progress if needed
+                  if (!isCancelled) {
+                    setResults([...currentResults]);
+                  }
+                },
+              );
+
+              if (averaged && !isCancelled) {
+                // Update the result with averaged values
+                const resultIndex = currentResults.findIndex(
+                  r => r.name === packageName,
+                );
+                if (resultIndex >= 0) {
+                  currentResults[resultIndex] = {
+                    ...currentResults[resultIndex],
+                    time: averaged.time,
+                    minTime: averaged.minTime,
+                    maxTime: averaged.maxTime,
+                    runs: averaged.runs,
+                  };
+                  setResults([...currentResults]);
+                }
+              }
+
+              // Remove from rerunning state
+              setRerunningPackages(prev => {
+                const next = new Set(prev);
+                next.delete(packageName);
+                return next;
+              });
+
+              if (!isCancelled) {
+                // Small delay before next package
+                await new Promise(resolve => setTimeout(resolve, 50));
+                rerunNext(rerunIndex + 1);
+              }
+            };
+
+            rerunNext(0);
+            return;
+          }
+
+          // No failures, do final check
           const totalTime = currentResults.reduce((sum, r) => sum + r.time, 0);
           const errors: string[] = [];
           const warnings: string[] = [];
@@ -354,6 +557,7 @@ function App({ isCheckMode }: { isCheckMode: boolean; }) {
           results={results}
           limits={limits || undefined}
           isCheckMode={isCheckMode}
+          rerunningPackages={rerunningPackages}
         />
       )}
       {checkResult && (
