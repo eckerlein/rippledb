@@ -1,4 +1,4 @@
-import type { Change, RippleSchema } from '@rippledb/core';
+import type { Change, RippleSchema, SchemaDescriptor } from '@rippledb/core';
 import type {
   AppendRequest,
   AppendResult,
@@ -8,6 +8,7 @@ import type {
   PullResponse,
 } from '@rippledb/server';
 import { applyChangeToState } from '@rippledb/materialize-core';
+import type { MaterializerFactory, MaterializerAdapter } from '@rippledb/materialize-core';
 import { and, eq, gt, asc } from 'drizzle-orm';
 
 // ============================================================================
@@ -142,7 +143,13 @@ export type DrizzleDbOptions<
    * Materializer factory function (optional).
    * The db passed to this function is the transaction-bound instance.
    */
-  materializer?: (ctx: { db: TDb }) => DrizzleMaterializerConfig<S, TDb>;
+  materializer?: MaterializerFactory<TDb, S, MaterializerAdapter<S, TDb>>;
+
+  /**
+   * Schema descriptor for entity/field discovery.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: SchemaDescriptor<any>;
 
   /**
    * Set to true for synchronous drivers like better-sqlite3.
@@ -378,14 +385,43 @@ export class DrizzleDb<
   private changesTable: ChangesTableColumns<TTable>;
   private idempotencyTable: IdempotencyTableColumns<TTable>;
   private materializerFactory: DrizzleDbOptions<S, TDb, TTable>['materializer'];
+  private materializer: MaterializerAdapter<S, TDb> | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private schema: SchemaDescriptor<any>;
   private isSync: boolean;
 
+  /**
+   * Create a new DrizzleDb instance.
+   * 
+   * Note: DrizzleDb does not create tables automatically.
+   * Run Drizzle Kit migrations before creating the instance.
+   * 
+   * @example
+   * ```ts
+   * // Run migrations first
+   * await migrate(drizzleDb, { migrationsFolder: './migrations' });
+   * 
+   * // Then create DrizzleDb (tables already exist)
+   * const rippleDb = new DrizzleDb({ ... });
+   * ```
+   */
   constructor(opts: DrizzleDbOptions<S, TDb, TTable>) {
     this.db = opts.db;
     this.changesTable = opts.changesTable;
     this.idempotencyTable = opts.idempotencyTable;
     this.materializerFactory = opts.materializer;
+    this.schema = opts.schema;
     this.isSync = opts.isSync ?? false;
+
+    // Cache materializer adapter if factory is provided
+    // Call factory with this.db for initialization
+    // Factory returns adapter directly (ensureTagsTable runs during factory execution if needed)
+    if (this.materializerFactory) {
+      const factory = this.materializerFactory as MaterializerFactory<TDb, S, MaterializerAdapter<S, TDb>>;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ctx: { db: TDb; schema: SchemaDescriptor<any> } = { db: this.db, schema: this.schema };
+      this.materializer = factory(ctx);
+    }
   }
 
   async append(req: AppendRequest<S>): Promise<AppendResult> {
@@ -461,57 +497,30 @@ export class DrizzleDb<
       }
 
       // Materialize changes if configured
-      if (this.materializerFactory) {
-        const config = this.materializerFactory({ db: tx as unknown as TDb });
-
+      // Use cached materializer (created in constructor)
+      // Pass transaction-specific tx to materializer methods
+      // For sync mode, materializer methods must return synchronously (no await)
+      if (this.materializer) {
+        const txDb = tx as TDb;
         for (const change of req.changes) {
-          const tagsRow = config.executor.loadTags(
-            tx as unknown as TDb,
-            change.entity as string,
-            change.entityId,
-          ) as TagsRow | null;
-          const current = tagsRow
-            ? {
-                values: JSON.parse(tagsRow.data),
-                tags: JSON.parse(tagsRow.tags),
-                deleted: tagsRow.deleted === 1,
-                deletedTag: tagsRow.deleted_tag,
-              }
-            : null;
+          const currentResult = this.materializer.load(txDb, change.entity, change.entityId);
+          // In sync mode, materializer should return synchronously
+          if (currentResult instanceof Promise) {
+            throw new Error('Materializer.load() cannot return Promise in sync mode');
+          }
+          const current = currentResult;
+          const result = applyChangeToState(current, change);
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const applyResult = applyChangeToState(current as any, change);
-
-          if (applyResult.changed) {
-            if (applyResult.deleted) {
-              config.executor.removeTags(
-                tx as unknown as TDb,
-                change.entity as string,
-                change.entityId,
-                applyResult.state.deletedTag ?? '',
-              );
-              if (config.executor.removeEntity) {
-                config.executor.removeEntity(
-                  tx as unknown as TDb,
-                  change.entity as string,
-                  change.entityId,
-                );
+          if (result.changed) {
+            if (result.deleted) {
+              const removeResult = this.materializer.remove(txDb, change.entity, change.entityId, result.state);
+              if (removeResult instanceof Promise) {
+                throw new Error('Materializer.remove() cannot return Promise in sync mode');
               }
             } else {
-              config.executor.saveTags(
-                tx as unknown as TDb,
-                change.entity as string,
-                change.entityId,
-                applyResult.state.values,
-                Object.values(applyResult.state.tags) as string[],
-              );
-              if (config.executor.saveEntity && config.fieldMap?.[change.entity]) {
-                config.executor.saveEntity(
-                  tx as unknown as TDb,
-                  change.entity as string,
-                  change.entityId,
-                  applyResult.state.values as Record<string, unknown>,
-                );
+              const saveResult = this.materializer.save(txDb, change.entity, change.entityId, result.state);
+              if (saveResult instanceof Promise) {
+                throw new Error('Materializer.save() cannot return Promise in sync mode');
               }
             }
           }
@@ -590,58 +599,19 @@ export class DrizzleDb<
       }
 
       // Materialize changes if configured
-      if (this.materializerFactory) {
-        const config = this.materializerFactory({ db: tx as unknown as TDb });
-
+      // Use cached materializer (created in constructor)
+      // Pass transaction-specific tx to materializer methods
+      if (this.materializer) {
+        const txDb = tx as TDb;
         for (const change of req.changes) {
-          const tagsRow = await config.executor.loadTags(
-            tx as unknown as TDb,
-            change.entity as string,
-            change.entityId,
-          );
-          const current = tagsRow
-            ? {
-                values: JSON.parse(tagsRow.data),
-                tags: JSON.parse(tagsRow.tags),
-                deleted: tagsRow.deleted === 1,
-                deletedTag: tagsRow.deleted_tag,
-              }
-            : null;
+          const current = await this.materializer.load(txDb, change.entity, change.entityId);
+          const result = applyChangeToState(current, change);
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const applyResult = applyChangeToState(current as any, change);
-
-          if (applyResult.changed) {
-            if (applyResult.deleted) {
-              await config.executor.removeTags(
-                tx as unknown as TDb,
-                change.entity as string,
-                change.entityId,
-                applyResult.state.deletedTag ?? '',
-              );
-              if (config.executor.removeEntity) {
-                await config.executor.removeEntity(
-                  tx as unknown as TDb,
-                  change.entity as string,
-                  change.entityId,
-                );
-              }
+          if (result.changed) {
+            if (result.deleted) {
+              await this.materializer.remove(txDb, change.entity, change.entityId, result.state);
             } else {
-              await config.executor.saveTags(
-                tx as unknown as TDb,
-                change.entity as string,
-                change.entityId,
-                applyResult.state.values,
-                Object.values(applyResult.state.tags) as string[],
-              );
-              if (config.executor.saveEntity && config.fieldMap?.[change.entity]) {
-                await config.executor.saveEntity(
-                  tx as unknown as TDb,
-                  change.entity as string,
-                  change.entityId,
-                  applyResult.state.values as Record<string, unknown>,
-                );
-              }
+              await this.materializer.save(txDb, change.entity, change.entityId, result.state);
             }
           }
         }

@@ -1,14 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@rippledb/core';
+import { createHlcState, makeDelete, makeUpsert, tickHlc, defineSchema, s } from '@rippledb/core';
 import { materializeChange } from '@rippledb/materialize-core';
-import { createCustomMaterializer } from '@rippledb/materialize-db';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { getTableConfig, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { unlinkSync } from 'node:fs';
-import { createDrizzleMaterializerConfig } from './index';
+import { createDrizzleMaterializer } from './index';
 
 type TestSchema = {
   todos: {
@@ -17,6 +16,14 @@ type TestSchema = {
     done: boolean;
   };
 };
+
+const schema = defineSchema({
+  todos: {
+    id: s.string(),
+    title: s.string(),
+    done: s.boolean(),
+  },
+});
 
 const todosTable = sqliteTable('todos', {
   id: text('id').primaryKey(),
@@ -65,14 +72,14 @@ describe('materialize-drizzle (sqlite)', () => {
 
   it('materializes upserts into tags and entity tables', async () => {
     const db = drizzle(sqlite);
-    const config = createDrizzleMaterializerConfig<TestSchema>(db, {
+    const adapter = createDrizzleMaterializer({
+      schema,
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
-      getTableConfig: (table) => getTableConfig(table as typeof todosTable),
+      getTableConfig,
       fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
       normalizeValue: (value) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
     });
-    const adapter = createCustomMaterializer<TestSchema>(config);
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
     const change = makeUpsert<TestSchema>({
@@ -83,7 +90,7 @@ describe('materialize-drizzle (sqlite)', () => {
       hlc,
     });
 
-    await materializeChange(adapter, change);
+    await materializeChange(adapter, db, change);
 
     const tagsRow = sqlite
       .prepare('SELECT data, tags, deleted FROM ripple_tags WHERE entity = ? AND id = ?')
@@ -100,14 +107,14 @@ describe('materialize-drizzle (sqlite)', () => {
 
   it('handles deletes by marking tags', async () => {
     const db = drizzle(sqlite);
-    const config = createDrizzleMaterializerConfig<TestSchema>(db, {
+    const adapter = createDrizzleMaterializer({
+      schema,
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
-      getTableConfig: (table) => getTableConfig(table as typeof todosTable),
+      getTableConfig,
       fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
       normalizeValue: (value) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
     });
-    const adapter = createCustomMaterializer<TestSchema>(config);
 
     const hlc1 = tickHlc(createHlcState('node-1'), 100);
     const change1 = makeUpsert<TestSchema>({
@@ -117,7 +124,7 @@ describe('materialize-drizzle (sqlite)', () => {
       patch: { id: 'todo-1', title: 'Buy milk', done: false },
       hlc: hlc1,
     });
-    await materializeChange(adapter, change1);
+    await materializeChange(adapter, db, change1);
 
     const hlc2 = tickHlc(createHlcState('node-1'), 101);
     const change2 = makeDelete<TestSchema>({
@@ -126,7 +133,7 @@ describe('materialize-drizzle (sqlite)', () => {
       entityId: 'todo-1',
       hlc: hlc2,
     });
-    await materializeChange(adapter, change2);
+    await materializeChange(adapter, db, change2);
 
     const tagsRow = sqlite
       .prepare('SELECT deleted, deleted_tag FROM ripple_tags WHERE entity = ? AND id = ?')

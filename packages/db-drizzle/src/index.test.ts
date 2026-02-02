@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeUpsert, tickHlc, type Change } from '@rippledb/core';
+import { createHlcState, makeUpsert, tickHlc, type Change, defineSchema, s } from '@rippledb/core';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { sqliteTable, text, integer, getTableConfig } from 'drizzle-orm/sqlite-core';
-import { and, eq } from 'drizzle-orm';
+import { createDrizzleSyncMaterializer } from '@rippledb/materialize-drizzle';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { unlinkSync } from 'node:fs';
-import { DrizzleDb, type TagsRow } from './index';
+import { DrizzleDb } from './index';
 
 type TestSchema = {
   todos: {
@@ -16,6 +16,14 @@ type TestSchema = {
     done: boolean;
   };
 };
+
+const schema = defineSchema({
+  todos: {
+    id: s.string(),
+    title: s.string(),
+    done: s.boolean(),
+  },
+});
 
 // Define Drizzle tables for the internal ripple tables
 // Note: Composite primary keys are defined in the raw SQL, not in the Drizzle schema
@@ -39,6 +47,13 @@ const tagsTable = sqliteTable('ripple_tags', {
   tags: text('tags').notNull(),
   deleted: integer('deleted').notNull().default(0),
   deleted_tag: text('deleted_tag'),
+});
+
+
+const todosTable = sqliteTable('todos', {
+  id: text('id').primaryKey(),
+  title: text('title'),
+  done: integer('done'),
 });
 
 describe('DrizzleDb with SQLite', () => {
@@ -82,6 +97,7 @@ describe('DrizzleDb with SQLite', () => {
       idempotencyTable,
       getTableConfig,
       isSync: true,
+      schema,
     });
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
@@ -115,6 +131,7 @@ describe('DrizzleDb with SQLite', () => {
       idempotencyTable,
       getTableConfig,
       isSync: true,
+      schema,
     });
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
@@ -161,6 +178,7 @@ describe('DrizzleDb with SQLite', () => {
       idempotencyTable,
       getTableConfig,
       isSync: true,
+      schema,
     });
 
     // Insert multiple changes
@@ -199,8 +217,13 @@ describe('DrizzleDb with SQLite', () => {
   });
 
   it('supports materialization with Drizzle executor', async () => {
-    // Create tags table
+    // Create entity + tags tables
     sqlite.exec(`
+      CREATE TABLE todos (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        done INTEGER
+      );
       CREATE TABLE ripple_tags (
         entity TEXT NOT NULL,
         id TEXT NOT NULL,
@@ -219,54 +242,15 @@ describe('DrizzleDb with SQLite', () => {
       idempotencyTable,
       getTableConfig,
       isSync: true,
-      materializer: () => ({
-        tableMap: { todos: 'todos' },
-        executor: {
-          loadTags(_txDb, entity, id): TagsRow | null {
-            // Use Drizzle query builder with tagsTable
-            const rows = db
-              .select({
-                id: tagsTable.id,
-                data: tagsTable.data,
-                tags: tagsTable.tags,
-                deleted: tagsTable.deleted,
-                deleted_tag: tagsTable.deleted_tag,
-              })
-              .from(tagsTable)
-              .where(and(eq(tagsTable.entity, entity), eq(tagsTable.id, id)))
-              .limit(1)
-              .all();
-            return (rows[0] as TagsRow | undefined) ?? null;
-          },
-          saveTags(_txDb, entity, id, data, tags): void {
-            // Use Drizzle insert with onConflictDoUpdate
-            db.insert(tagsTable)
-              .values({
-                entity,
-                id,
-                data: JSON.stringify(data),
-                tags: JSON.stringify(tags),
-                deleted: 0,
-                deleted_tag: null,
-              })
-              .onConflictDoUpdate({
-                target: [tagsTable.entity, tagsTable.id],
-                set: {
-                  data: JSON.stringify(data),
-                  tags: JSON.stringify(tags),
-                  deleted: 0,
-                  deleted_tag: null,
-                },
-              })
-              .run();
-          },
-          removeTags(_txDb, entity, id, deletedTag): void {
-            db.update(tagsTable)
-              .set({ deleted: 1, deleted_tag: deletedTag })
-              .where(and(eq(tagsTable.entity, entity), eq(tagsTable.id, id)))
-              .run();
-          },
-        },
+      schema,
+      materializer: ({ schema: schemaDescriptor }) =>
+        createDrizzleSyncMaterializer({
+          schema: schemaDescriptor,
+          tableMap: { todos: todosTable },
+          tagsTableDef: tagsTable,
+          getTableConfig,
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+          normalizeValue: (value: unknown) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
       }),
     });
 
@@ -294,14 +278,19 @@ describe('DrizzleDb with SQLite', () => {
   });
 
   it('rolls back transaction on error (atomicity)', async () => {
-    // Create tags table with a CHECK constraint
+    // Create domain table with CHECK constraint and tags table
     sqlite.exec(`
+      CREATE TABLE todos (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        done INTEGER CHECK (done IN (0, 1))
+      );
       CREATE TABLE ripple_tags (
         entity TEXT NOT NULL,
         id TEXT NOT NULL,
         data TEXT NOT NULL,
         tags TEXT NOT NULL,
-        deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1)),
+        deleted INTEGER NOT NULL DEFAULT 0,
         deleted_tag TEXT,
         PRIMARY KEY (entity, id)
       );
@@ -314,41 +303,32 @@ describe('DrizzleDb with SQLite', () => {
       idempotencyTable,
       getTableConfig,
       isSync: true,
-      materializer: () => ({
-        tableMap: { todos: 'todos' },
-        executor: {
-          loadTags(txDb, entity, id): TagsRow | null {
-            const row = sqlite
-              .prepare('SELECT id, data, tags, deleted, deleted_tag FROM ripple_tags WHERE entity = ? AND id = ?')
-              .get(entity, id) as TagsRow | undefined;
-            return row ?? null;
-          },
-          saveTags(txDb, entity, id, data, tags): void {
-            // This will cause a CHECK constraint failure with deleted = 2
-            sqlite
-              .prepare(
-                'INSERT OR REPLACE INTO ripple_tags (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 2, NULL)',
-              )
-              .run(entity, id, JSON.stringify(data), JSON.stringify(tags));
-          },
-          removeTags(): void {
-            // no-op
-          },
-        },
-      }),
+      schema,
+      materializer: ({ schema: schemaDescriptor }) =>
+        createDrizzleSyncMaterializer({
+          schema: schemaDescriptor,
+          tableMap: { todos: todosTable },
+          tagsTableDef: tagsTable,
+          getTableConfig,
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+          normalizeValue: (value: unknown) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
+        }),
     });
 
-    const hlc = tickHlc(createHlcState('node-1'), 100);
-    const change = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { id: 'todo-1', title: 'Buy milk', done: false },
-      hlc,
-    });
+    // Create a change with done: 2 which violates CHECK (done IN (0, 1)) constraint
+    const invalidChange = {
+      ...makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        patch: { id: 'todo-1', title: 'Buy milk', done: false },
+        hlc: tickHlc(createHlcState('node-1'), 100),
+      }),
+      patch: { id: 'todo-1', title: 'Buy milk', done: 2 }, // Violates CHECK constraint
+    } as unknown as Change<TestSchema>;
 
     // Append should fail due to CHECK constraint
-    await expect(rippleDb.append({ stream: 'test', changes: [change] })).rejects.toThrow();
+    await expect(rippleDb.append({ stream: 'test', changes: [invalidChange] })).rejects.toThrow();
 
     // Verify no changes were persisted (transaction rolled back)
     const changeCount = sqlite.prepare('SELECT COUNT(*) as count FROM ripple_changes').get() as { count: number };

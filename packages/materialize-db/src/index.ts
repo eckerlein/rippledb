@@ -13,8 +13,8 @@ export type {
 // Re-export dialects
 export { dialects } from './dialects';
 
-// Re-export main function
-export { createCustomMaterializer, createSqlExecutor } from './adapter';
+// Re-export main functions
+export { createMaterializer, createSqlExecutor } from './adapter';
 
 // Re-export sync adapter for SQLite
 export { createSyncMaterializer, createSyncSqlExecutor } from './sync-adapter';

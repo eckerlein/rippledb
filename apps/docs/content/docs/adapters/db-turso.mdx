@@ -16,11 +16,17 @@ An adapter for [Turso](https://turso.tech/) and [libSQL](https://github.com/libs
 ## Basic Usage
 
 ```ts
+import { defineSchema, s } from '@rippledb/core';
 import { TursoDb } from '@rippledb/db-turso';
+
+const schema = defineSchema({
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+});
 
 const db = new TursoDb({
   url: process.env.TURSO_DATABASE_URL!,
   authToken: process.env.TURSO_AUTH_TOKEN!,
+  schema,
 });
 
 // Append changes
@@ -42,25 +48,26 @@ db.close();
 ## With Materialization
 
 ```ts
+import { defineSchema, s } from '@rippledb/core';
 import { TursoDb } from '@rippledb/db-turso';
-import { createSqlExecutor } from '@rippledb/materialize-db';
+import { createMaterializer } from '@rippledb/materialize-db';
 
-const db = new TursoDb<MySchema>({
+const schema = defineSchema({
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+});
+
+const db = new TursoDb({
   url: process.env.TURSO_DATABASE_URL!,
   authToken: process.env.TURSO_AUTH_TOKEN!,
-  materializer: ({ db }) => {
-    const sqlConfig = {
+  schema,
+  materializer: ({ db, schema }) =>
+    createMaterializer({
+      schema,
+      db,
       dialect: 'sqlite',
       tableMap: { todos: 'todos' },
-      fieldMap: {
-        todos: { id: 'id', title: 'title', done: 'done' },
-      },
-    } as const;
-    return {
-      ...sqlConfig,
-      executor: createSqlExecutor(sqlConfig, db),
-    };
-  },
+      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    }),
 });
 ```
 
@@ -74,13 +81,17 @@ Turso database URL. Formats:
 - **Local file**: `file:./local.db`
 - **In-memory**: `:memory:`
 
-### `authToken`
+### `authToken?`
 
 Authentication token from your Turso dashboard. Not needed for local files.
 
+### `schema`
+
+Schema descriptor used for entity/field discovery and type inference.
+
 ### `materializer`
 
-Optional materializer factory. Receives `{ db }` for executing SQL.
+Optional materializer factory. Receives `{ db, schema }` and returns a materializer adapter.
 
 ## Local Development
 
@@ -90,6 +101,7 @@ Use a local SQLite file during development:
 const db = new TursoDb({
   url: 'file:./dev.db',
   authToken: '', // Not needed for local files
+  schema,
 });
 ```
 

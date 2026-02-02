@@ -273,6 +273,9 @@ importers:
         specifier: workspace:*
         version: link:../server
     devDependencies:
+      '@rippledb/materialize-drizzle':
+        specifier: workspace:*
+        version: link:../materialize-drizzle
       '@testcontainers/postgresql':
         specifier: ^10.25.0
         version: 10.28.0

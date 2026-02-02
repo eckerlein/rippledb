@@ -79,7 +79,7 @@ export const schema = defineSchema({
 
 // backend/db.ts
 import { schema } from '../shared/schema';
-const db = new SqliteDb({ filename: './server.db', materializer: ... });
+const db = new SqliteDb({ filename: './server.db', schema, materializer: ... });
 
 // client/store.ts
 import { schema } from '../shared/schema';

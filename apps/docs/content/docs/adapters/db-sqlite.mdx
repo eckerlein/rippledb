@@ -16,10 +16,16 @@ A production-ready SQLite adapter for RippleDB using [better-sqlite3](https://gi
 ## Basic Usage
 
 ```ts
+import { defineSchema, s } from '@rippledb/core';
 import { SqliteDb } from '@rippledb/db-sqlite';
+
+const schema = defineSchema({
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+});
 
 const db = new SqliteDb({
   filename: './data.db',
+  schema,
 });
 
 // Append changes
@@ -44,23 +50,24 @@ To project changes into domain tables, add a materializer:
 
 ```ts
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createSyncSqlExecutor } from '@rippledb/materialize-db';
+import { defineSchema, s } from '@rippledb/core';
+import { createSyncMaterializer } from '@rippledb/materialize-db';
 
-const db = new SqliteDb<MySchema>({
+const schema = defineSchema({
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+});
+
+const db = new SqliteDb({
   filename: './data.db',
-  materializer: ({ db }) => {
-    const sqlConfig = {
+  schema,
+  materializer: ({ db, schema }) =>
+    createSyncMaterializer({
+      schema,
+      db,
       dialect: 'sqlite',
       tableMap: { todos: 'todos' },
-      fieldMap: {
-        todos: { id: 'id', title: 'title', done: 'done' },
-      },
-    } as const;
-    return {
-      ...sqlConfig,
-      executor: createSyncSqlExecutor(db, sqlConfig),
-    };
-  },
+      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    }),
 });
 ```
 
@@ -73,8 +80,8 @@ See [materialize-db](/docs/adapters/materialize-db) for full configuration optio
 Path to the SQLite database file. Use `:memory:` for an in-memory database.
 
 ```ts
-new SqliteDb({ filename: './data.db' });
-new SqliteDb({ filename: ':memory:' });
+new SqliteDb({ filename: './data.db', schema });
+new SqliteDb({ filename: ':memory:', schema });
 ```
 
 ### `db`
@@ -85,7 +92,7 @@ Alternatively, pass an existing `better-sqlite3` database instance:
 import Database from 'better-sqlite3';
 
 const sqlite = new Database('./data.db');
-const db = new SqliteDb({ db: sqlite });
+const db = new SqliteDb({ db: sqlite, schema });
 ```
 
 <Callout type="info">
@@ -99,6 +106,7 @@ SQLite pragmas to apply when creating the database. Only used with `filename`.
 ```ts
 new SqliteDb({
   filename: './data.db',
+  schema,
   pragmas: [
     'journal_mode = WAL',
     'synchronous = NORMAL',
@@ -109,26 +117,28 @@ new SqliteDb({
 
 Default: `['journal_mode = WAL']`
 
+### `schema`
+
+Schema descriptor used for entity/field discovery and type inference.
+
 ### `materializer`
 
-Factory function that returns a materializer configuration. Called with `{ db }` containing the SQLite database instance.
+Factory function that returns a materializer adapter. Called with `{ db, schema }`.
 
 ```ts
-import { createSyncSqlExecutor } from '@rippledb/materialize-db';
+import { createSyncMaterializer } from '@rippledb/materialize-db';
 
 new SqliteDb({
   filename: './data.db',
-  materializer: ({ db }) => {
-    const sqlConfig = {
+  schema,
+  materializer: ({ db, schema }) =>
+    createSyncMaterializer({
+      schema,
+      db,
       dialect: 'sqlite',
-      tableMap: { todos: 'todos' },
-      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-    } as const;
-    return {
-      ...sqlConfig,
-      executor: createSyncSqlExecutor(db, sqlConfig),
-    };
-  },
+    tableMap: { todos: 'todos' },
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    }),
 });
 ```
 
@@ -161,7 +171,7 @@ You can use `db-sqlite` with Drizzle for your domain queries while RippleDB mana
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { SqliteDb } from '@rippledb/db-sqlite';
-import { createDrizzleSyncMaterializerConfig } from '@rippledb/materialize-drizzle';
+import { createDrizzleSyncMaterializer } from '@rippledb/materialize-drizzle';
 
 // Create the underlying SQLite connection
 const sqlite = new Database('./data.db');
@@ -176,12 +186,15 @@ sqlite.exec(`
 const drizzleDb = drizzle(sqlite);
 
 // Use SqliteDb for RippleDB sync
-const rippleDb = new SqliteDb<MySchema>({
+const rippleDb = new SqliteDb({
   db: sqlite,  // Share the connection
-  materializer: ({ db }) =>
-    createDrizzleSyncMaterializerConfig(drizzleDb, {
+  schema,
+  materializer: ({ db, schema }) =>
+    createDrizzleSyncMaterializer({
+      schema,
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
+      getTableConfig,
       // ...
     }),
 });
@@ -201,12 +214,16 @@ const todos = drizzleDb.select().from(todosTable).all();
 SqliteDb is generic over your schema:
 
 ```ts
-type MySchema = {
-  todos: { id: string; title: string; done: boolean };
-  users: { id: string; name: string };
-};
+import { defineSchema, s, type InferSchema } from '@rippledb/core';
 
-const db = new SqliteDb<MySchema>({ filename: './data.db' });
+const schema = defineSchema({
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+  users: { id: s.string(), name: s.string() },
+});
+
+type MySchema = InferSchema<typeof schema>;
+
+const db = new SqliteDb<MySchema>({ filename: './data.db', schema });
 
 // Changes are typed
 await db.append({

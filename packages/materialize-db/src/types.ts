@@ -1,21 +1,10 @@
-import type { RippleSchema, EntityName } from '@rippledb/core';
+import type { RippleSchema, EntityName, MaterializerDb } from '@rippledb/core';
 
 /**
- * Database interface for materialization.
- * Implement this to provide database persistence when using SQL commands.
+ * @deprecated Use MaterializerDb from @rippledb/core instead
+ * Kept for backward compatibility during migration
  */
-export type Db = {
-  /**
-   * Execute a query/command that returns a single row/document.
-   * Returns null if no result found.
-   */
-  get<T = unknown>(query: string, params: unknown[]): Promise<T | null>;
-
-  /**
-   * Execute a query/command that doesn't return rows (INSERT/UPDATE/DELETE, etc.).
-   */
-  run(command: string, params: unknown[]): Promise<void>;
-};
+export type Db = MaterializerDb;
 
 /**
  * Entity field mapping configuration.
@@ -93,23 +82,30 @@ export type MaterializerConfigBase<S extends RippleSchema> = {
 
 /**
  * Executor for materialization operations.
- * Allows transaction-aware implementations without SQL strings.
+ * 
+ * Executors are stateless - they receive the transaction-bound database instance
+ * as the first parameter to all methods. This allows executors to be created once
+ * and reused across transactions.
  */
 export type MaterializerExecutor = {
   /**
    * Ensure tags table/collection exists. Optional.
+   * Receives the transaction-bound database instance.
    */
-  ensureTagsTable?: () => Promise<void>;
+  ensureTagsTable?: (db: MaterializerDb) => Promise<void>;
 
   /**
    * Load tags row for a specific entity + id.
+   * Receives the transaction-bound database instance as first parameter.
    */
-  loadTags: (entity: string, id: string) => Promise<TagsRow | null>;
+  loadTags: (db: MaterializerDb, entity: string, id: string) => Promise<TagsRow | null>;
 
   /**
    * Save tags row for a specific entity + id.
+   * Receives the transaction-bound database instance as first parameter.
    */
   saveTags: (
+    db: MaterializerDb,
     entity: string,
     id: string,
     dataJson: string,
@@ -118,8 +114,10 @@ export type MaterializerExecutor = {
 
   /**
    * Remove (tombstone) tags row for a specific entity + id.
+   * Receives the transaction-bound database instance as first parameter.
    */
   removeTags: (
+    db: MaterializerDb,
     entity: string,
     id: string,
     dataJson: string,
@@ -129,8 +127,10 @@ export type MaterializerExecutor = {
 
   /**
    * Save entity values to the domain table/collection (when fieldMap is provided).
+   * Receives the transaction-bound database instance as first parameter.
    */
   saveEntity?: (
+    db: MaterializerDb,
     tableName: string,
     id: string,
     columns: string[],

@@ -1,24 +1,24 @@
 import Database from 'better-sqlite3';
-import type { Change, RippleSchema } from '@rippledb/core';
+import type { Change, RippleSchema, SchemaDescriptor } from '@rippledb/core';
 import type { AppendRequest, AppendResult, Cursor, Db, PullRequest, PullResponse } from '@rippledb/server';
 import { applyChangeToState } from '@rippledb/materialize-core';
-import type {
-  MaterializerConfigBase,
-  SyncMaterializerExecutor,
-} from '@rippledb/materialize-db';
-import { createSyncMaterializer } from '@rippledb/materialize-db';
+import type { MaterializerFactory } from '@rippledb/materialize-core';
+import type { SyncMaterializerAdapter } from '@rippledb/materialize-db';
 
 export type SqliteDatabase = InstanceType<typeof Database>;
 
-export type SqliteDbOptions<S extends RippleSchema = RippleSchema> = {
+export type SqliteDbOptions<
+  S extends RippleSchema = RippleSchema,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  D extends SchemaDescriptor<any> = SchemaDescriptor<any>,
+> = {
   /**
    * SQLite pragmas to apply (only when using `filename`).
    * Default: ['journal_mode = WAL']
    */
   pragmas?: string[];
-  materializer?: (ctx: { db: SqliteDatabase }) => MaterializerConfigBase<S> & {
-    executor: SyncMaterializerExecutor;
-  };
+  materializer?: MaterializerFactory<SqliteDatabase, S, SyncMaterializerAdapter<S, SqliteDatabase>>;
+  schema: D;
 } & ({
   filename: string;
 } | {
@@ -45,7 +45,11 @@ function decodeCursor(cursor: Cursor | null): number {
   return Math.floor(n);
 }
 
-export class SqliteDb<S extends RippleSchema = RippleSchema> implements Db<S> {
+export class SqliteDb<
+  S extends RippleSchema = RippleSchema,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  D extends SchemaDescriptor<any> = SchemaDescriptor<any>,
+> implements Db<S> {
   private db: SqliteDatabase;
   private ownsDb: boolean;
   private insertChange: ReturnType<SqliteDatabase['prepare']>;
@@ -54,8 +58,10 @@ export class SqliteDb<S extends RippleSchema = RippleSchema> implements Db<S> {
   private idempotencyInsert: ReturnType<SqliteDatabase['prepare']>;
   private idempotencyUpdate: ReturnType<SqliteDatabase['prepare']>;
   private materializerFactory: SqliteDbOptions<S>['materializer'];
+  private materializer: SyncMaterializerAdapter<S, SqliteDatabase> | null = null;
+  private schema: D;
 
-  constructor(opts: SqliteDbOptions<S>) {
+  constructor(opts: SqliteDbOptions<S, D>) {
     if ('db' in opts) {
       this.db = opts.db;
       this.ownsDb = false;
@@ -101,6 +107,16 @@ export class SqliteDb<S extends RippleSchema = RippleSchema> implements Db<S> {
     );
 
     this.materializerFactory = opts.materializer;
+    this.schema = opts.schema;
+    
+    // Cache materializer adapter if factory is provided
+    // Factory returns adapter directly (ensureTagsTable runs during factory execution)
+    // For SQLite, this.db is always the same instance, so we can safely cache the materializer
+    if (this.materializerFactory) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ctx: { db: SqliteDatabase; schema: SchemaDescriptor<any> } = { db: this.db, schema: this.schema };
+      this.materializer = this.materializerFactory(ctx);
+    }
   }
 
   async append(req: AppendRequest<S>): Promise<AppendResult> {
@@ -136,18 +152,19 @@ export class SqliteDb<S extends RippleSchema = RippleSchema> implements Db<S> {
       }
 
       // Materialize changes if materializer is configured
-      if (this.materializerFactory) {
-        const materializerConfig = this.materializerFactory({ db: this.db });
-        const materializer = createSyncMaterializer(materializerConfig);
+      // Reuse cached materializer - created once in constructor
+      // Pass this.db to materializer methods (stateless)
+      if (this.materializer) {
         for (const change of input.changes) {
-          const current = materializer.load(change.entity, change.entityId);
+          // SyncMaterializerAdapter ensures load() returns synchronously (not a Promise)
+          const current = this.materializer.load(this.db, change.entity, change.entityId);
           const result = applyChangeToState(current, change);
 
           if (result.changed) {
             if (result.deleted) {
-              materializer.remove(change.entity, change.entityId, result.state);
+              this.materializer.remove(this.db, change.entity, change.entityId, result.state);
             } else {
-              materializer.save(change.entity, change.entityId, result.state);
+              this.materializer.save(this.db, change.entity, change.entityId, result.state);
             }
           }
         }

@@ -29,11 +29,17 @@ pnpm add mysql2
 ## Basic Usage (SQLite)
 
 ```ts
+import { defineSchema, s } from '@rippledb/core';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { DrizzleDb } from '@rippledb/db-drizzle';
+import { createDrizzleSyncMaterializer } from '@rippledb/materialize-drizzle';
+
+const schema = defineSchema({
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+});
 
 // Define Drizzle table schemas for internal tables
 const changesTable = sqliteTable('ripple_changes', {
@@ -80,11 +86,16 @@ const db = new DrizzleDb({
 ## Basic Usage (PostgreSQL)
 
 ```ts
+import { defineSchema, s } from '@rippledb/core';
 import { Client } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { pgTable, text, serial, integer } from 'drizzle-orm/pg-core';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { DrizzleDb } from '@rippledb/db-drizzle';
+
+const schema = defineSchema({
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+});
 
 const changesTable = pgTable('ripple_changes', {
   seq: serial('seq').primaryKey(),
@@ -108,6 +119,7 @@ const db = new DrizzleDb({
   idempotencyTable,
   getTableConfig,
   // isSync defaults to false for async drivers
+  schema,
 });
 ```
 
@@ -178,62 +190,15 @@ const db = new DrizzleDb<MySchema, typeof drizzleDb>({
   idempotencyTable,
   getTableConfig,
   isSync: true,
-  materializer: () => ({
-    tableMap: { todos: 'todos' },
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-    executor: {
-      loadTags(db, entity, id) {
-        const rows = db
-          .select()
-          .from(tagsTable)
-          .where(and(eq(tagsTable.entity, entity), eq(tagsTable.id, id)))
-          .all();
-        return rows[0] ?? null;
-      },
-      saveTags(db, entity, id, data, tags) {
-        db.insert(tagsTable)
-          .values({
-            entity,
-            id,
-            data: JSON.stringify(data),
-            tags: JSON.stringify(tags),
-            deleted: 0,
-            deleted_tag: null,
-          })
-          .onConflictDoUpdate({
-            target: [tagsTable.entity, tagsTable.id],
-            set: {
-              data: JSON.stringify(data),
-              tags: JSON.stringify(tags),
-              deleted: 0,
-              deleted_tag: null,
-            },
-          })
-          .run();
-      },
-      removeTags(db, entity, id, deletedTag) {
-        db.update(tagsTable)
-          .set({ deleted: 1, deleted_tag: deletedTag })
-          .where(and(eq(tagsTable.entity, entity), eq(tagsTable.id, id)))
-          .run();
-      },
-      saveEntity(db, entity, id, values) {
-        // Implement upsert for your domain table
-        db.insert(todosTable)
-          .values(values as typeof todosTable.$inferInsert)
-          .onConflictDoUpdate({
-            target: todosTable.id,
-            set: values as typeof todosTable.$inferInsert,
-          })
-          .run();
-      },
-      removeEntity(db, entity, id) {
-        db.delete(todosTable)
-          .where(eq(todosTable.id, id))
-          .run();
-      },
-    },
-  }),
+  schema,
+  materializer: ({ schema }) =>
+    createDrizzleSyncMaterializer({
+      schema,
+      tableMap: { todos: todosTable },
+      tagsTableDef: tagsTable,
+      getTableConfig,
+      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    }),
 });
 ```
 
@@ -275,13 +240,17 @@ import { getTableConfig } from 'drizzle-orm/pg-core';
 import { getTableConfig } from 'drizzle-orm/mysql-core';
 ```
 
-### `isSync`
+### `isSync?`
 
 Set to `true` for synchronous drivers (better-sqlite3). Default: `false`.
 
-### `materializer`
+### `schema`
 
-Optional factory function for materialization. Receives `{ db }` where `db` is the transaction-bound Drizzle instance.
+Schema descriptor used for entity/field discovery and type inference.
+
+### `materializer?`
+
+Optional factory function for materialization. Receives `{ db, schema }` and returns a materializer adapter (typically from `materialize-drizzle`).
 
 ## Table Creation
 

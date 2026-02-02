@@ -1,20 +1,35 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeDelete, makeUpsert, tickHlc } from '@rippledb/core';
+import { createHlcState, makeDelete, makeUpsert, tickHlc, defineSchema, s, type InferSchema } from '@rippledb/core';
 import { materializeChange, type MaterializerAdapter } from '@rippledb/materialize-core';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import pg from 'pg';
-import { createCustomMaterializer, createSqlExecutor } from './adapter';
+import { createMaterializer } from './adapter';
 import type { Db } from './types';
 import { createPostgresDb, type TestSchema } from './test-helpers';
 
 // Each test suite gets its own database for complete isolation
 const TEST_DB_NAME = 'test_materialize_db';
 
-describe('createCustomMaterializer - PostgreSQL dialect', () => {
+describe('createMaterializer - PostgreSQL dialect', () => {
   let container: StartedPostgreSqlContainer | null = null;
+  type SchemaDescriptorShape = {
+    todos: {
+      id: ReturnType<typeof s.string>;
+      title: ReturnType<typeof s.string>;
+      done: ReturnType<typeof s.boolean>;
+    };
+  };
+
+  const schema = defineSchema<SchemaDescriptorShape>({
+    todos: {
+      id: s.string(),
+      title: s.string(),
+      done: s.boolean(),
+    },
+  });
   let db: Db;
   let dbClose: (() => Promise<void>) | null = null;
-  let adapter: MaterializerAdapter<TestSchema>;
+  let adapter: MaterializerAdapter<InferSchema<typeof schema>>;
 
   beforeAll(async () => {
     try {
@@ -67,13 +82,11 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
     await db.run('DROP TABLE IF EXISTS todos', []);
     await db.run('DROP TABLE IF EXISTS ripple_tags', []);
     await db.run('CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)', []);
-    const sqlConfig = {
+    adapter = createMaterializer({
+      schema,
+      db,
       dialect: 'postgresql',
       tableMap: { todos: 'todos' },
-    } as const;
-    adapter = createCustomMaterializer<TestSchema>({
-      tableMap: sqlConfig.tableMap,
-      executor: createSqlExecutor(sqlConfig, db),
     });
   });
 
@@ -86,15 +99,12 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
   });
 
   it('creates tags table and saves entity', async () => {
-    const sqlConfig = {
+    const adapterWithFieldMap = createMaterializer({
+      schema,
+      db,
       dialect: 'postgresql',
       tableMap: { todos: 'todos' },
       fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-    } as const;
-    const adapterWithFieldMap = createCustomMaterializer<TestSchema>({
-      tableMap: sqlConfig.tableMap,
-      fieldMap: sqlConfig.fieldMap,
-      executor: createSqlExecutor(sqlConfig, db),
     });
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
@@ -106,7 +116,7 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
       hlc,
     });
 
-    await materializeChange(adapterWithFieldMap, change);
+    await materializeChange(adapterWithFieldMap, db, change);
 
     // Verify tags table exists and has data
     const row = await db.get<{ data: string; tags: string; deleted: number }>(
@@ -134,7 +144,7 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
       patch: { id: 'todo-1', title: 'Buy milk', done: false },
       hlc: hlc1,
     });
-    await materializeChange(adapter, change1);
+    await materializeChange(adapter, db, change1);
 
     const hlc2 = tickHlc(createHlcState('node-1'), 101);
     const change2 = makeUpsert<TestSchema>({
@@ -144,9 +154,9 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
       patch: { done: true },
       hlc: hlc2,
     });
-    await materializeChange(adapter, change2);
+    await materializeChange(adapter, db, change2);
 
-    const state1 = await adapter.load('todos', 'todo-1');
+    const state1 = await adapter.load<'todos'>(db, 'todos', 'todo-1');
     expect(state1!.values.done).toBe(true);
 
     const hlc3 = tickHlc(createHlcState('node-1'), 102);
@@ -156,9 +166,9 @@ describe('createCustomMaterializer - PostgreSQL dialect', () => {
       entityId: 'todo-1',
       hlc: hlc3,
     });
-    await materializeChange(adapter, change3);
+    await materializeChange(adapter, db, change3);
 
-    const state2 = await adapter.load('todos', 'todo-1');
+    const state2 = await adapter.load(db, 'todos', 'todo-1');
     expect(state2!.deleted).toBe(true);
   });
 });
