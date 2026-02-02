@@ -17,6 +17,23 @@ type TursoDbOptions<S extends RippleSchema = RippleSchema> = {
   materializer?: MaterializerFactory<MaterializerDb, S, MaterializerAdapter<S, MaterializerDb>>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   schema: SchemaDescriptor<any>;
+  /**
+   * Optional migration hook. Runs before RippleDB internal tables are created.
+   * Use this to run framework-specific migrations (Drizzle Kit, SQLx, etc.)
+   * 
+   * @example
+   * ```ts
+   * const db = new TursoDb({
+   *   ...,
+   *   beforeInit: async () => {
+   *     // Run Drizzle migrations
+   *     await migrate(drizzleDb, { migrationsFolder: './migrations' });
+   *   }
+   * });
+   * await db.init();
+   * ```
+   */
+  beforeInit?: () => Promise<void>;
 };
 
 type SqlStatement = {
@@ -86,19 +103,57 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
   private materializer: MaterializerAdapter<S, MaterializerDb> | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private schema: SchemaDescriptor<any>;
+  private beforeInit: TursoDbOptions<S>['beforeInit'];
+  private initialized = false;
 
+  /**
+   * Create a new TursoDb instance (synchronous).
+   * Call `init()` before using the database to ensure tables are created.
+   * 
+   * @example
+   * ```ts
+   * // Top-level export (works in all frameworks)
+   * export const db = new TursoDb({ ... });
+   * await db.init(); // Call during app startup
+   * 
+   * // Or use the factory for convenience
+   * export const db = await TursoDb.create({ ... });
+   * ```
+   */
   constructor(opts: TursoDbOptions<S>) {
     this.client = createClient({
       url: opts.url,
       authToken: opts.authToken,
     });
 
-    // Initialize tables
-    this.initTables();
-
     // Store materializer factory and schema
     this.materializerFactory = opts.materializer;
     this.schema = opts.schema;
+    this.beforeInit = opts.beforeInit;
+  }
+
+  /**
+   * Initialize the database (create tables, setup materializer).
+   * Must be called before using the database.
+   * 
+   * @example
+   * ```ts
+   * const db = new TursoDb({ ... });
+   * // Run migrations here if needed
+   * await db.init();
+   * // Now safe to use
+   * ```
+   */
+  async init(): Promise<void> {
+    if (this.initialized) return;
+
+    // Run user migrations first (if provided)
+    if (this.beforeInit) {
+      await this.beforeInit();
+    }
+
+    // Initialize tables (await to ensure completion)
+    await this.initTables();
 
     // Cache materializer adapter if factory is provided
     // Create temp CollectingDb for initialization
@@ -113,7 +168,29 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ctx: { db: MaterializerDb; schema: SchemaDescriptor<any> } = { db: tempDb, schema: this.schema };
       this.materializer = factory(ctx);
+      // Note: ensureTagsTable is called inside createMaterializer during factory execution
+      // If it's async, createMaterializer currently does fire-and-forget, but that's a separate issue
     }
+
+    this.initialized = true;
+  }
+
+  /**
+   * Create a new TursoDb instance with async initialization.
+   * Convenience method that calls constructor + init().
+   * 
+   * @example
+   * ```ts
+   * const db = await TursoDb.create({ ... });
+   * // Already initialized, ready to use
+   * ```
+   */
+  static async create<S extends RippleSchema = RippleSchema>(
+    opts: TursoDbOptions<S>
+  ): Promise<TursoDb<S>> {
+    const db = new TursoDb(opts);
+    await db.init();
+    return db;
   }
 
   private async initTables(): Promise<void> {
@@ -139,6 +216,9 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
   }
 
   async append(req: AppendRequest<S>): Promise<AppendResult> {
+    if (!this.initialized) {
+      throw new Error('TursoDb must be initialized before use. Call await db.init() or use TursoDb.create()');
+    }
     // Collect all SQL statements for the transaction
     const transactionStatements: SqlStatement[] = [];
 
@@ -220,6 +300,9 @@ export class TursoDb<S extends RippleSchema = RippleSchema> implements Db<S> {
   }
 
   async pull(req: PullRequest): Promise<PullResponse<S>> {
+    if (!this.initialized) {
+      throw new Error('TursoDb must be initialized before use. Call await db.init() or use TursoDb.create()');
+    }
     const afterSeq = decodeCursor(req.cursor);
     const limit = req.limit ?? 500;
 

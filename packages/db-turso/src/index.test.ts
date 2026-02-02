@@ -27,7 +27,7 @@ describe('TursoDb', () => {
   let db: TursoDb<TestSchema>;
   let dbPath: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Use a temporary file for testing (libSQL can use file: protocol)
     dbPath = join(tmpdir(), `test-turso-${Date.now()}-${Math.random().toString(36).slice(2)}.db`);
     db = new TursoDb({
@@ -35,6 +35,7 @@ describe('TursoDb', () => {
       authToken: '', // Not needed for local file mode
       schema,
     });
+    await db.init();
   });
 
   afterEach(() => {
@@ -131,7 +132,7 @@ describe('TursoDb', () => {
     ]);
     setupClient.close();
 
-    const dbWithMaterializer = new TursoDb<TestSchema>({
+    const dbWithMaterializer = await TursoDb.create<TestSchema>({
       url: `file:${dbPath}`,
       authToken: '',
       schema,
@@ -261,7 +262,7 @@ describe('TursoDb', () => {
     ]);
     setupClient.close();
 
-    const dbWithMaterializer = new TursoDb<TestSchema>({
+    const dbWithMaterializer = await TursoDb.create<TestSchema>({
       url: `file:${dbPath}`,
       authToken: '',
       schema,
@@ -405,7 +406,7 @@ describe('TursoDb', () => {
 
     // Create a materializer with a custom executor that generates invalid SQL
     // This will cause the batch to fail, testing atomicity through the adapter
-    const dbWithInvalidMaterializer = new TursoDb<TestSchema>({
+    const dbWithInvalidMaterializer = await TursoDb.create<TestSchema>({
       url: `file:${dbPath}`,
       authToken: '',
       schema,
