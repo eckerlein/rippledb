@@ -153,6 +153,69 @@ function renderSummaryTable(results: PackageDiagnostics[]): void {
   );
 }
 
+// Track table height for live updates
+let lastTableHeight = 0;
+
+function renderLiveTable(results: PackageDiagnostics[]): void {
+  // Sort by time (slowest first)
+  const sorted = [...results].sort((a, b) => b.time - a.time);
+
+  // Calculate current table height: header (2 lines) + rows + separator + total + empty line
+  const currentHeight = sorted.length + 5;
+
+  // Clear previous table if it exists
+  if (lastTableHeight > 0) {
+    process.stdout.write(`\x1b[${lastTableHeight}A`); // Move cursor up
+    process.stdout.write("\x1b[0J"); // Clear from cursor to end of screen
+  }
+
+  // Update tracked height
+  lastTableHeight = currentHeight;
+
+  // Draw table
+  process.stdout.write("Slowest packages (by compilation time):\n");
+  process.stdout.write(
+    "Package".padEnd(30)
+      + "Time (ms)".padEnd(12)
+      + "Files".padEnd(8)
+      + "Lines".padEnd(10)
+      + "Errors"
+      + "\n",
+  );
+  process.stdout.write("-".repeat(80) + "\n");
+
+  for (const result of sorted) {
+    const timeStr = result.time.toFixed(2);
+    const filesStr = result.files.toString();
+    const linesStr = result.lines.toLocaleString();
+    const errorsStr = result.errors > 0 ? `⚠️  ${result.errors}` : "✓";
+
+    process.stdout.write(
+      result.name.padEnd(30)
+        + timeStr.padEnd(12)
+        + filesStr.padEnd(8)
+        + linesStr.padEnd(10)
+        + errorsStr
+        + "\n",
+    );
+  }
+
+  const totalTime = results.reduce((sum, r) => sum + r.time, 0);
+  const totalFiles = results.reduce((sum, r) => sum + r.files, 0);
+  const totalLines = results.reduce((sum, r) => sum + r.lines, 0);
+  const totalErrors = results.reduce((sum, r) => sum + r.errors, 0);
+
+  process.stdout.write("-".repeat(80) + "\n");
+  process.stdout.write(
+    "TOTAL".padEnd(30)
+      + totalTime.toFixed(2).padEnd(12)
+      + totalFiles.toString().padEnd(8)
+      + totalLines.toLocaleString().padEnd(10)
+      + (totalErrors > 0 ? `⚠️  ${totalErrors}` : "✓")
+      + "\n",
+  );
+}
+
 // Check mode functions
 function loadLimits(): PerformanceLimits {
   if (!existsSync(LIMITS_PATH)) {
@@ -257,6 +320,8 @@ function checkPerformance(
 
 // Main execution
 const isCheckMode = process.argv.includes("--check");
+const isTTY = process.stdout.isTTY && process.stderr.isTTY;
+const useLiveTable = isTTY && !process.env.CI; // Don't use live table in CI even if TTY
 
 if (isCheckMode) {
   // Check mode: run diagnostics and check against limits
@@ -267,26 +332,46 @@ if (isCheckMode) {
   const packages = getPackages();
   const results: PackageDiagnostics[] = [];
 
+  // Initialize live table if enabled
+  if (useLiveTable) {
+    console.log("\n📊 Summary (updating live)\n");
+    renderLiveTable([]); // Initial empty table
+  }
+
   // Run diagnostics with live updates
   for (const pkg of packages) {
-    process.stdout.write(`\n📦 ${pkg}... `);
+    if (!useLiveTable) {
+      process.stdout.write(`\n📦 ${pkg}... `);
+    }
     const result = runDiagnostics(pkg);
     if (result) {
       results.push(result);
-      console.log(
-        `✅ ${
-          result.time.toFixed(2)
-        }ms (${result.files} files, ${result.errors} errors)`,
-      );
+      if (useLiveTable) {
+        // Update live table
+        renderLiveTable(results);
+      } else {
+        console.log(
+          `✅ ${
+            result.time.toFixed(2)
+          }ms (${result.files} files, ${result.errors} errors)`,
+        );
+      }
     } else {
-      console.log("❌ Failed");
+      if (!useLiveTable) {
+        console.log("❌ Failed");
+      }
     }
   }
 
-  // Show summary table
-  console.log("\n" + "=".repeat(80));
-  console.log("\n📊 Summary\n");
-  renderSummaryTable(results);
+  // Show final summary table (if not using live updates, or to finalize live table)
+  if (!useLiveTable) {
+    console.log("\n" + "=".repeat(80));
+    console.log("\n📊 Summary\n");
+    renderSummaryTable(results);
+  } else {
+    // Finalize live table with separator
+    console.log("\n" + "=".repeat(80));
+  }
 
   // Now check against limits
   console.log("\n" + "=".repeat(80));
@@ -327,30 +412,49 @@ if (isCheckMode) {
   const packages = getPackages();
   const results: PackageDiagnostics[] = [];
 
+  // Initialize live table if enabled
+  if (useLiveTable) {
+    console.log("\n📊 Summary (updating live)\n");
+    renderLiveTable([]); // Initial empty table
+  }
+
   for (const pkg of packages) {
-    process.stdout.write(`\n📦 ${pkg}... `);
+    if (!useLiveTable) {
+      process.stdout.write(`\n📦 ${pkg}... `);
+    }
     const result = runDiagnostics(pkg);
     if (result) {
       results.push(result);
-      console.log(
-        `✅ ${
-          result.time.toFixed(2)
-        }ms (${result.files} files, ${result.errors} errors)`,
-      );
+      if (useLiveTable) {
+        // Update live table
+        renderLiveTable(results);
+      } else {
+        console.log(
+          `✅ ${
+            result.time.toFixed(2)
+          }ms (${result.files} files, ${result.errors} errors)`,
+        );
+      }
     } else {
-      console.log("❌ Failed");
+      if (!useLiveTable) {
+        console.log("❌ Failed");
+      }
     }
   }
 
   // Summary
-  console.log("\n" + "=".repeat(80));
-  console.log("\n📊 Summary\n");
+  if (!useLiveTable) {
+    console.log("\n" + "=".repeat(80));
+    console.log("\n📊 Summary\n");
+  }
 
   if (results.length === 0) {
     console.log("No results to display.");
     process.exit(1);
   }
 
-  renderSummaryTable(results);
+  if (!useLiveTable) {
+    renderSummaryTable(results);
+  }
   console.log("\n💡 Focus optimization efforts on the slowest packages above.");
 }
