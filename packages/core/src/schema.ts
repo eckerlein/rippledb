@@ -40,12 +40,20 @@ export type EnumField<
 
 /**
  * Union of all field descriptor types.
+ *
+ * Explicitly defined as a discriminated union for better type checking performance.
+ * TypeScript can efficiently narrow types based on the `_type` discriminator.
+ * Using inline types instead of generic instantiations helps the compiler optimize.
  */
 export type FieldDescriptor =
-  | StringField<boolean>
-  | NumberField<boolean>
-  | BooleanField<boolean>
-  | EnumField<readonly string[], boolean>;
+  | { readonly _type: "string"; readonly _optional: boolean; }
+  | { readonly _type: "number"; readonly _optional: boolean; }
+  | { readonly _type: "boolean"; readonly _optional: boolean; }
+  | {
+    readonly _type: "enum";
+    readonly values: readonly string[];
+    readonly _optional: boolean;
+  };
 
 /**
  * Base field descriptor shape for type checking.
