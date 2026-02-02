@@ -1,6 +1,6 @@
-import type { RippleSchema } from '@rippledb/core';
-import type { DbEvent, Store } from '@rippledb/client';
-import type { QueryClient } from '@tanstack/query-core';
+import type { DbEvent, Store } from "@rippledb/client";
+import type { RippleSchema } from "@rippledb/core";
+import type { QueryClient } from "@tanstack/query-core";
 
 // ============================================================================
 // List Registry
@@ -135,10 +135,14 @@ export function wireTanstackInvalidation<S extends RippleSchema = RippleSchema>(
   } = opts;
 
   // Get the event subscription function (bind to store if using store.onEvent)
-  const subscribe = onEvent ?? (store?.onEvent ? (cb: (event: DbEvent<S>) => void) => store.onEvent!(cb) : undefined);
+  const subscribe =
+    onEvent ??
+    (store?.onEvent
+      ? (cb: (event: DbEvent<S>) => void) => store.onEvent!(cb)
+      : undefined);
   if (!subscribe) {
     throw new Error(
-      'wireTanstackInvalidation: either `store` (with onEvent) or `onEvent` callback is required',
+      "wireTanstackInvalidation: either `store` (with onEvent) or `onEvent` callback is required",
     );
   }
 
@@ -209,5 +213,5 @@ export function wireTanstackInvalidation<S extends RippleSchema = RippleSchema>(
 // Re-exports for convenience
 // ============================================================================
 
-export type { DbEvent, Store } from '@rippledb/client';
-export type { QueryClient } from '@tanstack/query-core';
+export type { DbEvent, Store } from "@rippledb/client";
+export type { QueryClient } from "@tanstack/query-core";

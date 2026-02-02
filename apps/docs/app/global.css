@@ -1,6 +1,6 @@
-@import 'tailwindcss';
-@import 'fumadocs-ui/css/neutral.css';
-@import 'fumadocs-ui/css/preset.css';
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -14,15 +14,16 @@
   --color-icon-accent-secondary-light: hsl(258, 89%, 30%);
 
   /* Dark mode: lighter, higher contrast */
-  --color-icon-primary-dark: hsl(200, 91.30%, 55.10%);
-  --color-icon-secondary-dark: hsl(258, 71.80%, 59.60%);
+  --color-icon-primary-dark: hsl(200, 91.3%, 55.1%);
+  --color-icon-secondary-dark: hsl(258, 71.8%, 59.6%);
   --color-icon-accent-dark: hsl(217, 91%, 65%);
   --color-icon-accent-secondary-dark: hsl(258, 89%, 80%);
 }
 
 /* Animated gradient text - Optimized for shadcn component */
 @keyframes gradient-shift {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   50% {

@@ -1,7 +1,4 @@
 {
   "title": "Internal",
-  "pages": [
-    "architecture",
-    "adr"
-  ]
+  "pages": ["architecture", "adr"]
 }

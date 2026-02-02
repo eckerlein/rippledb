@@ -3,7 +3,7 @@ title: db-turso
 description: Edge-ready adapter for Turso and libSQL
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Callout } from "fumadocs-ui/components/callout";
 
 # @rippledb/db-turso
 
@@ -11,13 +11,13 @@ An adapter for [Turso](https://turso.tech/) and [libSQL](https://github.com/libs
 
 ## Installation
 
-<InstallCommandTabs packages={['@rippledb/db-turso', '@libsql/client']} />
+<InstallCommandTabs packages={["@rippledb/db-turso", "@libsql/client"]} />
 
 ## Basic Usage
 
 ```ts
-import { defineSchema, s } from '@rippledb/core';
-import { TursoDb } from '@rippledb/db-turso';
+import { defineSchema, s } from "@rippledb/core";
+import { TursoDb } from "@rippledb/db-turso";
 
 const schema = defineSchema({
   todos: { id: s.string(), title: s.string(), done: s.boolean() },
@@ -31,13 +31,15 @@ const db = new TursoDb({
 
 // Append changes
 await db.append({
-  stream: 'user-123',
-  changes: [/* ... */],
+  stream: "user-123",
+  changes: [
+    /* ... */
+  ],
 });
 
 // Pull changes
 const { changes, nextCursor } = await db.pull({
-  stream: 'user-123',
+  stream: "user-123",
   cursor: null,
 });
 
@@ -48,9 +50,9 @@ db.close();
 ## With Materialization
 
 ```ts
-import { defineSchema, s } from '@rippledb/core';
-import { TursoDb } from '@rippledb/db-turso';
-import { createMaterializer } from '@rippledb/materialize-db';
+import { defineSchema, s } from "@rippledb/core";
+import { TursoDb } from "@rippledb/db-turso";
+import { createMaterializer } from "@rippledb/materialize-db";
 
 const schema = defineSchema({
   todos: { id: s.string(), title: s.string(), done: s.boolean() },
@@ -64,9 +66,9 @@ const db = new TursoDb({
     createMaterializer({
       schema,
       db,
-      dialect: 'sqlite',
-      tableMap: { todos: 'todos' },
-      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      dialect: "sqlite",
+      tableMap: { todos: "todos" },
+      fieldMap: { todos: { id: "id", title: "title", done: "done" } },
     }),
 });
 ```
@@ -99,8 +101,8 @@ Use a local SQLite file during development:
 
 ```ts
 const db = new TursoDb({
-  url: 'file:./dev.db',
-  authToken: '', // Not needed for local files
+  url: "file:./dev.db",
+  authToken: "", // Not needed for local files
   schema,
 });
 ```
@@ -128,17 +130,18 @@ Turso replicates your database to edge locations worldwide. Your RippleDB data b
 For local-first patterns, Turso supports embedded replicas:
 
 ```ts
-import { createClient } from '@libsql/client';
+import { createClient } from "@libsql/client";
 
 const client = createClient({
-  url: 'file:./local-replica.db',
+  url: "file:./local-replica.db",
   syncUrl: process.env.TURSO_DATABASE_URL,
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 ```
 
 <Callout type="info">
-Embedded replicas require additional setup. See the [Turso docs](https://docs.turso.tech/sdk/ts/reference#embedded-replicas) for details.
+  Embedded replicas require additional setup. See the [Turso
+  docs](https://docs.turso.tech/sdk/ts/reference#embedded-replicas) for details.
 </Callout>
 
 ## Limitations
@@ -148,12 +151,12 @@ Embedded replicas require additional setup. See the [Turso docs](https://docs.tu
 
 ## When to Use
 
-| Use Case | Recommendation |
-|----------|----------------|
-| Edge/serverless | db-turso |
-| Local server | db-sqlite |
-| Global distribution | db-turso |
-| Development | Either (Turso supports `file:`) |
+| Use Case            | Recommendation                  |
+| ------------------- | ------------------------------- |
+| Edge/serverless     | db-turso                        |
+| Local server        | db-sqlite                       |
+| Global distribution | db-turso                        |
+| Development         | Either (Turso supports `file:`) |
 
 ## Related
 

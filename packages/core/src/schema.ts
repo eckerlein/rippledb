@@ -6,7 +6,7 @@
  * String field descriptor.
  */
 export type StringField<Optional extends boolean = false> = {
-  readonly _type: 'string';
+  readonly _type: "string";
   readonly _optional: Optional;
 };
 
@@ -14,7 +14,7 @@ export type StringField<Optional extends boolean = false> = {
  * Number field descriptor.
  */
 export type NumberField<Optional extends boolean = false> = {
-  readonly _type: 'number';
+  readonly _type: "number";
   readonly _optional: Optional;
 };
 
@@ -22,7 +22,7 @@ export type NumberField<Optional extends boolean = false> = {
  * Boolean field descriptor.
  */
 export type BooleanField<Optional extends boolean = false> = {
-  readonly _type: 'boolean';
+  readonly _type: "boolean";
   readonly _optional: Optional;
 };
 
@@ -33,7 +33,7 @@ export type EnumField<
   T extends readonly string[] = readonly string[],
   Optional extends boolean = false,
 > = {
-  readonly _type: 'enum';
+  readonly _type: "enum";
   readonly values: T;
   readonly _optional: Optional;
 };
@@ -61,7 +61,10 @@ export type FieldDescriptorLike = {
  * Schema definition using field descriptors.
  * Each entity maps to an object of field descriptors or builders.
  */
-export type DescriptorSchema = Record<string, Record<string, FieldDescriptorLike>>;
+export type DescriptorSchema = Record<
+  string,
+  Record<string, FieldDescriptorLike>
+>;
 
 // ============================================================================
 // Field Descriptor Builders
@@ -71,25 +74,25 @@ export type DescriptorSchema = Record<string, Record<string, FieldDescriptorLike
  * Field builder interface with optional() method.
  */
 interface StringFieldBuilder {
-  readonly _type: 'string';
+  readonly _type: "string";
   readonly _optional: false;
   optional(): StringField<true>;
 }
 
 interface NumberFieldBuilder {
-  readonly _type: 'number';
+  readonly _type: "number";
   readonly _optional: false;
   optional(): NumberField<true>;
 }
 
 interface BooleanFieldBuilder {
-  readonly _type: 'boolean';
+  readonly _type: "boolean";
   readonly _optional: false;
   optional(): BooleanField<true>;
 }
 
 interface EnumFieldBuilder<T extends readonly string[]> {
-  readonly _type: 'enum';
+  readonly _type: "enum";
   readonly values: T;
   readonly _optional: false;
   optional(): EnumField<T, true>;
@@ -97,13 +100,13 @@ interface EnumFieldBuilder<T extends readonly string[]> {
 
 /**
  * Schema field descriptor builders.
- * 
+ *
  * Use these to define your schema with proper type inference:
- * 
+ *
  * @example
  * ```ts
  * import { defineSchema, s } from '@rippledb/core';
- * 
+ *
  * const schema = defineSchema({
  *   todos: {
  *     id: s.string(),
@@ -113,7 +116,7 @@ interface EnumFieldBuilder<T extends readonly string[]> {
  *     notes: s.string().optional(),
  *   },
  * });
- * 
+ *
  * type MySchema = InferSchema<typeof schema>;
  * ```
  */
@@ -123,10 +126,10 @@ export const s = {
    */
   string(): StringFieldBuilder {
     return {
-      _type: 'string' as const,
+      _type: "string" as const,
       _optional: false as const,
       optional() {
-        return { _type: 'string' as const, _optional: true as const };
+        return { _type: "string" as const, _optional: true as const };
       },
     };
   },
@@ -136,10 +139,10 @@ export const s = {
    */
   number(): NumberFieldBuilder {
     return {
-      _type: 'number' as const,
+      _type: "number" as const,
       _optional: false as const,
       optional() {
-        return { _type: 'number' as const, _optional: true as const };
+        return { _type: "number" as const, _optional: true as const };
       },
     };
   },
@@ -149,19 +152,19 @@ export const s = {
    */
   boolean(): BooleanFieldBuilder {
     return {
-      _type: 'boolean' as const,
+      _type: "boolean" as const,
       _optional: false as const,
       optional() {
-        return { _type: 'boolean' as const, _optional: true as const };
+        return { _type: "boolean" as const, _optional: true as const };
       },
     };
   },
 
   /**
    * Creates an enum field descriptor with literal type inference.
-   * 
+   *
    * @param values - Array of allowed string values
-   * 
+   *
    * @example
    * ```ts
    * s.enum(['pending', 'active', 'done'])
@@ -170,11 +173,11 @@ export const s = {
    */
   enum<T extends readonly string[]>(values: T): EnumFieldBuilder<T> {
     return {
-      _type: 'enum' as const,
+      _type: "enum" as const,
       values,
       _optional: false as const,
       optional() {
-        return { _type: 'enum' as const, values, _optional: true as const };
+        return { _type: "enum" as const, values, _optional: true as const };
       },
     };
   },
@@ -187,23 +190,23 @@ export const s = {
 /**
  * Infers the TypeScript type from a field descriptor.
  */
-export type InferField<F> = F extends { _type: 'string'; _optional: true }
+export type InferField<F> = F extends { _type: "string"; _optional: true }
   ? string | undefined
-  : F extends { _type: 'string' }
+  : F extends { _type: "string" }
     ? string
-    : F extends { _type: 'number'; _optional: true }
+    : F extends { _type: "number"; _optional: true }
       ? number | undefined
-      : F extends { _type: 'number' }
+      : F extends { _type: "number" }
         ? number
-        : F extends { _type: 'boolean'; _optional: true }
+        : F extends { _type: "boolean"; _optional: true }
           ? boolean | undefined
-          : F extends { _type: 'boolean' }
+          : F extends { _type: "boolean" }
             ? boolean
-            : F extends { _type: 'enum'; values: infer V; _optional: true }
+            : F extends { _type: "enum"; values: infer V; _optional: true }
               ? V extends readonly string[]
                 ? V[number] | undefined
                 : never
-              : F extends { _type: 'enum'; values: infer V }
+              : F extends { _type: "enum"; values: infer V }
                 ? V extends readonly string[]
                   ? V[number]
                   : never
@@ -218,7 +221,7 @@ export type InferEntity<E extends Record<string, FieldDescriptorLike>> = {
 
 /**
  * Infers the full RippleSchema type from a SchemaDescriptor.
- * 
+ *
  * @example
  * ```ts
  * const schema = defineSchema({
@@ -229,7 +232,7 @@ export type InferEntity<E extends Record<string, FieldDescriptorLike>> = {
  *     status: s.enum(['pending', 'active', 'done']),
  *   },
  * });
- * 
+ *
  * type MySchema = InferSchema<typeof schema>;
  * // = {
  * //   todos: {
@@ -243,7 +246,7 @@ export type InferEntity<E extends Record<string, FieldDescriptorLike>> = {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type InferSchema<D extends SchemaDescriptor<any>> = {
-  [E in keyof D['schema']]: InferEntity<D['schema'][E]>;
+  [E in keyof D["schema"]]: InferEntity<D["schema"][E]>;
 };
 
 // ============================================================================
@@ -258,14 +261,14 @@ export type SchemaExtension = Record<string, unknown>;
 
 /**
  * Runtime schema descriptor that provides entity discovery and extensible metadata.
- * 
+ *
  * This is the canonical hub for:
  * - Entity discovery (runtime list of entities)
  * - Property/field discovery (runtime list of fields per entity)
  * - Field type metadata (runtime access to field types)
  * - Metadata attachment (Zod schemas, Drizzle tables, field maps, etc.)
  * - Type inference (via InferSchema helper)
- * 
+ *
  * @example
  * ```ts
  * const schema = defineSchema({
@@ -280,16 +283,16 @@ export type SchemaExtension = Record<string, unknown>;
  *     email: s.string(),
  *   },
  * });
- * 
+ *
  * // Runtime entity discovery
  * schema.entities; // ['todos', 'users']
- * 
+ *
  * // Runtime property discovery
  * schema.getFields('todos'); // ['id', 'title', 'done']
- * 
+ *
  * // Runtime field type access
  * schema.getFieldDescriptor('todos', 'done'); // { _type: 'boolean' }
- * 
+ *
  * // Type inference
  * type MySchema = InferSchema<typeof schema>;
  * ```
@@ -317,15 +320,17 @@ export type SchemaDescriptor<S extends DescriptorSchema = DescriptorSchema> = {
 
   /**
    * Get field names for a specific entity.
-   * 
+   *
    * @param entity - The entity name
    * @returns Array of field names, or empty array if entity not found
    */
-  getFields<E extends keyof S & string>(entity: E): readonly (keyof S[E] & string)[];
+  getFields<E extends keyof S & string>(
+    entity: E,
+  ): readonly (keyof S[E] & string)[];
 
   /**
    * Check if an entity has a specific field.
-   * 
+   *
    * @param entity - The entity name
    * @param field - The field name
    * @returns True if the entity has the field
@@ -334,7 +339,7 @@ export type SchemaDescriptor<S extends DescriptorSchema = DescriptorSchema> = {
 
   /**
    * Get the field descriptor for a specific field.
-   * 
+   *
    * @param entity - The entity name
    * @param field - The field name
    * @returns The field descriptor, or undefined if not found
@@ -353,7 +358,7 @@ export type SchemaDescriptor<S extends DescriptorSchema = DescriptorSchema> = {
   /**
    * Attach metadata to this schema descriptor.
    * Returns a new descriptor with the extension added.
-   * 
+   *
    * @example
    * ```ts
    * const schemaWithZod = schema.extend('zod', {
@@ -361,23 +366,26 @@ export type SchemaDescriptor<S extends DescriptorSchema = DescriptorSchema> = {
    * });
    * ```
    */
-  extend<K extends string, E extends SchemaExtension>(key: K, extension: E): SchemaDescriptor<S>;
+  extend<K extends string, E extends SchemaExtension>(
+    key: K,
+    extension: E,
+  ): SchemaDescriptor<S>;
 };
 
 /**
  * Creates a runtime schema descriptor from field descriptors.
- * 
+ *
  * The descriptor provides runtime entity and property discovery while maintaining
  * full TypeScript type safety through the `InferSchema` helper.
- * 
+ *
  * @param entities - Object where keys are entity names and values are objects
  *                   with field descriptors created using `s.string()`, `s.boolean()`, etc.
  * @returns A typed schema descriptor with runtime entity and property discovery
- * 
+ *
  * @example
  * ```ts
  * import { defineSchema, s, InferSchema } from '@rippledb/core';
- * 
+ *
  * const schema = defineSchema({
  *   todos: {
  *     id: s.string(),
@@ -391,24 +399,26 @@ export type SchemaDescriptor<S extends DescriptorSchema = DescriptorSchema> = {
  *     email: s.string(),
  *   },
  * });
- * 
+ *
  * // Infer the data type for use with Store, Change, etc.
  * type MySchema = InferSchema<typeof schema>;
- * 
+ *
  * // Runtime entity discovery
  * for (const entity of schema.entities) {
  *   console.log(entity); // 'todos', 'users'
  * }
- * 
+ *
  * // Runtime property discovery
  * schema.getFields('todos'); // ['id', 'title', 'done', 'status']
  * schema.hasField('todos', 'title'); // true
- * 
+ *
  * // Use the inferred type with other RippleDB APIs
  * const store = new MemoryStore<MySchema>();
  * ```
  */
-export function defineSchema<S extends DescriptorSchema>(entities: S): SchemaDescriptor<S> {
+export function defineSchema<S extends DescriptorSchema>(
+  entities: S,
+): SchemaDescriptor<S> {
   const entityNames = Object.keys(entities) as (keyof S & string)[];
   const entityMap = new Map<keyof S & string, true>();
   const entityFields = new Map<keyof S & string, readonly string[]>();
@@ -428,10 +438,16 @@ export function defineSchema<S extends DescriptorSchema>(entities: S): SchemaDes
     schema: entities,
     entities: Object.freeze(entityNames) as readonly (keyof S & string)[],
     entityMap: Object.freeze(entityMap) as ReadonlyMap<keyof S & string, true>,
-    entityFields: Object.freeze(entityFields) as ReadonlyMap<keyof S & string, readonly string[]>,
+    entityFields: Object.freeze(entityFields) as ReadonlyMap<
+      keyof S & string,
+      readonly string[]
+    >,
 
-    getFields<E extends keyof S & string>(entity: E): readonly (keyof S[E] & string)[] {
-      return (entityFields.get(entity) ?? []) as readonly (keyof S[E] & string)[];
+    getFields<E extends keyof S & string>(
+      entity: E,
+    ): readonly (keyof S[E] & string)[] {
+      return (entityFields.get(entity) ?? []) as readonly (keyof S[E] &
+        string)[];
     },
 
     hasField<E extends keyof S & string>(entity: E, field: string): boolean {
@@ -439,16 +455,19 @@ export function defineSchema<S extends DescriptorSchema>(entities: S): SchemaDes
       return fields.includes(field);
     },
 
-    getFieldDescriptor<E extends keyof S & string, F extends keyof S[E] & string>(
-      entity: E,
-      field: F,
-    ): S[E][F] | undefined {
+    getFieldDescriptor<
+      E extends keyof S & string,
+      F extends keyof S[E] & string,
+    >(entity: E, field: F): S[E][F] | undefined {
       const entityDef = entities[entity];
       if (!entityDef) return undefined;
       return entityDef[field];
     },
 
-    extensions: Object.freeze(extensions) as ReadonlyMap<string, SchemaExtension>,
+    extensions: Object.freeze(extensions) as ReadonlyMap<
+      string,
+      SchemaExtension
+    >,
 
     extend<K extends string, Ext extends SchemaExtension>(
       key: K,
@@ -459,7 +478,10 @@ export function defineSchema<S extends DescriptorSchema>(entities: S): SchemaDes
 
       return {
         ...this,
-        extensions: Object.freeze(newExtensions) as ReadonlyMap<string, SchemaExtension>,
+        extensions: Object.freeze(newExtensions) as ReadonlyMap<
+          string,
+          SchemaExtension
+        >,
       };
     },
   };

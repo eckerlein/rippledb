@@ -1,6 +1,6 @@
-import { initTRPC } from '@trpc/server';
-import type { Db, PullRequest, AppendRequest } from '@rippledb/server';
-import type { RippleSchema } from '@rippledb/core';
+import type { RippleSchema } from "@rippledb/core";
+import type { AppendRequest, Db, PullRequest } from "@rippledb/server";
+import { initTRPC } from "@trpc/server";
 
 export type RippleTrpcRouterOptions<S extends RippleSchema = RippleSchema> = {
   db: Db<S>;
@@ -42,6 +42,5 @@ export function createRippleTrpcRouter<S extends RippleSchema = RippleSchema>(
   });
 }
 
-export type RippleTrpcRouter<S extends RippleSchema = RippleSchema> = ReturnType<
-  typeof createRippleTrpcRouter<S>
->;
+export type RippleTrpcRouter<S extends RippleSchema = RippleSchema> =
+  ReturnType<typeof createRippleTrpcRouter<S>>;

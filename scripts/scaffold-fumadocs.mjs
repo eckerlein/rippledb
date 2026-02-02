@@ -15,4 +15,3 @@ await create({
   template: "+next+fuma-docs-mdx",
   packageManager: "pnpm",
 });
-

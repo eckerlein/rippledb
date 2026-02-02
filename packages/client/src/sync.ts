@@ -1,5 +1,5 @@
-import type { Change, RippleSchema } from '@rippledb/core';
-import type { Store } from './contracts';
+import type { Change, RippleSchema } from "@rippledb/core";
+import type { Store } from "./contracts";
 
 export type OutboxEntry<S extends RippleSchema = RippleSchema> = {
   stream: string;
@@ -12,7 +12,9 @@ export interface Outbox<S extends RippleSchema = RippleSchema> {
   size(stream?: string): number;
 }
 
-export class InMemoryOutbox<S extends RippleSchema = RippleSchema> implements Outbox<S> {
+export class InMemoryOutbox<
+  S extends RippleSchema = RippleSchema,
+> implements Outbox<S> {
   private items: OutboxEntry<S>[] = [];
 
   push(entry: OutboxEntry<S>) {
@@ -69,11 +71,19 @@ export type Replicator<S extends RippleSchema = RippleSchema> = {
 };
 
 export type Remote<S extends RippleSchema = RippleSchema> = {
-  pull(req: { stream: string; cursor: string | null; limit?: number }): Promise<{
+  pull(req: {
+    stream: string;
+    cursor: string | null;
+    limit?: number;
+  }): Promise<{
     changes: Change<S>[];
     nextCursor: string | null;
   }>;
-  append(req: { stream: string; idempotencyKey?: string; changes: Change<S>[] }): Promise<{ accepted: number }>;
+  append(req: {
+    stream: string;
+    idempotencyKey?: string;
+    changes: Change<S>[];
+  }): Promise<{ accepted: number }>;
 };
 
 /**
@@ -82,7 +92,9 @@ export type Remote<S extends RippleSchema = RippleSchema> = {
  * - Apply to local store
  * - Push outbox changes
  */
-export async function syncOnce<S extends RippleSchema = RippleSchema>(opts: SyncOnceOptions<S>): Promise<SyncOnceResult> {
+export async function syncOnce<S extends RippleSchema = RippleSchema>(
+  opts: SyncOnceOptions<S>,
+): Promise<SyncOnceResult> {
   const { stream, store, remote, cursor, outbox } = opts;
 
   const pulled = await remote.pull({ stream, cursor, limit: opts.limit });
@@ -93,17 +105,27 @@ export async function syncOnce<S extends RippleSchema = RippleSchema>(opts: Sync
   const pending = outbox.drain(stream).map((e) => e.change);
   let pushed = 0;
   if (pending.length > 0) {
-    const res = await remote.append({ stream, idempotencyKey: opts.idempotencyKey, changes: pending });
+    const res = await remote.append({
+      stream,
+      idempotencyKey: opts.idempotencyKey,
+      changes: pending,
+    });
     pushed = res.accepted;
   }
 
-  return { nextCursor: pulled.nextCursor, pulled: pulled.changes.length, pushed };
+  return {
+    nextCursor: pulled.nextCursor,
+    pulled: pulled.changes.length,
+    pushed,
+  };
 }
 
 /**
  * Convenience wrapper that manages cursor + outbox for a single stream.
  */
-export function createReplicator<S extends RippleSchema = RippleSchema>(opts: ReplicatorOptions<S>): Replicator<S> {
+export function createReplicator<S extends RippleSchema = RippleSchema>(
+  opts: ReplicatorOptions<S>,
+): Replicator<S> {
   let cursor = opts.cursor ?? null;
   const outbox = opts.outbox ?? new InMemoryOutbox<S>();
 

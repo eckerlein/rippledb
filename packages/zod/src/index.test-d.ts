@@ -1,21 +1,21 @@
-import { defineSchema, s } from '@rippledb/core';
-import { withZod, generateZodSchemas } from './index';
-import { z } from 'zod';
-import { test } from 'vitest';
+import { defineSchema, s } from "@rippledb/core";
+import { test } from "vitest";
+import { z } from "zod";
+import { generateZodSchemas, withZod } from "./index";
 
 /**
  * Type tests for ZodOverrides
- * 
+ *
  * These tests verify that TypeScript correctly catches type errors when:
  * 1. Extra fields that don't exist in the schema are provided
  * 2. Extra entities that don't exist in the schema are provided
- * 
+ *
  * Vitest will run these through tsc and fail the test if:
  * - A type error occurs without @ts-expect-error
  * - @ts-expect-error is used but no error occurs (unused directive)
  */
 
-test('valid overrides compile without errors', () => {
+test("valid overrides compile without errors", () => {
   const schema = defineSchema({
     items: {
       id: s.string(),
@@ -40,8 +40,7 @@ test('valid overrides compile without errors', () => {
   });
 });
 
-
-test('extra fields in overrides cause type errors', () => {
+test("extra fields in overrides cause type errors", () => {
   const schema = defineSchema({
     items: {
       id: s.string(),
@@ -71,14 +70,14 @@ test('extra fields in overrides cause type errors', () => {
   });
 });
 
-test('extra fields in const overrides cause type errors', () => {
+test("extra fields in const overrides cause type errors", () => {
   const schema = defineSchema({
     items: {
       id: s.string(),
       count: s.number(),
     },
   });
-  
+
   const overrides = {
     items: {
       count: z.number().int(),
@@ -90,7 +89,7 @@ test('extra fields in const overrides cause type errors', () => {
   withZod(schema, overrides);
 });
 
-test('extra entities in overrides cause type errors', () => {
+test("extra entities in overrides cause type errors", () => {
   const schema = defineSchema({
     items: {
       id: s.string(),
@@ -110,15 +109,14 @@ test('extra entities in overrides cause type errors', () => {
   });
 });
 
-
-test('extra entities in const overrides cause type errors', () => {
+test("extra entities in const overrides cause type errors", () => {
   const schema = defineSchema({
     items: {
       id: s.string(),
       count: s.number(),
     },
   });
-  
+
   const overrides = {
     items: {
       count: z.number().int(),
@@ -132,7 +130,7 @@ test('extra entities in const overrides cause type errors', () => {
   withZod(schema, overrides);
 });
 
-test('empty overrides object is valid', () => {
+test("empty overrides object is valid", () => {
   const schema = defineSchema({
     items: {
       id: s.string(),

@@ -1,6 +1,6 @@
-import Database from 'better-sqlite3';
-import pg from 'pg';
-import type { Db } from './types';
+import Database from "better-sqlite3";
+import pg from "pg";
+import type { Db } from "./types";
 
 export type TestSchema = {
   todos: {
@@ -12,7 +12,7 @@ export type TestSchema = {
 
 // SQLite Db adapter
 export function createSqliteDb(): Db {
-  const db = new Database(':memory:');
+  const db = new Database(":memory:");
   return {
     async get<T>(query: string, params: unknown[]): Promise<T | null> {
       const stmt = db.prepare(query);
@@ -26,7 +26,10 @@ export function createSqliteDb(): Db {
 }
 
 // PostgreSQL Db adapter
-export function createPostgresDb(connectionString: string): { db: Db; close: () => Promise<void> } {
+export function createPostgresDb(connectionString: string): {
+  db: Db;
+  close: () => Promise<void>;
+} {
   const client = new pg.Client({ connectionString });
   let connected = false;
   let closing = false;
@@ -41,13 +44,13 @@ export function createPostgresDb(connectionString: string): { db: Db; close: () 
   const db: Db = {
     async get<T>(query: string, params: unknown[]): Promise<T | null> {
       await connect();
-      if (closing) throw new Error('Database connection is closing');
+      if (closing) throw new Error("Database connection is closing");
       const result = await client.query(query, params);
       return (result.rows[0] as T) ?? null;
     },
     async run(command: string, params: unknown[]): Promise<void> {
       await connect();
-      if (closing) throw new Error('Database connection is closing');
+      if (closing) throw new Error("Database connection is closing");
       await client.query(command, params);
     },
   };
@@ -60,7 +63,7 @@ export function createPostgresDb(connectionString: string): { db: Db; close: () 
         try {
           await client.end();
         } catch (error) {
-          console.error('Error closing database connection', error);
+          console.error("Error closing database connection", error);
           // Ignore errors during cleanup
         }
         connected = false;

@@ -3,8 +3,8 @@ title: API Reference
 description: Complete API documentation for all RippleDB packages
 ---
 
-import { Cards, Card } from 'fumadocs-ui/components/card';
-import { Diagram } from '@/components/diagram';
+import { Cards, Card } from "fumadocs-ui/components/card";
+import { Diagram } from "@/components/diagram";
 
 # API Reference
 
@@ -13,28 +13,28 @@ Complete API documentation for all RippleDB packages.
 ## Core Packages
 
 <Cards>
-  <Card 
-    title="@rippledb/core" 
+  <Card
+    title="@rippledb/core"
     description="HLC timestamps, Change types, and pure merge logic"
     href="/docs/reference/core"
   />
-  <Card 
-    title="@rippledb/server" 
+  <Card
+    title="@rippledb/server"
     description="Db interface and server contracts"
     href="/docs/reference/server"
   />
-  <Card 
-    title="@rippledb/client" 
+  <Card
+    title="@rippledb/client"
     description="Client-side sync orchestration"
     href="/docs/reference/client"
   />
-  <Card 
-    title="@rippledb/client-query" 
+  <Card
+    title="@rippledb/client-query"
     description="Final DX: controllers + TanStack Query invalidation"
     href="/docs/reference/client-query"
   />
-  <Card 
-    title="@rippledb/remote-http" 
+  <Card
+    title="@rippledb/remote-http"
     description="HTTP transport for client-server sync"
     href="/docs/reference/remote-http"
   />
@@ -42,15 +42,15 @@ Complete API documentation for all RippleDB packages.
 
 ## Package Overview
 
-| Package | Depends On | Purpose |
-|---------|------------|---------|
-| `@rippledb/core` | nothing | HLC, Change types, merge helpers |
-| `@rippledb/server` | core | Db interface for server persistence |
-| `@rippledb/client` | core | Store interface, sync orchestration |
-| `@rippledb/remote-http` | client | HTTP transport layer |
-| `@rippledb/db-*` | server | Database adapters |
-| `@rippledb/materialize-*` | core | State materializers |
-| `@rippledb/store-*` | client | Client-side stores |
+| Package                   | Depends On | Purpose                             |
+| ------------------------- | ---------- | ----------------------------------- |
+| `@rippledb/core`          | nothing    | HLC, Change types, merge helpers    |
+| `@rippledb/server`        | core       | Db interface for server persistence |
+| `@rippledb/client`        | core       | Store interface, sync orchestration |
+| `@rippledb/remote-http`   | client     | HTTP transport layer                |
+| `@rippledb/db-*`          | server     | Database adapters                   |
+| `@rippledb/materialize-*` | core       | State materializers                 |
+| `@rippledb/store-*`       | client     | Client-side stores                  |
 
 ## Dependency Rules
 
@@ -59,19 +59,52 @@ The dependency graph is strictly enforced:
 <Diagram
   height={300}
   nodes={[
-    { id: 'core', x: 220, y: 10, label: ['core', '(pure logic)'] },
-    { id: 'server', relativeTo: 'core', anchor: 'bottom', offset: { y: 50, x: -160 }, label: ['server', '(Db interface)'] },
-    { id: 'client', relativeTo: 'core', anchor: 'bottom', offset: { y: 50 }, alignX: 'center', label: ['client', '(Store/Sync)'] },
-    { id: 'materialize', relativeTo: 'core', anchor: 'bottom', offset: { y: 50, x: 160 }, label: ['materialize', '(projectors)'] },
-    { id: 'db', relativeTo: 'server', anchor: 'bottom', offset: { y: 40 }, alignX: 'center', label: ['db-*', '(adapters)'] },
-    { id: 'store', relativeTo: 'client', anchor: 'bottom', offset: { y: 40 }, alignX: 'center', label: ['store-*', '(adapters)'] },
+    { id: "core", x: 220, y: 10, label: ["core", "(pure logic)"] },
+    {
+      id: "server",
+      relativeTo: "core",
+      anchor: "bottom",
+      offset: { y: 50, x: -160 },
+      label: ["server", "(Db interface)"],
+    },
+    {
+      id: "client",
+      relativeTo: "core",
+      anchor: "bottom",
+      offset: { y: 50 },
+      alignX: "center",
+      label: ["client", "(Store/Sync)"],
+    },
+    {
+      id: "materialize",
+      relativeTo: "core",
+      anchor: "bottom",
+      offset: { y: 50, x: 160 },
+      label: ["materialize", "(projectors)"],
+    },
+    {
+      id: "db",
+      relativeTo: "server",
+      anchor: "bottom",
+      offset: { y: 40 },
+      alignX: "center",
+      label: ["db-*", "(adapters)"],
+    },
+    {
+      id: "store",
+      relativeTo: "client",
+      anchor: "bottom",
+      offset: { y: 40 },
+      alignX: "center",
+      label: ["store-*", "(adapters)"],
+    },
   ]}
   edges={[
-    { from: 'core', to: 'server', orthogonal: true },
-    { from: 'core', to: 'client', orthogonal: true },
-    { from: 'core', to: 'materialize', orthogonal: true },
-    { from: 'server', to: 'db', orthogonal: true },
-    { from: 'client', to: 'store', orthogonal: true },
+    { from: "core", to: "server", orthogonal: true },
+    { from: "core", to: "client", orthogonal: true },
+    { from: "core", to: "materialize", orthogonal: true },
+    { from: "server", to: "db", orthogonal: true },
+    { from: "client", to: "store", orthogonal: true },
   ]}
 />
 
@@ -92,5 +125,5 @@ type MySchema = {
 };
 
 // Now all methods are typed
-const db = new SqliteDb<MySchema>({ filename: './data.db' });
+const db = new SqliteDb<MySchema>({ filename: "./data.db" });
 ```

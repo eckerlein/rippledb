@@ -3,8 +3,8 @@ title: Quick Start
 description: Build a sync-enabled todo app in 5 minutes
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
-import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Callout } from "fumadocs-ui/components/callout";
+import { Steps, Step } from "fumadocs-ui/components/steps";
 
 # Quick Start
 
@@ -30,6 +30,7 @@ npm init -y
 npm install @rippledb/core @rippledb/db-sqlite @rippledb/materialize-db better-sqlite3
 npm install -D typescript @types/better-sqlite3 tsx
 ```
+
 </Step>
 
 <Step>
@@ -38,7 +39,7 @@ npm install -D typescript @types/better-sqlite3 tsx
 Create `src/schema.ts` to define the shape of your data:
 
 ```ts title="src/schema.ts"
-import { defineSchema, s, type InferSchema } from '@rippledb/core';
+import { defineSchema, s, type InferSchema } from "@rippledb/core";
 
 export const schema = defineSchema({
   todos: {
@@ -50,6 +51,7 @@ export const schema = defineSchema({
 
 export type TodosSchema = InferSchema<typeof schema>;
 ```
+
 </Step>
 
 <Step>
@@ -58,25 +60,26 @@ export type TodosSchema = InferSchema<typeof schema>;
 Create `src/db.ts` to configure your RippleDB database:
 
 ```ts title="src/db.ts"
-import { SqliteDb } from '@rippledb/db-sqlite';
-import { createSyncMaterializer } from '@rippledb/materialize-db';
-import type { TodosSchema } from './schema';
-import { schema } from './schema';
+import { SqliteDb } from "@rippledb/db-sqlite";
+import { createSyncMaterializer } from "@rippledb/materialize-db";
+import type { TodosSchema } from "./schema";
+import { schema } from "./schema";
 
 // Create the database with a materializer
 export const db = new SqliteDb<TodosSchema>({
-  filename: './data.db',
+  filename: "./data.db",
   schema,
   materializer: ({ db, schema }) =>
     createSyncMaterializer({
       schema,
       db,
-      dialect: 'sqlite',
-      tableMap: { todos: 'todos' },
-      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      dialect: "sqlite",
+      tableMap: { todos: "todos" },
+      fieldMap: { todos: { id: "id", title: "title", done: "done" } },
     }),
 });
 ```
+
 </Step>
 
 <Step>
@@ -85,7 +88,7 @@ export const db = new SqliteDb<TodosSchema>({
 Create `src/hlc.ts` to generate timestamps:
 
 ```ts title="src/hlc.ts"
-import { createHlcState, tickHlc } from '@rippledb/core';
+import { createHlcState, tickHlc } from "@rippledb/core";
 
 // Each node needs a unique ID
 const nodeId = `server-${Math.random().toString(36).slice(2, 8)}`;
@@ -95,6 +98,7 @@ export function hlc() {
   return tickHlc(hlcState, Date.now());
 }
 ```
+
 </Step>
 
 <Step>
@@ -103,59 +107,60 @@ export function hlc() {
 Create `src/index.ts`:
 
 ```ts title="src/index.ts"
-import { makeUpsert, makeDelete } from '@rippledb/core';
-import { db } from './db';
-import { hlc } from './hlc';
-import type { TodosSchema } from './schema';
+import { makeUpsert, makeDelete } from "@rippledb/core";
+import { db } from "./db";
+import { hlc } from "./hlc";
+import type { TodosSchema } from "./schema";
 
 async function main() {
-  const stream = 'user-123'; // Partition key (e.g., user ID)
+  const stream = "user-123"; // Partition key (e.g., user ID)
 
   // Create a todo
   const createTodo = makeUpsert<TodosSchema>({
     stream,
-    entity: 'todos',
-    entityId: 'todo-1',
-    patch: { id: 'todo-1', title: 'Buy milk', done: false },
+    entity: "todos",
+    entityId: "todo-1",
+    patch: { id: "todo-1", title: "Buy milk", done: false },
     hlc: hlc(),
   });
 
   await db.append({ stream, changes: [createTodo] });
-  console.log('Created todo:', createTodo);
+  console.log("Created todo:", createTodo);
 
   // Update the todo
   const updateTodo = makeUpsert<TodosSchema>({
     stream,
-    entity: 'todos',
-    entityId: 'todo-1',
+    entity: "todos",
+    entityId: "todo-1",
     patch: { done: true },
     hlc: hlc(),
   });
 
   await db.append({ stream, changes: [updateTodo] });
-  console.log('Updated todo:', updateTodo);
+  console.log("Updated todo:", updateTodo);
 
   // Pull all changes
   const { changes, nextCursor } = await db.pull({ stream, cursor: null });
-  console.log('All changes:', changes);
-  console.log('Cursor for next pull:', nextCursor);
+  console.log("All changes:", changes);
+  console.log("Cursor for next pull:", nextCursor);
 
   // Delete the todo
   const deleteTodo = makeDelete<TodosSchema>({
     stream,
-    entity: 'todos',
-    entityId: 'todo-1',
+    entity: "todos",
+    entityId: "todo-1",
     hlc: hlc(),
   });
 
   await db.append({ stream, changes: [deleteTodo] });
-  console.log('Deleted todo');
+  console.log("Deleted todo");
 
   db.close();
 }
 
 main();
 ```
+
 </Step>
 
 <Step>
@@ -174,6 +179,7 @@ All changes: [{ ... }, { ... }]
 Cursor for next pull: 2
 Deleted todo
 ```
+
 </Step>
 
 </Steps>
@@ -198,7 +204,7 @@ Deleted todo
 ## Next Steps
 
 <Callout type="info">
-Now that you understand the basics, dive deeper into the core concepts.
+  Now that you understand the basics, dive deeper into the core concepts.
 </Callout>
 
 - [Core Concepts](/docs/getting-started/concepts) — Understand HLCs, streams, and field-level LWW

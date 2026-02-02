@@ -3,7 +3,6 @@ title: materialize-core
 description: Core materialization algorithm and adapter interfaces
 ---
 
-
 # @rippledb/materialize-core
 
 Shared, database-agnostic materialization logic used by the `materialize-*` packages.
@@ -28,7 +27,11 @@ Implement this interface to persist materialized entity state:
 export type MaterializerAdapter<S> = {
   load(entity: string, id: string): Promise<MaterializerState<S> | null>;
   save(entity: string, id: string, state: MaterializerState<S>): Promise<void>;
-  remove(entity: string, id: string, state: MaterializerState<S>): Promise<void>;
+  remove(
+    entity: string,
+    id: string,
+    state: MaterializerState<S>,
+  ): Promise<void>;
 };
 ```
 
@@ -52,4 +55,3 @@ Most users don’t need to import `materialize-core` directly. Use:
 
 - [`@rippledb/materialize-db`](/docs/adapters/materialize-db) for raw SQL projects
 - [`@rippledb/materialize-drizzle`](/docs/adapters/materialize-drizzle) for Drizzle projects
-

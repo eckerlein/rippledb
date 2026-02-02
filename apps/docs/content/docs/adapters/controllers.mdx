@@ -3,14 +3,16 @@ title: controllers
 description: Abstract CRUD controllers with batch loading for RippleDB
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Callout } from "fumadocs-ui/components/callout";
 
 # @rippledb/client-controllers
 
 Abstract CRUD controllers with automatic batch loading for RippleDB. Provides a high-level data access layer on top of the `Store` interface.
 
 <Callout type="info">
-For a higher-level API that combines these controllers with automatic cache invalidation for TanStack Query, see the [client-query](/docs/reference/client-query) package.
+  For a higher-level API that combines these controllers with automatic cache
+  invalidation for TanStack Query, see the
+  [client-query](/docs/reference/client-query) package.
 </Callout>
 
 ## Installation
@@ -20,20 +22,20 @@ For a higher-level API that combines these controllers with automatic cache inva
 ## Basic Usage
 
 ```ts
-import { createEntityController } from '@rippledb/client-controllers';
-import { MemoryStore } from '@rippledb/store-memory';
+import { createEntityController } from "@rippledb/client-controllers";
+import { MemoryStore } from "@rippledb/store-memory";
 
 const store = new MemoryStore<MySchema>();
 
 // Create a controller for an entity type
 const todoController = createEntityController({
   store,
-  entity: 'todos',
-  stream: 'user-123',
+  entity: "todos",
+  stream: "user-123",
 });
 
 // CRUD operations with automatic batch loading
-const todo = await todoController.create({ title: 'Buy milk', done: false });
+const todo = await todoController.create({ title: "Buy milk", done: false });
 const fetched = await todoController.read(todo.id);
 const updated = await todoController.update(todo.id, { done: true });
 await todoController.delete(todo.id);
@@ -45,9 +47,9 @@ The controllers automatically batch multiple `read()` calls that occur in the sa
 
 ```ts
 // These three reads will be batched into a single getRows() call
-const p1 = todoController.read('todo-1');
-const p2 = todoController.read('todo-2');
-const p3 = todoController.read('todo-3');
+const p1 = todoController.read("todo-1");
+const p2 = todoController.read("todo-2");
+const p3 = todoController.read("todo-3");
 
 const [todo1, todo2, todo3] = await Promise.all([p1, p2, p3]);
 ```
@@ -63,9 +65,9 @@ You can override this per-controller:
 ```ts
 const todoController = createEntityController({
   store,
-  entity: 'todos',
-  stream: 'user-123',
-  batch: { flush: 'microtask' }, // 'auto' | 'raf' | 'microtask'
+  entity: "todos",
+  stream: "user-123",
+  batch: { flush: "microtask" }, // 'auto' | 'raf' | 'microtask'
 });
 ```
 
@@ -77,10 +79,10 @@ Create a new entity. If the patch contains an `id` field, it will be used. Other
 
 ```ts
 // Auto-generate ID
-const todo = await todoController.create({ title: 'Test', done: false });
+const todo = await todoController.create({ title: "Test", done: false });
 
 // Use provided ID
-const todo2 = await todoController.create({ id: 'custom-id', title: 'Test' });
+const todo2 = await todoController.create({ id: "custom-id", title: "Test" });
 ```
 
 ### `read(id: string): Promise<S[E] | null>`
@@ -88,7 +90,7 @@ const todo2 = await todoController.create({ id: 'custom-id', title: 'Test' });
 Read a single entity by ID. Uses batch loading for efficiency.
 
 ```ts
-const todo = await todoController.read('todo-1');
+const todo = await todoController.read("todo-1");
 if (!todo) {
   // Entity not found or deleted
 }
@@ -99,7 +101,7 @@ if (!todo) {
 Read multiple entities by IDs. Always executes immediately (no batching).
 
 ```ts
-const todos = await todoController.readMany(['todo-1', 'todo-2', 'todo-3']);
+const todos = await todoController.readMany(["todo-1", "todo-2", "todo-3"]);
 // Returns Map with found entities (missing/deleted ones are omitted)
 ```
 
@@ -108,7 +110,7 @@ const todos = await todoController.readMany(['todo-1', 'todo-2', 'todo-3']);
 Update an entity by ID with a partial patch.
 
 ```ts
-const updated = await todoController.update('todo-1', { done: true });
+const updated = await todoController.update("todo-1", { done: true });
 ```
 
 ### `delete(id: string): Promise<void>`
@@ -116,7 +118,7 @@ const updated = await todoController.update('todo-1', { done: true });
 Delete an entity by ID.
 
 ```ts
-await todoController.delete('todo-1');
+await todoController.delete("todo-1");
 ```
 
 ### `list(query: ListQuery): Promise<S[E][]>`
@@ -125,7 +127,7 @@ List entities using a store-specific query. Delegates to `store.listRows()`.
 
 ```ts
 // Example with MemoryStore
-const todos = await todoController.list({ entity: 'todos' });
+const todos = await todoController.list({ entity: "todos" });
 ```
 
 ## Configuration
@@ -147,13 +149,13 @@ The stream ID for all changes created by this controller. Required.
 Optional HLC state. If not provided, a new one will be created.
 
 ```ts
-import { createHlcState } from '@rippledb/core';
+import { createHlcState } from "@rippledb/core";
 
-const hlcState = createHlcState('my-node');
+const hlcState = createHlcState("my-node");
 const controller = createEntityController({
   store,
-  entity: 'todos',
-  stream: 'user-123',
+  entity: "todos",
+  stream: "user-123",
   hlcState,
 });
 ```
@@ -163,12 +165,12 @@ const controller = createEntityController({
 Optional function to generate entity IDs. Defaults to `crypto.randomUUID()`.
 
 ```ts
-import { nanoid } from 'nanoid';
+import { nanoid } from "nanoid";
 
 const controller = createEntityController({
   store,
-  entity: 'todos',
-  stream: 'user-123',
+  entity: "todos",
+  stream: "user-123",
   generateId: () => nanoid(),
 });
 ```
@@ -181,13 +183,13 @@ const controller = createEntityController({
 Use controllers for CRUD operations, and `bind-tanstack-query` for automatic cache invalidation:
 
 ```ts
-import { createEntityController } from '@rippledb/client-controllers';
-import { wireTanstackInvalidation } from '@rippledb/bind-tanstack-query';
+import { createEntityController } from "@rippledb/client-controllers";
+import { wireTanstackInvalidation } from "@rippledb/bind-tanstack-query";
 
 const todoController = createEntityController({
   store,
-  entity: 'todos',
-  stream: 'user-123',
+  entity: "todos",
+  stream: "user-123",
 });
 
 // Wire up invalidation
@@ -199,12 +201,12 @@ wireTanstackInvalidation({
 // In your React component
 function TodoList() {
   const { data: todos } = useQuery({
-    queryKey: ['todos'],
-    queryFn: () => todoController.list({ entity: 'todos' }),
+    queryKey: ["todos"],
+    queryFn: () => todoController.list({ entity: "todos" }),
   });
 
   const handleCreate = async () => {
-    await todoController.create({ title: 'New todo' });
+    await todoController.create({ title: "New todo" });
     // Cache is automatically invalidated via bind-tanstack-query
   };
 
@@ -217,15 +219,15 @@ function TodoList() {
 You can also use the batch loader directly:
 
 ```ts
-import { createBatchLoader } from '@rippledb/client-controllers';
+import { createBatchLoader } from "@rippledb/client-controllers";
 
-const batchLoader = createBatchLoader(store, 'todos');
+const batchLoader = createBatchLoader(store, "todos");
 
 // Single load (batched)
-const todo = await batchLoader.load('todo-1');
+const todo = await batchLoader.load("todo-1");
 
 // Multiple loads (immediate)
-const todos = await batchLoader.loadMany(['todo-1', 'todo-2']);
+const todos = await batchLoader.loadMany(["todo-1", "todo-2"]);
 ```
 
 ## Store.getRows()

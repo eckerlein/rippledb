@@ -2,7 +2,8 @@
 
 Server-side contracts and interfaces for RippleDB persistence.
 
-📚 **Documentation:** [rippledb.dev/docs/reference/server](https://rippledb.dev/docs/reference/server)
+📚 **Documentation:**
+[rippledb.dev/docs/reference/server](https://rippledb.dev/docs/reference/server)
 
 ## Installation
 
@@ -13,7 +14,7 @@ npm install @rippledb/server @rippledb/core
 ## Usage
 
 ```typescript
-import type { Db, AppendRequest, PullRequest } from '@rippledb/server';
+import type { AppendRequest, Db, PullRequest } from "@rippledb/server";
 
 // Implement the Db interface for your database
 class MyDb implements Db<MySchema> {
@@ -31,14 +32,14 @@ class MyDb implements Db<MySchema> {
 
 ## Exports
 
-| Export | Description |
-|--------|-------------|
-| `Db` | Interface for database adapters |
+| Export          | Description                        |
+| --------------- | ---------------------------------- |
+| `Db`            | Interface for database adapters    |
 | `AppendRequest` | Request type for appending changes |
-| `AppendResult` | Result type for append operations |
-| `PullRequest` | Request type for pulling changes |
-| `PullResponse` | Response type for pull operations |
-| `Cursor` | Cursor type for pagination |
+| `AppendResult`  | Result type for append operations  |
+| `PullRequest`   | Request type for pulling changes   |
+| `PullResponse`  | Response type for pull operations  |
+| `Cursor`        | Cursor type for pagination         |
 
 ## License
 

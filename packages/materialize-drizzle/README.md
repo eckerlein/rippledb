@@ -2,7 +2,8 @@
 
 Type-safe Drizzle ORM materializer for RippleDB.
 
-📚 **Documentation:** [rippledb.dev/docs/adapters/materialize-drizzle](https://rippledb.dev/docs/adapters/materialize-drizzle)
+📚 **Documentation:**
+[rippledb.dev/docs/adapters/materialize-drizzle](https://rippledb.dev/docs/adapters/materialize-drizzle)
 
 ## Installation
 
@@ -13,7 +14,7 @@ npm install @rippledb/materialize-drizzle @rippledb/materialize-core @rippledb/c
 ## Usage
 
 ```typescript
-import { DrizzleDb } from '@rippledb/db-drizzle';
+import { DrizzleDb } from "@rippledb/db-drizzle";
 
 const rippleDb = new DrizzleDb({
   db: drizzle(sqlite),
@@ -21,7 +22,7 @@ const rippleDb = new DrizzleDb({
   idempotencyTable,
   getTableConfig,
   materializer: ({ db }) => ({
-    tableMap: { todos: 'todos' },
+    tableMap: { todos: "todos" },
     executor: createDrizzleMaterializerExecutor({ db, tagsTable, todosTable }),
   }),
 });

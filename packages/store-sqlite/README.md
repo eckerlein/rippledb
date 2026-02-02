@@ -2,7 +2,8 @@
 
 SQLite-based client-side Store for RippleDB with persistent storage.
 
-📚 **Documentation:** [rippledb.dev/docs/adapters/store-sqlite](https://rippledb.dev/docs/adapters/store-sqlite)
+📚 **Documentation:**
+[rippledb.dev/docs/adapters/store-sqlite](https://rippledb.dev/docs/adapters/store-sqlite)
 
 ## Installation
 
@@ -13,8 +14,8 @@ npm install @rippledb/store-sqlite @rippledb/client @rippledb/core better-sqlite
 ## Usage
 
 ```typescript
-import { SqliteStore } from '@rippledb/store-sqlite';
-import { defineSchema, s } from '@rippledb/core';
+import { defineSchema, s } from "@rippledb/core";
+import { SqliteStore } from "@rippledb/store-sqlite";
 
 const schema = defineSchema({
   todos: {
@@ -25,25 +26,25 @@ const schema = defineSchema({
 });
 
 const store = new SqliteStore({
-  filename: './data.db',
+  filename: "./data.db",
   schema, // Required - creates tables with proper columns
 });
 
 // Subscribe to events
 const unsubscribe = store.onEvent((event) => {
-  console.log('Change:', event.entity, event.kind, event.id);
+  console.log("Change:", event.entity, event.kind, event.id);
 });
 
 // Apply changes
 await store.applyChanges([change]);
 
 // Query data
-const todo = await store.getRow('todos', 'todo-1');
-const todos = await store.getRows('todos', ['todo-1', 'todo-2']);
+const todo = await store.getRow("todos", "todo-1");
+const todos = await store.getRows("todos", ["todo-1", "todo-2"]);
 
 // SQL queries with WHERE clauses
 const activeTodos = await store.listRows(
-  'SELECT * FROM todos WHERE done = 0 AND deleted = 0'
+  "SELECT * FROM todos WHERE done = 0 AND deleted = 0",
 );
 ```
 

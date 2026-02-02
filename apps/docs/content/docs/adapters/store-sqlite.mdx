@@ -3,25 +3,26 @@ title: store-sqlite
 description: SQLite-based client-side Store with persistent storage
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Callout } from "fumadocs-ui/components/callout";
 
 # @rippledb/store-sqlite
 
 A SQLite-based client-side Store implementation with persistent storage. Uses the same schema descriptor as your backend for consistency.
 
 <Callout type="info">
-This store requires a schema descriptor to create tables with proper columns, enabling SQL WHERE clauses on individual fields.
+  This store requires a schema descriptor to create tables with proper columns,
+  enabling SQL WHERE clauses on individual fields.
 </Callout>
 
 ## Installation
 
-<InstallCommandTabs packages={['@rippledb/store-sqlite', 'better-sqlite3']} />
+<InstallCommandTabs packages={["@rippledb/store-sqlite", "better-sqlite3"]} />
 
 ## Basic Usage
 
 ```ts
-import { SqliteStore } from '@rippledb/store-sqlite';
-import { defineSchema, s, InferSchema } from '@rippledb/core';
+import { SqliteStore } from "@rippledb/store-sqlite";
+import { defineSchema, s, InferSchema } from "@rippledb/core";
 
 // Define your schema (same as backend!)
 const schema = defineSchema({
@@ -36,7 +37,7 @@ type MySchema = InferSchema<typeof schema>;
 
 // Create store with schema
 const store = new SqliteStore({
-  filename: './data.db',
+  filename: "./data.db",
   schema, // Required - used to create tables with proper columns
 });
 
@@ -49,12 +50,12 @@ store.onEvent((ev) => {
 await store.applyChanges([change]);
 
 // Read data
-const todo = await store.getRow('todos', 'todo-1');
-const todos = await store.getRows('todos', ['todo-1', 'todo-2']);
+const todo = await store.getRow("todos", "todo-1");
+const todos = await store.getRows("todos", ["todo-1", "todo-2"]);
 
 // SQL queries with WHERE clauses!
 const activeTodos = await store.listRows(
-  'SELECT * FROM todos WHERE done = 0 AND deleted = 0'
+  "SELECT * FROM todos WHERE done = 0 AND deleted = 0",
 );
 ```
 
@@ -105,13 +106,13 @@ SQLite database file path or `:memory:` for an in-memory database. Defaults to `
 ```ts
 // File-based storage
 const store = new SqliteStore({
-  filename: './data.db',
+  filename: "./data.db",
   schema,
 });
 
 // In-memory (data lost on close)
 const store = new SqliteStore({
-  filename: ':memory:',
+  filename: ":memory:",
   schema,
 });
 ```
@@ -121,9 +122,9 @@ const store = new SqliteStore({
 Existing `better-sqlite3` Database instance. If provided, `filename` is ignored and the store will not close the database connection.
 
 ```ts
-import Database from 'better-sqlite3';
+import Database from "better-sqlite3";
 
-const db = new Database('./data.db');
+const db = new Database("./data.db");
 const store = new SqliteStore({
   db,
   schema,
@@ -136,9 +137,9 @@ SQLite pragmas to apply when creating a new database connection. Defaults to `['
 
 ```ts
 const store = new SqliteStore({
-  filename: './data.db',
+  filename: "./data.db",
   schema,
-  pragmas: ['journal_mode = WAL', 'foreign_keys = ON'],
+  pragmas: ["journal_mode = WAL", "foreign_keys = ON"],
 });
 ```
 
@@ -148,9 +149,9 @@ Name of the tags table for HLC conflict resolution. Defaults to `'ripple_tags'`.
 
 ```ts
 const store = new SqliteStore({
-  filename: './data.db',
+  filename: "./data.db",
   schema,
-  tagsTable: 'custom_tags_table',
+  tagsTable: "custom_tags_table",
 });
 ```
 
@@ -160,13 +161,13 @@ Optional field mapping from schema field names to database column names. Useful 
 
 ```ts
 const store = new SqliteStore({
-  filename: './data.db',
+  filename: "./data.db",
   schema,
   fieldMap: {
     todos: {
-      userId: 'user_id',        // camelCase → snake_case
-      createdAt: 'created_at',  // camelCase → snake_case
-      isDone: 'is_done',         // camelCase → snake_case
+      userId: "user_id", // camelCase → snake_case
+      createdAt: "created_at", // camelCase → snake_case
+      isDone: "is_done", // camelCase → snake_case
     },
   },
 });
@@ -175,8 +176,8 @@ const store = new SqliteStore({
 // Database columns: user_id, created_at, is_done
 // SQL queries use column names:
 const todos = await store.listRows(
-  'SELECT * FROM todos WHERE user_id = ? AND is_done = 0',
-  ['user-123']
+  "SELECT * FROM todos WHERE user_id = ? AND is_done = 0",
+  ["user-123"],
 );
 ```
 
@@ -187,18 +188,20 @@ With a schema descriptor, you can use SQL WHERE clauses on actual columns:
 ```ts
 // Query with WHERE clause
 const activeTodos = await store.listRows(
-  'SELECT * FROM todos WHERE done = 0 AND deleted = 0'
+  "SELECT * FROM todos WHERE done = 0 AND deleted = 0",
 );
 
 // Query with parameters (use better-sqlite3's parameter binding)
 const userTodos = await store.listRows(
-  'SELECT * FROM todos WHERE user_id = ? AND deleted = 0',
-  ['user-123']
+  "SELECT * FROM todos WHERE user_id = ? AND deleted = 0",
+  ["user-123"],
 );
 ```
 
 <Callout type="warning">
-**Security**: The `listRows` method executes raw SQL with no validation. If queries come from untrusted sources, validate/whitelist them to prevent SQL injection.
+  **Security**: The `listRows` method executes raw SQL with no validation. If
+  queries come from untrusted sources, validate/whitelist them to prevent SQL
+  injection.
 </Callout>
 
 ## How It Works
@@ -210,12 +213,12 @@ const userTodos = await store.listRows(
 
 ## Comparison with store-memory
 
-| Feature | store-memory | store-sqlite |
-|---------|--------------|--------------|
-| Persistence | ❌ No | ✅ Yes |
-| SQL WHERE clauses | ❌ No | ✅ Yes |
-| Schema required | ❌ No | ✅ Yes |
-| Best for | Tests, prototypes | Production apps |
+| Feature           | store-memory      | store-sqlite    |
+| ----------------- | ----------------- | --------------- |
+| Persistence       | ❌ No             | ✅ Yes          |
+| SQL WHERE clauses | ❌ No             | ✅ Yes          |
+| Schema required   | ❌ No             | ✅ Yes          |
+| Best for          | Tests, prototypes | Production apps |
 
 ## Type Safety
 

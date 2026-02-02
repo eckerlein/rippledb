@@ -1,13 +1,21 @@
-import type { Change, ChangeTags, RippleSchema, EntityName, Hlc, SchemaDescriptor, MaterializerDb } from '@rippledb/core';
-import { compareHlc } from '@rippledb/core';
+import type {
+  Change,
+  ChangeTags,
+  EntityName,
+  Hlc,
+  MaterializerDb,
+  RippleSchema,
+  SchemaDescriptor,
+} from "@rippledb/core";
+import { compareHlc } from "@rippledb/core";
 
 /**
  * Factory function type for creating materializer adapters.
- * 
+ *
  * Each adapter specifies its own TDb type (the transaction-bound database instance).
  * The factory receives both the database instance and schema descriptor, and returns
  * a MaterializerAdapter directly.
- * 
+ *
  * @example
  * ```ts
  * // SQLite adapter
@@ -15,7 +23,7 @@ import { compareHlc } from '@rippledb/core';
  *   materializer?: MaterializerFactory<SqliteDatabase, S>;
  *   schema: SchemaDescriptor;
  * };
- * 
+ *
  * // Turso adapter
  * type TursoDbOptions<S> = {
  *   materializer?: MaterializerFactory<MaterializerDb, S>;
@@ -51,9 +59,23 @@ export type MaterializerAdapter<
   S extends RippleSchema = RippleSchema,
   TDb = MaterializerDb,
 > = {
-  load<E extends EntityName<S>>(db: TDb, entity: E, id: string): MaybePromise<MaterializerState<S, E> | null>;
-  save<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): MaybePromise<void>;
-  remove<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): MaybePromise<void>;
+  load<E extends EntityName<S>>(
+    db: TDb,
+    entity: E,
+    id: string,
+  ): MaybePromise<MaterializerState<S, E> | null>;
+  save<E extends EntityName<S>>(
+    db: TDb,
+    entity: E,
+    id: string,
+    state: MaterializerState<S, E>,
+  ): MaybePromise<void>;
+  remove<E extends EntityName<S>>(
+    db: TDb,
+    entity: E,
+    id: string,
+    state: MaterializerState<S, E>,
+  ): MaybePromise<void>;
 };
 
 type ApplyResult<S extends RippleSchema, E extends EntityName<S>> = {
@@ -67,7 +89,9 @@ function isNewer(incoming: Hlc, existing: Hlc | undefined | null) {
   return compareHlc(incoming, existing) > 0;
 }
 
-function newestTag<S extends RippleSchema, E extends EntityName<S>>(tags: ChangeTags<S, E>): Hlc | null {
+function newestTag<S extends RippleSchema, E extends EntityName<S>>(
+  tags: ChangeTags<S, E>,
+): Hlc | null {
   let latest: Hlc | null = null;
   for (const tag of Object.values(tags)) {
     if (!tag) continue;
@@ -89,16 +113,20 @@ function newestTag<S extends RippleSchema, E extends EntityName<S>>(tags: Change
 export function applyChangeToState<
   S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
->(current: MaterializerState<S, E> | null, change: Change<S, E>): ApplyResult<S, E> {
+>(
+  current: MaterializerState<S, E> | null,
+  change: Change<S, E>,
+): ApplyResult<S, E> {
   const state: MaterializerState<S, E> =
-    current ?? ({
+    current ??
+    ({
       values: {},
       tags: {},
       deleted: false,
       deletedTag: null,
     } satisfies MaterializerState<S, E>);
 
-  if (change.kind === 'delete') {
+  if (change.kind === "delete") {
     if (isNewer(change.hlc, state.deletedTag)) {
       state.deleted = true;
       state.deletedTag = change.hlc;
@@ -108,12 +136,16 @@ export function applyChangeToState<
   }
 
   let changed = false;
-  for (const [field, value] of Object.entries(change.patch as Record<string, unknown>)) {
+  for (const [field, value] of Object.entries(
+    change.patch as Record<string, unknown>,
+  )) {
     const tag = (change.tags as Record<string, Hlc | undefined>)[field];
     if (!tag) continue;
     if (isNewer(tag, (state.tags as Record<string, Hlc | undefined>)[field])) {
-      (state.values as Record<string, unknown>)[field as FieldKey<S[E]>] = value;
-      (state.tags as Record<string, Hlc | undefined>)[field as FieldKey<S[E]>] = tag;
+      (state.values as Record<string, unknown>)[field as FieldKey<S[E]>] =
+        value;
+      (state.tags as Record<string, Hlc | undefined>)[field as FieldKey<S[E]>] =
+        tag;
       changed = true;
     }
   }
@@ -138,26 +170,29 @@ export async function materializeChange<
   adapter: MaterializerAdapter<S, TDb>,
   db: TDb,
   change: Change<S, E>,
-): Promise<'noop' | 'saved' | 'removed'> {
+): Promise<"noop" | "saved" | "removed"> {
   const current = await adapter.load(db, change.entity, change.entityId);
   const result = applyChangeToState(current, change);
 
-  if (!result.changed) return 'noop';
+  if (!result.changed) return "noop";
   if (result.deleted) {
     await adapter.remove(db, change.entity, change.entityId, result.state);
-    return 'removed';
+    return "removed";
   }
 
   await adapter.save(db, change.entity, change.entityId, result.state);
-  return 'saved';
+  return "saved";
 }
 
 export async function materializeChanges<
   S extends RippleSchema = RippleSchema,
   TDb = MaterializerDb,
->(adapter: MaterializerAdapter<S, TDb>, db: TDb, changes: Change<S>[]): Promise<void> {
+>(
+  adapter: MaterializerAdapter<S, TDb>,
+  db: TDb,
+  changes: Change<S>[],
+): Promise<void> {
   for (const change of changes) {
     await materializeChange(adapter, db, change);
   }
 }
-

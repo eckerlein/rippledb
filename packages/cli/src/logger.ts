@@ -4,12 +4,12 @@ export type Logger = {
   error?: (message: string) => void;
 };
 
-export type LoggerMode = 'normal' | 'test';
+export type LoggerMode = "normal" | "test";
 
-export function createConsoleLogger(mode: LoggerMode = 'normal'): Logger {
+export function createConsoleLogger(mode: LoggerMode = "normal"): Logger {
   return {
     // Only provide log in normal mode
-    log: mode === 'normal' ? (msg) => console.log(msg) : undefined,
+    log: mode === "normal" ? (msg) => console.log(msg) : undefined,
     // Always provide warn/error
     warn: (msg) => console.warn(msg),
     error: (msg) => console.error(msg),

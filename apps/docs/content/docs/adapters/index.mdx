@@ -3,9 +3,9 @@ title: Adapters Overview
 description: Choose the right database adapter and materializer for your use case
 ---
 
-import { Cards, Card } from 'fumadocs-ui/components/card';
-import { Callout } from 'fumadocs-ui/components/callout';
-import { Diagram } from '@/components/diagram';
+import { Cards, Card } from "fumadocs-ui/components/card";
+import { Callout } from "fumadocs-ui/components/callout";
+import { Diagram } from "@/components/diagram";
 
 # Adapters
 
@@ -23,19 +23,33 @@ RippleDB uses adapters to integrate with different runtimes, databases, and ORMs
 <Diagram
   height={280}
   nodes={[
-    { id: 'q1', x: 160, y: 10, label: 'Are you using Drizzle ORM?' },
-    { id: 'drizzle', x: 40, y: 120, label: 'db-drizzle' },
-    { id: 'q2', x: 280, y: 120, label: 'What database?' },
-    { id: 'sqlite', x: 140, y: 220, label: 'db-sqlite' },
-    { id: 'turso', relativeTo: 'sqlite', anchor: 'right', offset: { x: 30 }, alignY: 'center', label: 'db-turso' },
-    { id: 'memory', relativeTo: 'turso', anchor: 'right', offset: { x: 30 }, alignY: 'center', label: 'db-memory' },
+    { id: "q1", x: 160, y: 10, label: "Are you using Drizzle ORM?" },
+    { id: "drizzle", x: 40, y: 120, label: "db-drizzle" },
+    { id: "q2", x: 280, y: 120, label: "What database?" },
+    { id: "sqlite", x: 140, y: 220, label: "db-sqlite" },
+    {
+      id: "turso",
+      relativeTo: "sqlite",
+      anchor: "right",
+      offset: { x: 30 },
+      alignY: "center",
+      label: "db-turso",
+    },
+    {
+      id: "memory",
+      relativeTo: "turso",
+      anchor: "right",
+      offset: { x: 30 },
+      alignY: "center",
+      label: "db-memory",
+    },
   ]}
   edges={[
-    { from: 'q1', to: 'drizzle', orthogonal: true, label: 'Yes' },
-    { from: 'q1', to: 'q2', orthogonal: true, label: 'No' },
-    { from: 'q2', to: 'sqlite', orthogonal: true, label: 'SQLite' },
-    { from: 'q2', to: 'turso', orthogonal: true, label: 'Turso' },
-    { from: 'q2', to: 'memory', orthogonal: true, label: 'In-memory' },
+    { from: "q1", to: "drizzle", orthogonal: true, label: "Yes" },
+    { from: "q1", to: "q2", orthogonal: true, label: "No" },
+    { from: "q2", to: "sqlite", orthogonal: true, label: "SQLite" },
+    { from: "q2", to: "turso", orthogonal: true, label: "Turso" },
+    { from: "q2", to: "memory", orthogonal: true, label: "In-memory" },
   ]}
 />
 
@@ -44,49 +58,49 @@ RippleDB uses adapters to integrate with different runtimes, databases, and ORMs
 <Diagram
   height={180}
   nodes={[
-    { id: 'q', x: 140, y: 10, label: 'Using db-drizzle?' },
-    { id: 'drizzle', x: 20, y: 110, label: 'materialize-drizzle' },
-    { id: 'db', x: 280, y: 110, label: 'materialize-db' },
+    { id: "q", x: 140, y: 10, label: "Using db-drizzle?" },
+    { id: "drizzle", x: 20, y: 110, label: "materialize-drizzle" },
+    { id: "db", x: 280, y: 110, label: "materialize-db" },
   ]}
   edges={[
-    { from: 'q', to: 'drizzle', orthogonal: true, label: 'Yes' },
-    { from: 'q', to: 'db', orthogonal: true, label: 'No' },
+    { from: "q", to: "drizzle", orthogonal: true, label: "Yes" },
+    { from: "q", to: "db", orthogonal: true, label: "No" },
   ]}
 />
 
 ## Quick Reference
 
-| Adapter | Best For | Sync/Async | Notes |
-|---------|----------|------------|-------|
-| `db-sqlite` | Local servers, Electron, tests | Sync | Uses `better-sqlite3` |
-| `db-turso` | Edge deployments, serverless | Async | Uses `@libsql/client` |
-| `db-drizzle` | Existing Drizzle projects | Both | Database-agnostic |
-| `db-memory` | Unit tests | Sync | No persistence |
-| `store-memory` | Unit tests | Sync | Client truth store, no persistence |
-| `store-sqlite` | Production client apps | Sync | Persistent, SQL WHERE clauses |
-| `materialize-db` | Raw SQL projects | Both | Works with db-sqlite, db-turso |
-| `materialize-drizzle` | Drizzle projects | Both | Type-safe queries |
+| Adapter               | Best For                       | Sync/Async | Notes                              |
+| --------------------- | ------------------------------ | ---------- | ---------------------------------- |
+| `db-sqlite`           | Local servers, Electron, tests | Sync       | Uses `better-sqlite3`              |
+| `db-turso`            | Edge deployments, serverless   | Async      | Uses `@libsql/client`              |
+| `db-drizzle`          | Existing Drizzle projects      | Both       | Database-agnostic                  |
+| `db-memory`           | Unit tests                     | Sync       | No persistence                     |
+| `store-memory`        | Unit tests                     | Sync       | Client truth store, no persistence |
+| `store-sqlite`        | Production client apps         | Sync       | Persistent, SQL WHERE clauses      |
+| `materialize-db`      | Raw SQL projects               | Both       | Works with db-sqlite, db-turso     |
+| `materialize-drizzle` | Drizzle projects               | Both       | Type-safe queries                  |
 
 ## Database Adapters
 
 <Cards>
-  <Card 
-    title="db-sqlite" 
+  <Card
+    title="db-sqlite"
     description="Production-ready SQLite adapter using better-sqlite3"
     href="/docs/adapters/db-sqlite"
   />
-  <Card 
-    title="db-turso" 
+  <Card
+    title="db-turso"
     description="Edge-ready adapter for Turso and libSQL"
     href="/docs/adapters/db-turso"
   />
-  <Card 
-    title="db-drizzle" 
+  <Card
+    title="db-drizzle"
     description="Database-agnostic adapter using Drizzle ORM"
     href="/docs/adapters/db-drizzle"
   />
-  <Card 
-    title="db-memory" 
+  <Card
+    title="db-memory"
     description="In-memory adapter for testing"
     href="/docs/adapters/db-memory"
   />
@@ -95,13 +109,13 @@ RippleDB uses adapters to integrate with different runtimes, databases, and ORMs
 ## Materializers
 
 <Cards>
-  <Card 
-    title="materialize-db" 
+  <Card
+    title="materialize-db"
     description="SQL-based materializer for raw SQL projects"
     href="/docs/adapters/materialize-db"
   />
-  <Card 
-    title="materialize-drizzle" 
+  <Card
+    title="materialize-drizzle"
     description="Type-safe materializer using Drizzle schemas"
     href="/docs/adapters/materialize-drizzle"
   />
@@ -109,7 +123,7 @@ RippleDB uses adapters to integrate with different runtimes, databases, and ORMs
 
 ## Materialization
 
-Materialization is how *you, the app developer*, get a fast “current state” view of your data at all times.
+Materialization is how _you, the app developer_, get a fast “current state” view of your data at all times.
 
 RippleDB stores an **append-only change log**. That log is great for sync, but you usually don’t want to replay changes on every read. A materializer incrementally applies incoming changes into your **domain tables** (a live snapshot), so your application can query current rows efficiently.
 
@@ -166,16 +180,18 @@ Bindings wire RippleDB's `DbEvent`s to UI cache invalidation. When your Store ap
 ## Pairing Guide
 
 <Callout type="info">
-These are the **supported pairings** we test and guarantee (especially around atomicity/transactions).
-Other combinations can be made to work, but you may need custom wiring to ensure the Db adapter and materializer share the same transaction/connection semantics.
+  These are the **supported pairings** we test and guarantee (especially around
+  atomicity/transactions). Other combinations can be made to work, but you may
+  need custom wiring to ensure the Db adapter and materializer share the same
+  transaction/connection semantics.
 </Callout>
 
 | Database Adapter | Recommended Materializer |
-|------------------|--------------------------|
-| `db-sqlite` | `materialize-db` |
-| `db-turso` | `materialize-db` |
-| `db-drizzle` | `materialize-drizzle` |
-| `db-memory` | Custom or none |
+| ---------------- | ------------------------ |
+| `db-sqlite`      | `materialize-db`         |
+| `db-turso`       | `materialize-db`         |
+| `db-drizzle`     | `materialize-drizzle`    |
+| `db-memory`      | Custom or none           |
 
 ### Why These Pairings?
 
@@ -212,7 +228,9 @@ Atomicity prevents “half-applied” state, which is one of the hardest classes
 Keeping log + materialized state in one transaction makes failures safe: either the whole change is visible everywhere, or it’s as if it never happened.
 
 <Callout type="warning">
-With `db-drizzle`, set `isSync: true` for synchronous drivers like `better-sqlite3` to ensure proper transaction handling. See the [db-drizzle docs](/docs/adapters/db-drizzle#issync-flag) for details.
+  With `db-drizzle`, set `isSync: true` for synchronous drivers like
+  `better-sqlite3` to ensure proper transaction handling. See the [db-drizzle
+  docs](/docs/adapters/db-drizzle#issync-flag) for details.
 </Callout>
 
 ## Custom Adapters
@@ -222,7 +240,10 @@ You can implement your own adapters by following the `Db` interface:
 ```ts
 interface Db<S extends RippleSchema> {
   append(stream: string, changes: Change<S>[]): Promise<{ accepted: number }>;
-  pull(stream: string, cursor: number | null): Promise<{ changes: Change<S>[]; cursor: number }>;
+  pull(
+    stream: string,
+    cursor: number | null,
+  ): Promise<{ changes: Change<S>[]; cursor: number }>;
   close(): void;
 }
 ```

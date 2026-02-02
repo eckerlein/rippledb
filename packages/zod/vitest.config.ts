@@ -1,12 +1,12 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    pool: 'threads',
+    pool: "threads",
     passWithNoTests: true,
     typecheck: {
       enabled: true,
-      include: ['**/*.test-d.ts'],
+      include: ["**/*.test-d.ts"],
     },
   },
 });

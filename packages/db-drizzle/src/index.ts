@@ -1,4 +1,9 @@
-import type { Change, RippleSchema, SchemaDescriptor } from '@rippledb/core';
+import type { Change, RippleSchema, SchemaDescriptor } from "@rippledb/core";
+import { applyChangeToState } from "@rippledb/materialize-core";
+import type {
+  MaterializerAdapter,
+  MaterializerFactory,
+} from "@rippledb/materialize-core";
 import type {
   AppendRequest,
   AppendResult,
@@ -6,10 +11,8 @@ import type {
   Db,
   PullRequest,
   PullResponse,
-} from '@rippledb/server';
-import { applyChangeToState } from '@rippledb/materialize-core';
-import type { MaterializerFactory, MaterializerAdapter } from '@rippledb/materialize-core';
-import { and, eq, gt, asc } from 'drizzle-orm';
+} from "@rippledb/server";
+import { and, asc, eq, gt } from "drizzle-orm";
 
 // ============================================================================
 // Types
@@ -57,10 +60,30 @@ export type TagsRow = {
  * Functions can return sync or Promise depending on the database driver.
  */
 export type DrizzleMaterializerExecutor<TDb> = {
-  loadTags(db: TDb, entity: string, id: string): TagsRow | null | Promise<TagsRow | null>;
-  saveTags(db: TDb, entity: string, id: string, data: unknown, tags: string[]): void | Promise<void>;
-  removeTags(db: TDb, entity: string, id: string, deletedTag: string): void | Promise<void>;
-  saveEntity?(db: TDb, entity: string, id: string, values: Record<string, unknown>): void | Promise<void>;
+  loadTags(
+    db: TDb,
+    entity: string,
+    id: string,
+  ): TagsRow | null | Promise<TagsRow | null>;
+  saveTags(
+    db: TDb,
+    entity: string,
+    id: string,
+    data: unknown,
+    tags: string[],
+  ): void | Promise<void>;
+  removeTags(
+    db: TDb,
+    entity: string,
+    id: string,
+    deletedTag: string,
+  ): void | Promise<void>;
+  saveEntity?(
+    db: TDb,
+    entity: string,
+    id: string,
+    values: Record<string, unknown>,
+  ): void | Promise<void>;
   removeEntity?(db: TDb, entity: string, id: string): void | Promise<void>;
 };
 
@@ -201,7 +224,9 @@ type DrizzleClient<TTable> = {
   select: () => SelectChain<TTable>;
   insert: (table: TTable) => InsertChain;
   update: (table: TTable) => UpdateChain;
-  transaction: <T>(fn: (tx: DrizzleClient<TTable>) => T | Promise<T>) => T | Promise<T>;
+  transaction: <T>(
+    fn: (tx: DrizzleClient<TTable>) => T | Promise<T>,
+  ) => T | Promise<T>;
 };
 
 // ============================================================================
@@ -306,7 +331,7 @@ async function runInsertReturning(query: QueryResult): Promise<unknown | null> {
   }
   if (query.execute) {
     const result = await query.execute();
-    return Array.isArray(result) ? result[0] ?? null : null;
+    return Array.isArray(result) ? (result[0] ?? null) : null;
   }
   return null;
 }
@@ -379,12 +404,11 @@ export class DrizzleDb<
   S extends RippleSchema = RippleSchema,
   TDb = unknown,
   TTable extends DrizzleTable = DrizzleTable,
-> implements Db<S>
-{
+> implements Db<S> {
   private db: TDb;
   private changesTable: ChangesTableColumns<TTable>;
   private idempotencyTable: IdempotencyTableColumns<TTable>;
-  private materializerFactory: DrizzleDbOptions<S, TDb, TTable>['materializer'];
+  private materializerFactory: DrizzleDbOptions<S, TDb, TTable>["materializer"];
   private materializer: MaterializerAdapter<S, TDb> | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private schema: SchemaDescriptor<any>;
@@ -392,15 +416,15 @@ export class DrizzleDb<
 
   /**
    * Create a new DrizzleDb instance.
-   * 
+   *
    * Note: DrizzleDb does not create tables automatically.
    * Run Drizzle Kit migrations before creating the instance.
-   * 
+   *
    * @example
    * ```ts
    * // Run migrations first
    * await migrate(drizzleDb, { migrationsFolder: './migrations' });
-   * 
+   *
    * // Then create DrizzleDb (tables already exist)
    * const rippleDb = new DrizzleDb({ ... });
    * ```
@@ -417,9 +441,16 @@ export class DrizzleDb<
     // Call factory with this.db for initialization
     // Factory returns adapter directly (ensureTagsTable runs during factory execution if needed)
     if (this.materializerFactory) {
-      const factory = this.materializerFactory as MaterializerFactory<TDb, S, MaterializerAdapter<S, TDb>>;
+      const factory = this.materializerFactory as MaterializerFactory<
+        TDb,
+        S,
+        MaterializerAdapter<S, TDb>
+      >;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ctx: { db: TDb; schema: SchemaDescriptor<any> } = { db: this.db, schema: this.schema };
+      const ctx: { db: TDb; schema: SchemaDescriptor<any> } = {
+        db: this.db,
+        schema: this.schema,
+      };
       this.materializer = factory(ctx);
     }
   }
@@ -445,7 +476,10 @@ export class DrizzleDb<
             .where(
               and(
                 eq(this.idempotencyTable.stream as never, req.stream),
-                eq(this.idempotencyTable.idempotency_key as never, req.idempotencyKey),
+                eq(
+                  this.idempotencyTable.idempotency_key as never,
+                  req.idempotencyKey,
+                ),
               ),
             )
             .limit(1),
@@ -474,9 +508,15 @@ export class DrizzleDb<
               stream: req.stream,
               change_json: JSON.stringify(change),
             } as Record<string, unknown>)
-            .returning({ seq: this.changesTable.seq } as Record<string, unknown>),
+            .returning({ seq: this.changesTable.seq } as Record<
+              string,
+              unknown
+            >),
         );
-        if (inserted && typeof (inserted as Record<string, unknown>).seq === 'number') {
+        if (
+          inserted &&
+          typeof (inserted as Record<string, unknown>).seq === "number"
+        ) {
           lastSeq = (inserted as Record<string, unknown>).seq as number;
         }
       }
@@ -490,7 +530,10 @@ export class DrizzleDb<
             .where(
               and(
                 eq(this.idempotencyTable.stream as never, req.stream),
-                eq(this.idempotencyTable.idempotency_key as never, req.idempotencyKey),
+                eq(
+                  this.idempotencyTable.idempotency_key as never,
+                  req.idempotencyKey,
+                ),
               ),
             ),
         );
@@ -503,24 +546,44 @@ export class DrizzleDb<
       if (this.materializer) {
         const txDb = tx as TDb;
         for (const change of req.changes) {
-          const currentResult = this.materializer.load(txDb, change.entity, change.entityId);
+          const currentResult = this.materializer.load(
+            txDb,
+            change.entity,
+            change.entityId,
+          );
           // In sync mode, materializer should return synchronously
           if (currentResult instanceof Promise) {
-            throw new Error('Materializer.load() cannot return Promise in sync mode');
+            throw new Error(
+              "Materializer.load() cannot return Promise in sync mode",
+            );
           }
           const current = currentResult;
           const result = applyChangeToState(current, change);
 
           if (result.changed) {
             if (result.deleted) {
-              const removeResult = this.materializer.remove(txDb, change.entity, change.entityId, result.state);
+              const removeResult = this.materializer.remove(
+                txDb,
+                change.entity,
+                change.entityId,
+                result.state,
+              );
               if (removeResult instanceof Promise) {
-                throw new Error('Materializer.remove() cannot return Promise in sync mode');
+                throw new Error(
+                  "Materializer.remove() cannot return Promise in sync mode",
+                );
               }
             } else {
-              const saveResult = this.materializer.save(txDb, change.entity, change.entityId, result.state);
+              const saveResult = this.materializer.save(
+                txDb,
+                change.entity,
+                change.entityId,
+                result.state,
+              );
               if (saveResult instanceof Promise) {
-                throw new Error('Materializer.save() cannot return Promise in sync mode');
+                throw new Error(
+                  "Materializer.save() cannot return Promise in sync mode",
+                );
               }
             }
           }
@@ -547,7 +610,10 @@ export class DrizzleDb<
             .where(
               and(
                 eq(this.idempotencyTable.stream as never, req.stream),
-                eq(this.idempotencyTable.idempotency_key as never, req.idempotencyKey),
+                eq(
+                  this.idempotencyTable.idempotency_key as never,
+                  req.idempotencyKey,
+                ),
               ),
             )
             .limit(1),
@@ -576,9 +642,15 @@ export class DrizzleDb<
               stream: req.stream,
               change_json: JSON.stringify(change),
             } as Record<string, unknown>)
-            .returning({ seq: this.changesTable.seq } as Record<string, unknown>),
+            .returning({ seq: this.changesTable.seq } as Record<
+              string,
+              unknown
+            >),
         );
-        if (inserted && typeof (inserted as Record<string, unknown>).seq === 'number') {
+        if (
+          inserted &&
+          typeof (inserted as Record<string, unknown>).seq === "number"
+        ) {
           lastSeq = (inserted as Record<string, unknown>).seq as number;
         }
       }
@@ -592,7 +664,10 @@ export class DrizzleDb<
             .where(
               and(
                 eq(this.idempotencyTable.stream as never, req.stream),
-                eq(this.idempotencyTable.idempotency_key as never, req.idempotencyKey),
+                eq(
+                  this.idempotencyTable.idempotency_key as never,
+                  req.idempotencyKey,
+                ),
               ),
             ),
         );
@@ -604,14 +679,28 @@ export class DrizzleDb<
       if (this.materializer) {
         const txDb = tx as TDb;
         for (const change of req.changes) {
-          const current = await this.materializer.load(txDb, change.entity, change.entityId);
+          const current = await this.materializer.load(
+            txDb,
+            change.entity,
+            change.entityId,
+          );
           const result = applyChangeToState(current, change);
 
           if (result.changed) {
             if (result.deleted) {
-              await this.materializer.remove(txDb, change.entity, change.entityId, result.state);
+              await this.materializer.remove(
+                txDb,
+                change.entity,
+                change.entityId,
+                result.state,
+              );
             } else {
-              await this.materializer.save(txDb, change.entity, change.entityId, result.state);
+              await this.materializer.save(
+                txDb,
+                change.entity,
+                change.entityId,
+                result.state,
+              );
             }
           }
         }
@@ -644,7 +733,9 @@ export class DrizzleDb<
     const rows = this.isSync ? loadRowsSync(query) : await loadRows(query);
 
     type ChangeRow = { seq: number; change_json: string };
-    const changes = rows.map((row) => JSON.parse((row as ChangeRow).change_json) as Change<S>);
+    const changes = rows.map(
+      (row) => JSON.parse((row as ChangeRow).change_json) as Change<S>,
+    );
     const last = rows[rows.length - 1] as ChangeRow | undefined;
 
     return {

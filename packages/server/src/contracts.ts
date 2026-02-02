@@ -1,4 +1,4 @@
-import type { Change, RippleSchema, Hlc } from '@rippledb/core';
+import type { Change, Hlc, RippleSchema } from "@rippledb/core";
 
 export type Cursor = string;
 
@@ -39,4 +39,3 @@ export interface Db<S extends RippleSchema = RippleSchema> {
   append(req: AppendRequest<S>): Promise<AppendResult>;
   pull(req: PullRequest): Promise<PullResponse<S>>;
 }
-

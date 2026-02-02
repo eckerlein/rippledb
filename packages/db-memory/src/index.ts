@@ -1,5 +1,12 @@
-import type { Change, RippleSchema } from '@rippledb/core';
-import type { AppendRequest, AppendResult, Cursor, Db, PullRequest, PullResponse } from '@rippledb/server';
+import type { Change, RippleSchema } from "@rippledb/core";
+import type {
+  AppendRequest,
+  AppendResult,
+  Cursor,
+  Db,
+  PullRequest,
+  PullResponse,
+} from "@rippledb/server";
 
 type Entry<S extends RippleSchema> = {
   seq: number;
@@ -74,4 +81,3 @@ export class MemoryDb<S extends RippleSchema = RippleSchema> implements Db<S> {
     return st;
   }
 }
-

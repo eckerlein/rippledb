@@ -1,9 +1,16 @@
-import type { RippleSchema, Change } from '@rippledb/core';
-import type { Remote } from '@rippledb/client';
+import type { Remote } from "@rippledb/client";
+import type { Change, RippleSchema } from "@rippledb/core";
 
 type PullInput = { stream: string; cursor: string | null; limit?: number };
-type PullOutput<S extends RippleSchema> = { changes: Change<S>[]; nextCursor: string | null };
-type AppendInput<S extends RippleSchema> = { stream: string; idempotencyKey?: string; changes: Change<S>[] };
+type PullOutput<S extends RippleSchema> = {
+  changes: Change<S>[];
+  nextCursor: string | null;
+};
+type AppendInput<S extends RippleSchema> = {
+  stream: string;
+  idempotencyKey?: string;
+  changes: Change<S>[];
+};
 type AppendOutput = { accepted: number };
 
 export type TrpcRemoteOptions<S extends RippleSchema = RippleSchema> = {

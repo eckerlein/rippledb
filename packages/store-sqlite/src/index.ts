@@ -1,10 +1,18 @@
-import Database from 'better-sqlite3';
-import type { Change, EntityName, Hlc, SchemaDescriptor, InferSchema } from '@rippledb/core';
-import { compareHlc } from '@rippledb/core';
-import type { DbEvent, Store } from '@rippledb/client';
+import type { DbEvent, Store } from "@rippledb/client";
+import type {
+  Change,
+  EntityName,
+  Hlc,
+  InferSchema,
+  SchemaDescriptor,
+} from "@rippledb/core";
+import { compareHlc } from "@rippledb/core";
+import Database from "better-sqlite3";
 
+export type SqliteStoreOptions<
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type SqliteStoreOptions<D extends SchemaDescriptor<any> = SchemaDescriptor<any>> = {
+  D extends SchemaDescriptor<any> = SchemaDescriptor<any>,
+> = {
   /**
    * SQLite database file path or ':memory:' for in-memory database.
    */
@@ -34,7 +42,9 @@ export type SqliteStoreOptions<D extends SchemaDescriptor<any> = SchemaDescripto
    * Optional field mapping from schema field names to database column names.
    * If omitted, field names are used as column names.
    */
-  fieldMap?: Partial<Record<EntityName<InferSchema<D>>, Record<string, string>>>;
+  fieldMap?: Partial<
+    Record<EntityName<InferSchema<D>>, Record<string, string>>
+  >;
 };
 
 type TagsRow = {
@@ -59,55 +69,68 @@ function stringifyHlc(hlc: Hlc | null): string | null {
   return JSON.stringify(hlc);
 }
 
-function fieldTypeToSqlite(field: { _type: string; _optional?: boolean }): string {
+function fieldTypeToSqlite(field: {
+  _type: string;
+  _optional?: boolean;
+}): string {
   switch (field._type) {
-    case 'string':
-    case 'enum':
-      return 'TEXT';
-    case 'number':
-      return 'INTEGER';
-    case 'boolean':
-      return 'INTEGER'; // SQLite uses INTEGER for booleans (0/1)
+    case "string":
+    case "enum":
+      return "TEXT";
+    case "number":
+      return "INTEGER";
+    case "boolean":
+      return "INTEGER"; // SQLite uses INTEGER for booleans (0/1)
     default:
-      return 'TEXT'; // Default to TEXT for unknown types
+      return "TEXT"; // Default to TEXT for unknown types
   }
 }
 
 function convertValueForSqlite(value: unknown, fieldType: string): unknown {
-  if (fieldType === 'boolean') {
+  if (fieldType === "boolean") {
     return value === true ? 1 : 0;
   }
   return value;
 }
 
+export class SqliteStore<
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>> implements Store<InferSchema<D>, string> {
+  D extends SchemaDescriptor<any> = SchemaDescriptor<any>,
+> implements Store<InferSchema<D>, string> {
   private db: Database.Database;
   private ownsDb: boolean;
   private subscribers = new Set<(event: DbEvent<InferSchema<D>>) => void>();
   private tagsTable: string;
   private loadTags: Database.Statement<[string, string], TagsRow>;
-  private saveTags: Database.Statement<[string, string, string, string], Database.RunResult>;
-  private removeTags: Database.Statement<[string, string, string, string, string | null], Database.RunResult>;
+  private saveTags: Database.Statement<
+    [string, string, string, string],
+    Database.RunResult
+  >;
+  private removeTags: Database.Statement<
+    [string, string, string, string, string | null],
+    Database.RunResult
+  >;
   private entityTableCache = new Set<string>();
   private schema: D;
-  private fieldMap?: Partial<Record<EntityName<InferSchema<D>>, Record<string, string>>>;
+  private fieldMap?: Partial<
+    Record<EntityName<InferSchema<D>>, Record<string, string>>
+  >;
 
   constructor(opts: SqliteStoreOptions<D>) {
     if (opts.db) {
       this.db = opts.db;
       this.ownsDb = false;
     } else {
-      this.db = new Database(opts.filename ?? ':memory:');
+      this.db = new Database(opts.filename ?? ":memory:");
       this.ownsDb = true;
 
       // Apply pragmas when we create the database
-      for (const pragma of opts.pragmas ?? ['journal_mode = WAL']) {
+      for (const pragma of opts.pragmas ?? ["journal_mode = WAL"]) {
         this.db.pragma(pragma);
       }
     }
 
-    this.tagsTable = opts.tagsTable ?? 'ripple_tags';
+    this.tagsTable = opts.tagsTable ?? "ripple_tags";
     this.schema = opts.schema;
     this.fieldMap = opts.fieldMap;
 
@@ -126,10 +149,14 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
 
     // Prepare statements for tags table operations
     this.loadTags = this.db.prepare(
-      `SELECT data, tags, deleted, deleted_tag FROM ${this.escapeIdentifier(this.tagsTable)} WHERE entity = ? AND id = ?`,
+      `SELECT data, tags, deleted, deleted_tag FROM ${this.escapeIdentifier(
+        this.tagsTable,
+      )} WHERE entity = ? AND id = ?`,
     );
     this.saveTags = this.db.prepare(
-      `INSERT INTO ${this.escapeIdentifier(this.tagsTable)} (entity, id, data, tags, deleted, deleted_tag)
+      `INSERT INTO ${this.escapeIdentifier(
+        this.tagsTable,
+      )} (entity, id, data, tags, deleted, deleted_tag)
        VALUES (?, ?, ?, ?, 0, NULL)
        ON CONFLICT(entity, id) DO UPDATE SET
          data = excluded.data,
@@ -138,7 +165,9 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
          deleted_tag = NULL`,
     );
     this.removeTags = this.db.prepare(
-      `INSERT INTO ${this.escapeIdentifier(this.tagsTable)} (entity, id, data, tags, deleted, deleted_tag)
+      `INSERT INTO ${this.escapeIdentifier(
+        this.tagsTable,
+      )} (entity, id, data, tags, deleted, deleted_tag)
        VALUES (?, ?, ?, ?, 1, ?)
        ON CONFLICT(entity, id) DO UPDATE SET
          data = excluded.data,
@@ -171,20 +200,24 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
 
     // Build column definitions
     // Always add 'id' as primary key (even if schema has it, we use it as PK)
-    const columns: string[] = ['id TEXT PRIMARY KEY'];
+    const columns: string[] = ["id TEXT PRIMARY KEY"];
     for (const field of fields) {
       // Skip 'id' field from schema since we already added it as PK
-      if (field === 'id') continue;
+      if (field === "id") continue;
       const fieldDesc = this.schema.getFieldDescriptor(entity, field);
-      if (!fieldDesc || !('_type' in fieldDesc)) continue;
-      const columnName = this.escapeIdentifier(this.getColumnName(entity, field));
+      if (!fieldDesc || !("_type" in fieldDesc)) continue;
+      const columnName = this.escapeIdentifier(
+        this.getColumnName(entity, field),
+      );
       const sqlType = fieldTypeToSqlite(fieldDesc);
-      const nullable = fieldDesc._optional ? '' : ' NOT NULL';
+      const nullable = fieldDesc._optional ? "" : " NOT NULL";
       columns.push(`${columnName} ${sqlType}${nullable}`);
     }
-    columns.push('deleted INTEGER NOT NULL DEFAULT 0');
+    columns.push("deleted INTEGER NOT NULL DEFAULT 0");
 
-    this.db.exec(`CREATE TABLE IF NOT EXISTS ${entityTableName} (${columns.join(', ')})`);
+    this.db.exec(
+      `CREATE TABLE IF NOT EXISTS ${entityTableName} (${columns.join(", ")})`,
+    );
 
     this.entityTableCache.add(entity);
   }
@@ -204,7 +237,10 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
         const entityTableName = this.escapeIdentifier(change.entity);
 
         // Load existing tags/metadata
-        const existingTags = this.loadTags.get(change.entity, change.entityId) as TagsRow | undefined;
+        const existingTags = this.loadTags.get(
+          change.entity,
+          change.entityId,
+        ) as TagsRow | undefined;
 
         let dataJson: string;
         let tagsJson: string;
@@ -217,8 +253,8 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
           deleted = existingTags.deleted;
           deletedTag = existingTags.deletedTag;
         } else {
-          dataJson = '{}';
-          tagsJson = '{}';
+          dataJson = "{}";
+          tagsJson = "{}";
           deleted = 0;
           deletedTag = null;
         }
@@ -227,13 +263,19 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
         const tags = JSON.parse(tagsJson) as Record<string, Hlc>;
         const parsedDeletedTag = parseHlc(deletedTag);
 
-        if (change.kind === 'delete') {
+        if (change.kind === "delete") {
           if (isNewer(change.hlc, parsedDeletedTag)) {
             const wasDeleted = deleted === 1;
             deleted = 1;
             deletedTag = stringifyHlc(change.hlc);
             // Update tags table
-            this.removeTags.run(change.entity, change.entityId, dataJson, tagsJson, deletedTag);
+            this.removeTags.run(
+              change.entity,
+              change.entityId,
+              dataJson,
+              tagsJson,
+              deletedTag,
+            );
             // Update domain table
             const updateDomainStmt = this.db.prepare(
               `UPDATE ${entityTableName} SET deleted = ? WHERE id = ?`,
@@ -241,7 +283,7 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
             updateDomainStmt.run(deleted, change.entityId);
             events.push({
               entity: change.entity,
-              kind: wasDeleted ? 'update' : 'delete',
+              kind: wasDeleted ? "update" : "delete",
               id: change.entityId,
             });
           }
@@ -250,7 +292,8 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
 
         // Handle upsert
         let changed = false;
-        const changeTags = (change.tags as Record<string, Hlc | undefined>) || {};
+        const changeTags =
+          (change.tags as Record<string, Hlc | undefined>) || {};
         const patch = (change.patch as Record<string, unknown>) || {};
 
         for (const [field, value] of Object.entries(patch)) {
@@ -288,8 +331,12 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
           for (const field of fields) {
             const columnName = this.getColumnName(change.entity, field);
             const value = values[field];
-            const fieldDesc = this.schema.getFieldDescriptor(change.entity, field);
-            const sqlType = (fieldDesc && '_type' in fieldDesc) ? fieldDesc._type : 'string';
+            const fieldDesc = this.schema.getFieldDescriptor(
+              change.entity,
+              field,
+            );
+            const sqlType =
+              fieldDesc && "_type" in fieldDesc ? fieldDesc._type : "string";
             const convertedValue = convertValueForSqlite(value, sqlType);
 
             columns.push(this.escapeIdentifier(columnName));
@@ -298,17 +345,23 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
           }
 
           const upsertDomainStmt = this.db.prepare(
-            `INSERT INTO ${entityTableName} (id, ${columns.join(', ')}, deleted)
-             VALUES (?, ${columns.map(() => '?').join(', ')}, ?)
+            `INSERT INTO ${entityTableName} (id, ${columns.join(", ")}, deleted)
+             VALUES (?, ${columns.map(() => "?").join(", ")}, ?)
              ON CONFLICT(id) DO UPDATE SET
-               ${updates.join(', ')}, deleted = ?`,
+               ${updates.join(", ")}, deleted = ?`,
           );
-          upsertDomainStmt.run(change.entityId, ...columnValues, deleted, ...columnValues, deleted);
+          upsertDomainStmt.run(
+            change.entityId,
+            ...columnValues,
+            deleted,
+            ...columnValues,
+            deleted,
+          );
 
           const isInsert = !existingTags;
           events.push({
             entity: change.entity,
-            kind: isInsert ? 'insert' : wasDeleted ? 'insert' : 'update',
+            kind: isInsert ? "insert" : wasDeleted ? "insert" : "update",
             id: change.entityId,
           });
         }
@@ -323,34 +376,45 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
     }
   }
 
-  async getRow<E extends EntityName<InferSchema<D>>>(entity: E, id: string): Promise<InferSchema<D>[E] | null> {
+  async getRow<E extends EntityName<InferSchema<D>>>(
+    entity: E,
+    id: string,
+  ): Promise<InferSchema<D>[E] | null> {
     this.ensureEntityTable(entity);
     const entityTableName = this.escapeIdentifier(entity);
 
     // Read from proper columns
     const fields = this.schema.getFields(entity);
-    const columns = fields.map((f) => this.escapeIdentifier(this.getColumnName(entity, f)));
+    const columns = fields.map((f) =>
+      this.escapeIdentifier(this.getColumnName(entity, f)),
+    );
     const stmt = this.db.prepare(
-      `SELECT ${columns.join(', ')}, deleted FROM ${entityTableName} WHERE id = ?`,
+      `SELECT ${columns.join(
+        ", ",
+      )}, deleted FROM ${entityTableName} WHERE id = ?`,
     );
     const row = stmt.get(id) as Record<string, unknown> | undefined;
     if (!row || (row.deleted as number) === 1) return null;
 
-      const result = {} as InferSchema<D>[E];
-      for (const field of fields) {
-        const columnName = this.getColumnName(entity, field);
-        let value = row[columnName];
-        const fieldDesc = this.schema.getFieldDescriptor(entity, field);
-        // Convert boolean back from integer
-        if (fieldDesc && '_type' in fieldDesc && fieldDesc._type === 'boolean') {
-          value = value === 1;
-        }
-        result[field as keyof InferSchema<D>[E]] = value as InferSchema<D>[E][keyof InferSchema<D>[E]];
+    const result = {} as InferSchema<D>[E];
+    for (const field of fields) {
+      const columnName = this.getColumnName(entity, field);
+      let value = row[columnName];
+      const fieldDesc = this.schema.getFieldDescriptor(entity, field);
+      // Convert boolean back from integer
+      if (fieldDesc && "_type" in fieldDesc && fieldDesc._type === "boolean") {
+        value = value === 1;
       }
-      return result;
+      result[field as keyof InferSchema<D>[E]] =
+        value as InferSchema<D>[E][keyof InferSchema<D>[E]];
+    }
+    return result;
   }
 
-  async getRows<E extends EntityName<InferSchema<D>>>(entity: E, ids: string[]): Promise<Map<string, InferSchema<D>[E]>> {
+  async getRows<E extends EntityName<InferSchema<D>>>(
+    entity: E,
+    ids: string[],
+  ): Promise<Map<string, InferSchema<D>[E]>> {
     const result = new Map<string, InferSchema<D>[E]>();
     if (ids.length === 0) return result;
 
@@ -359,28 +423,37 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
 
     // Read from proper columns
     const fields = this.schema.getFields(entity);
-    const columns = fields.map((f) => this.escapeIdentifier(this.getColumnName(entity, f)));
-    const placeholders = ids.map(() => '?').join(',');
+    const columns = fields.map((f) =>
+      this.escapeIdentifier(this.getColumnName(entity, f)),
+    );
+    const placeholders = ids.map(() => "?").join(",");
     const stmt = this.db.prepare(
-      `SELECT id, ${columns.join(', ')}, deleted FROM ${entityTableName} WHERE id IN (${placeholders}) AND deleted = 0`,
+      `SELECT id, ${columns.join(
+        ", ",
+      )}, deleted FROM ${entityTableName} WHERE id IN (${placeholders}) AND deleted = 0`,
     );
     const rows = stmt.all(...ids) as Array<Record<string, unknown>>;
 
-      for (const row of rows) {
-        const id = row.id as string;
-        const resultRow = {} as InferSchema<D>[E];
-        for (const field of fields) {
-          const columnName = this.getColumnName(entity, field);
-          let value = row[columnName];
-          const fieldDesc = this.schema.getFieldDescriptor(entity, field);
-          // Convert boolean back from integer
-          if (fieldDesc && '_type' in fieldDesc && fieldDesc._type === 'boolean') {
-            value = value === 1;
-          }
-          resultRow[field as keyof InferSchema<D>[E]] = value as InferSchema<D>[E][keyof InferSchema<D>[E]];
+    for (const row of rows) {
+      const id = row.id as string;
+      const resultRow = {} as InferSchema<D>[E];
+      for (const field of fields) {
+        const columnName = this.getColumnName(entity, field);
+        let value = row[columnName];
+        const fieldDesc = this.schema.getFieldDescriptor(entity, field);
+        // Convert boolean back from integer
+        if (
+          fieldDesc &&
+          "_type" in fieldDesc &&
+          fieldDesc._type === "boolean"
+        ) {
+          value = value === 1;
         }
-        result.set(id, resultRow);
+        resultRow[field as keyof InferSchema<D>[E]] =
+          value as InferSchema<D>[E][keyof InferSchema<D>[E]];
       }
+      result.set(id, resultRow);
+    }
 
     return result;
   }
@@ -397,7 +470,9 @@ export class SqliteStore<D extends SchemaDescriptor<any> = SchemaDescriptor<any>
    *                validate/whitelist them to prevent SQL injection.
    * @returns Array of entity objects matching the query
    */
-  async listRows(query: string): Promise<Array<InferSchema<D>[EntityName<InferSchema<D>>]>> {
+  async listRows(
+    query: string,
+  ): Promise<Array<InferSchema<D>[EntityName<InferSchema<D>>]>> {
     const rows = this.db.prepare(query).all() as Array<Record<string, unknown>>;
 
     const result: Array<InferSchema<D>[EntityName<InferSchema<D>>]> = [];

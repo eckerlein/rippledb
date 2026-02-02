@@ -1,4 +1,4 @@
-import type { RippleSchema, EntityName, MaterializerDb } from '@rippledb/core';
+import type { EntityName, MaterializerDb, RippleSchema } from "@rippledb/core";
 
 /**
  * @deprecated Use MaterializerDb from @rippledb/core instead
@@ -82,7 +82,7 @@ export type MaterializerConfigBase<S extends RippleSchema> = {
 
 /**
  * Executor for materialization operations.
- * 
+ *
  * Executors are stateless - they receive the transaction-bound database instance
  * as the first parameter to all methods. This allows executors to be created once
  * and reused across transactions.
@@ -98,7 +98,11 @@ export type MaterializerExecutor = {
    * Load tags row for a specific entity + id.
    * Receives the transaction-bound database instance as first parameter.
    */
-  loadTags: (db: MaterializerDb, entity: string, id: string) => Promise<TagsRow | null>;
+  loadTags: (
+    db: MaterializerDb,
+    entity: string,
+    id: string,
+  ) => Promise<TagsRow | null>;
 
   /**
    * Save tags row for a specific entity + id.
@@ -162,41 +166,42 @@ type DialectConfig<S extends RippleSchema> = MaterializerConfigBase<S> & {
 /**
  * Configuration when providing all custom commands.
  */
-type CustomCommandsConfig<S extends RippleSchema> = MaterializerConfigBase<S> & {
-  dialect?: never;
-  /**
-   * Custom command for loading entity state.
-   * Receives: (tagsTable) and should return command with placeholders for entity and id.
-   * The command should return columns: data, tags, deleted, deleted_tag
-   */
-  loadCommand: (tagsTable: string) => string;
+type CustomCommandsConfig<S extends RippleSchema> =
+  MaterializerConfigBase<S> & {
+    dialect?: never;
+    /**
+     * Custom command for loading entity state.
+     * Receives: (tagsTable) and should return command with placeholders for entity and id.
+     * The command should return columns: data, tags, deleted, deleted_tag
+     */
+    loadCommand: (tagsTable: string) => string;
 
-  /**
-   * Custom command for saving entity state.
-   * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson.
-   * Should handle upsert.
-   */
-  saveCommand: (tagsTable: string) => string;
+    /**
+     * Custom command for saving entity state.
+     * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson.
+     * Should handle upsert.
+     */
+    saveCommand: (tagsTable: string) => string;
 
-  /**
-   * Custom command for removing (tombstoning) entity state.
-   * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson, deletedTag.
-   * Should handle upsert with deleted flag.
-   */
-  removeCommand: (tagsTable: string) => string;
+    /**
+     * Custom command for removing (tombstoning) entity state.
+     * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson, deletedTag.
+     * Should handle upsert with deleted flag.
+     */
+    removeCommand: (tagsTable: string) => string;
 
-  /**
-   * Custom command for saving entity values to actual table columns (when fieldMap is provided).
-   * Required if fieldMap is used, optional otherwise.
-   */
-  saveEntityCommand?: (
-    tableName: string,
-    id: string,
-    columns: string[],
-    values: unknown[],
-    updates: string[],
-  ) => { sql: string; params: unknown[] };
-};
+    /**
+     * Custom command for saving entity values to actual table columns (when fieldMap is provided).
+     * Required if fieldMap is used, optional otherwise.
+     */
+    saveEntityCommand?: (
+      tableName: string,
+      id: string,
+      columns: string[],
+      values: unknown[],
+      updates: string[],
+    ) => { sql: string; params: unknown[] };
+  };
 
 /**
  * Configuration when providing a custom executor.
@@ -214,13 +219,12 @@ type ExecutorConfig<S extends RippleSchema> = MaterializerConfigBase<S> & {
  * Configuration for custom materialization adapter.
  * Either provide a dialect name OR all custom commands (loadCommand, saveCommand, removeCommand).
  */
-export type SqlMaterializerConfig<
-  S extends RippleSchema = RippleSchema,
-> = DialectConfig<S> | CustomCommandsConfig<S>;
+export type SqlMaterializerConfig<S extends RippleSchema = RippleSchema> =
+  | DialectConfig<S>
+  | CustomCommandsConfig<S>;
 
-export type CustomMaterializerConfig<
-  S extends RippleSchema = RippleSchema,
-> = ExecutorConfig<S>;
+export type CustomMaterializerConfig<S extends RippleSchema = RippleSchema> =
+  ExecutorConfig<S>;
 
 /**
  * Internal type for tags table row structure.

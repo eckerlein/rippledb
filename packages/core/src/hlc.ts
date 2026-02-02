@@ -7,7 +7,7 @@ export type ParsedHlc = {
 };
 
 export function parseHlc(hlc: Hlc): ParsedHlc {
-  const [wallMsStr, counterStr, nodeId, ...rest] = hlc.split(':');
+  const [wallMsStr, counterStr, nodeId, ...rest] = hlc.split(":");
   if (!wallMsStr || !counterStr || !nodeId || rest.length > 0) {
     throw new Error(`Invalid HLC: ${hlc}`);
   }
@@ -49,7 +49,11 @@ export function tickHlc(state: HlcState, nowMs: number): Hlc {
   } else {
     state.counter += 1;
   }
-  return formatHlc({ wallMs: state.lastWallMs, counter: state.counter, nodeId: state.nodeId });
+  return formatHlc({
+    wallMs: state.lastWallMs,
+    counter: state.counter,
+    nodeId: state.nodeId,
+  });
 }
 
 export function observeHlc(state: HlcState, remote: Hlc, nowMs: number): Hlc {
@@ -67,4 +71,3 @@ export function observeHlc(state: HlcState, remote: Hlc, nowMs: number): Hlc {
   state.counter = counter;
   return formatHlc({ wallMs: wall, counter, nodeId: state.nodeId });
 }
-

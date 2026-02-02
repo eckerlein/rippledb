@@ -1,9 +1,9 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    projects: ['packages/*/', 'tests/*/', 'apps/*/', 'examples/*/'],
+    projects: ["packages/*/", "tests/*/", "apps/*/", "examples/*/"],
     passWithNoTests: true,
-    pool: 'threads',
+    pool: "threads",
   },
 });

@@ -3,7 +3,7 @@ title: Installation
 description: Install RippleDB packages and set up your project
 ---
 
-import { Cards, Card } from 'fumadocs-ui/components/card';
+import { Cards, Card } from "fumadocs-ui/components/card";
 
 # Installation
 
@@ -13,43 +13,59 @@ RippleDB is distributed as a set of npm packages. Install what you need based on
 
 For a backend that stores changes and materializes state:
 
-<InstallCommandTabs packages={['@rippledb/core', '@rippledb/server', '@rippledb/db-sqlite', '@rippledb/materialize-db']} />
+<InstallCommandTabs
+  packages={[
+    "@rippledb/core",
+    "@rippledb/server",
+    "@rippledb/db-sqlite",
+    "@rippledb/materialize-db",
+  ]}
+/>
 
 ### Using Drizzle ORM?
 
 If you're already using Drizzle, use the Drizzle-specific packages instead:
 
-<InstallCommandTabs packages={['@rippledb/core', '@rippledb/server', '@rippledb/db-drizzle', '@rippledb/materialize-drizzle']} />
+<InstallCommandTabs
+  packages={[
+    "@rippledb/core",
+    "@rippledb/server",
+    "@rippledb/db-drizzle",
+    "@rippledb/materialize-drizzle",
+  ]}
+/>
 
 ## Client-Side Setup
 
 For a client that syncs with a RippleDB server:
 
-<InstallCommandTabs packages={['@rippledb/core', '@rippledb/client', '@rippledb/remote-http']} />
+<InstallCommandTabs
+  packages={["@rippledb/core", "@rippledb/client", "@rippledb/remote-http"]}
+/>
 
 ## Package Overview
 
-| Package | Purpose | Docs |
-|---------|---------|------|
-| `@rippledb/core` | HLC timestamps, Change types, merge logic (always required) | [/docs/reference/core](/docs/reference/core) |
-| `@rippledb/server` | Db interface and contracts for server persistence | [/docs/reference/server](/docs/reference/server) |
-| `@rippledb/client` | Client-side sync orchestration and Store contract | [/docs/reference/client](/docs/reference/client) |
-| `@rippledb/remote-http` | HTTP Remote implementation (client ↔ server sync) | [/docs/reference/remote-http](/docs/reference/remote-http) |
-| `@rippledb/remote-trpc` | tRPC Remote implementation (client ↔ server sync) | [/docs/reference/remote-trpc](/docs/reference/remote-trpc) |
-| `@rippledb/server-trpc` | tRPC router exposing `pull`/`append` procedures | [/docs/reference/server-trpc](/docs/reference/server-trpc) |
-| `@rippledb/zod` | Zod schemas for runtime validation of RippleDB payloads | [/docs/reference/zod](/docs/reference/zod) |
-| `@rippledb/db-sqlite` | SQLite adapter using better-sqlite3 | [/docs/adapters/db-sqlite](/docs/adapters/db-sqlite) |
-| `@rippledb/db-turso` | Turso/libSQL adapter | [/docs/adapters/db-turso](/docs/adapters/db-turso) |
-| `@rippledb/db-drizzle` | Database-agnostic Drizzle ORM adapter | [/docs/adapters/db-drizzle](/docs/adapters/db-drizzle) |
-| `@rippledb/db-memory` | In-memory Db adapter (tests) | [/docs/adapters/db-memory](/docs/adapters/db-memory) |
-| `@rippledb/materialize-core` | Core materialization algorithm + adapter interfaces | [/docs/adapters/materialize-core](/docs/adapters/materialize-core) |
-| `@rippledb/materialize-db` | SQL-based state materializer (raw SQL) | [/docs/adapters/materialize-db](/docs/adapters/materialize-db) |
-| `@rippledb/materialize-drizzle` | Drizzle-based state materializer (type-safe) | [/docs/adapters/materialize-drizzle](/docs/adapters/materialize-drizzle) |
-| `@rippledb/store-memory` | In-memory Store implementation (tests) | [/docs/adapters/store-memory](/docs/adapters/store-memory) |
-| `@rippledb/store-sqlite` | SQLite-based Store with persistent storage | [/docs/adapters/store-sqlite](/docs/adapters/store-sqlite) |
-| `@rippledb/bind-tanstack-query` | TanStack Query cache invalidation binding | [/docs/adapters/bind-tanstack-query](/docs/adapters/bind-tanstack-query) |
-| `@rippledb/client-controllers` | Abstract CRUD controllers with batch loading | [/docs/adapters/controllers](/docs/adapters/controllers) |
-| `@rippledb/client-query` | Final DX: controllers + TanStack Query invalidation | [/docs/reference/client-query](/docs/reference/client-query) |
+| Package                         | Purpose                                                     | Docs                                                                     |
+| ------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `@rippledb/core`                | HLC timestamps, Change types, merge logic (always required) | [/docs/reference/core](/docs/reference/core)                             |
+| `@rippledb/server`              | Db interface and contracts for server persistence           | [/docs/reference/server](/docs/reference/server)                         |
+| `@rippledb/client`              | Client-side sync orchestration and Store contract           | [/docs/reference/client](/docs/reference/client)                         |
+| `@rippledb/remote-http`         | HTTP Remote implementation (client ↔ server sync)           | [/docs/reference/remote-http](/docs/reference/remote-http)               |
+| `@rippledb/remote-trpc`         | tRPC Remote implementation (client ↔ server sync)           | [/docs/reference/remote-trpc](/docs/reference/remote-trpc)               |
+| `@rippledb/server-trpc`         | tRPC router exposing `pull`/`append` procedures             | [/docs/reference/server-trpc](/docs/reference/server-trpc)               |
+| `@rippledb/zod`                 | Zod schemas for runtime validation of RippleDB payloads     | [/docs/reference/zod](/docs/reference/zod)                               |
+| `@rippledb/db-sqlite`           | SQLite adapter using better-sqlite3                         | [/docs/adapters/db-sqlite](/docs/adapters/db-sqlite)                     |
+| `@rippledb/db-turso`            | Turso/libSQL adapter                                        | [/docs/adapters/db-turso](/docs/adapters/db-turso)                       |
+| `@rippledb/db-drizzle`          | Database-agnostic Drizzle ORM adapter                       | [/docs/adapters/db-drizzle](/docs/adapters/db-drizzle)                   |
+| `@rippledb/db-memory`           | In-memory Db adapter (tests)                                | [/docs/adapters/db-memory](/docs/adapters/db-memory)                     |
+| `@rippledb/materialize-core`    | Core materialization algorithm + adapter interfaces         | [/docs/adapters/materialize-core](/docs/adapters/materialize-core)       |
+| `@rippledb/materialize-db`      | SQL-based state materializer (raw SQL)                      | [/docs/adapters/materialize-db](/docs/adapters/materialize-db)           |
+| `@rippledb/materialize-drizzle` | Drizzle-based state materializer (type-safe)                | [/docs/adapters/materialize-drizzle](/docs/adapters/materialize-drizzle) |
+| `@rippledb/store-memory`        | In-memory Store implementation (tests)                      | [/docs/adapters/store-memory](/docs/adapters/store-memory)               |
+| `@rippledb/store-sqlite`        | SQLite-based Store with persistent storage                  | [/docs/adapters/store-sqlite](/docs/adapters/store-sqlite)               |
+| `@rippledb/bind-tanstack-query` | TanStack Query cache invalidation binding                   | [/docs/adapters/bind-tanstack-query](/docs/adapters/bind-tanstack-query) |
+| `@rippledb/client-controllers`  | Abstract CRUD controllers with batch loading                | [/docs/adapters/controllers](/docs/adapters/controllers)                 |
+| `@rippledb/client-query`        | Final DX: controllers + TanStack Query invalidation         | [/docs/reference/client-query](/docs/reference/client-query)             |
 
 ## TypeScript
 
@@ -58,13 +74,13 @@ RippleDB is written in TypeScript and ships with full type definitions. No addit
 ## Next Steps
 
 <Cards>
-  <Card 
-    title="Quick Start" 
+  <Card
+    title="Quick Start"
     description="Build a working example in 5 minutes"
     href="/docs/getting-started/quick-start"
   />
-  <Card 
-    title="Core Concepts" 
+  <Card
+    title="Core Concepts"
     description="Understand the mental model behind RippleDB"
     href="/docs/getting-started/concepts"
   />

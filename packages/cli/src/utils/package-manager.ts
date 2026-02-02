@@ -1,17 +1,19 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
-export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun';
+export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
 /**
  * Detect the package manager used in a project by checking for lockfiles.
  */
-export function detectPackageManager(cwd: string = process.cwd()): PackageManager {
-  if (existsSync(join(cwd, 'pnpm-lock.yaml'))) return 'pnpm';
-  if (existsSync(join(cwd, 'yarn.lock'))) return 'yarn';
-  if (existsSync(join(cwd, 'bun.lockb'))) return 'bun';
-  if (existsSync(join(cwd, 'package-lock.json'))) return 'npm';
-  return 'npm';
+export function detectPackageManager(
+  cwd: string = process.cwd(),
+): PackageManager {
+  if (existsSync(join(cwd, "pnpm-lock.yaml"))) return "pnpm";
+  if (existsSync(join(cwd, "yarn.lock"))) return "yarn";
+  if (existsSync(join(cwd, "bun.lockb"))) return "bun";
+  if (existsSync(join(cwd, "package-lock.json"))) return "npm";
+  return "npm";
 }
 
 /**
@@ -41,10 +43,10 @@ export function getInstallCommand(
 
   return withPackageManager(
     {
-      npm: () => `npm install ${dev ? '-D ' : ''}${pkg}`,
-      pnpm: () => `pnpm add ${dev ? '-D ' : ''}${pkg}`,
-      yarn: () => `yarn add ${dev ? '-D ' : ''}${pkg}`,
-      bun: () => `bun add ${dev ? '-d ' : ''}${pkg}`,
+      npm: () => `npm install ${dev ? "-D " : ""}${pkg}`,
+      pnpm: () => `pnpm add ${dev ? "-D " : ""}${pkg}`,
+      yarn: () => `yarn add ${dev ? "-D " : ""}${pkg}`,
+      bun: () => `bun add ${dev ? "-d " : ""}${pkg}`,
     },
     cwd,
   );

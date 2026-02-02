@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
-import { DynamicCodeBlock } from 'fumadocs-ui/components/dynamic-codeblock';
-import { getInstallCommand, type PackageManager } from '@/lib/package-manager';
+import { getInstallCommand, type PackageManager } from "@/lib/package-manager";
+import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 export interface InstallCommandTabsProps {
   packages?: string | string[];
@@ -13,23 +13,30 @@ export interface InstallCommandTabsProps {
 export function InstallCommandTabs({
   packages,
   devPackages,
-  packageManagers = ['pnpm', 'npm', 'yarn'],
+  packageManagers = ["pnpm", "npm", "yarn"],
 }: InstallCommandTabsProps) {
-  const commands = packages ? getInstallCommand(packages, { dev: false }) : null;
-  const devCommands = devPackages ? getInstallCommand(devPackages, { dev: true }) : null;
+  const commands = packages
+    ? getInstallCommand(packages, { dev: false })
+    : null;
+  const devCommands = devPackages
+    ? getInstallCommand(devPackages, { dev: true })
+    : null;
 
   if (!commands && !devCommands) {
-    throw new Error('InstallCommandTabs requires at least one of packages or devPackages');
+    throw new Error(
+      "InstallCommandTabs requires at least one of packages or devPackages",
+    );
   }
 
   return (
     <Tabs items={packageManagers} groupId="package-manager">
       {packageManagers.map((pm) => {
-        const combinedCommand = commands && devCommands
-          ? `${commands[pm]}\n${devCommands[pm]}`
-          : commands
-          ? commands[pm]
-          : devCommands![pm];
+        const combinedCommand =
+          commands && devCommands
+            ? `${commands[pm]}\n${devCommands[pm]}`
+            : commands
+              ? commands[pm]
+              : devCommands![pm];
 
         return (
           <Tab key={pm} value={pm}>

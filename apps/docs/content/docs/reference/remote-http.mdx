@@ -14,16 +14,16 @@ HTTP transport implementation of the `Remote` interface. Connects clients to Rip
 ## Usage
 
 ```ts
-import { createHttpRemote } from '@rippledb/remote-http';
-import { createReplicator } from '@rippledb/client';
+import { createHttpRemote } from "@rippledb/remote-http";
+import { createReplicator } from "@rippledb/client";
 
 const remote = createHttpRemote<MySchema>({
-  baseUrl: 'https://api.example.com',
+  baseUrl: "https://api.example.com",
 });
 
 // Use with replicator
 const replicator = createReplicator({
-  stream: 'user-123',
+  stream: "user-123",
   store,
   remote,
 });
@@ -35,8 +35,8 @@ await replicator.sync();
 
 ```ts
 function createHttpRemote<S extends RippleSchema>(
-  opts: HttpRemoteOptions
-): Remote<S>
+  opts: HttpRemoteOptions,
+): Remote<S>;
 ```
 
 **Options:**
@@ -49,11 +49,11 @@ type HttpRemoteOptions = {
 };
 ```
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `baseUrl` | `string` | Server URL (trailing slash removed automatically) |
-| `fetch` | `typeof fetch?` | Custom fetch implementation (default: global `fetch`) |
-| `headers` | `Record<string, string>?` | Additional headers for all requests |
+| Option    | Type                      | Description                                           |
+| --------- | ------------------------- | ----------------------------------------------------- |
+| `baseUrl` | `string`                  | Server URL (trailing slash removed automatically)     |
+| `fetch`   | `typeof fetch?`           | Custom fetch implementation (default: global `fetch`) |
+| `headers` | `Record<string, string>?` | Additional headers for all requests                   |
 
 ## Endpoints
 
@@ -129,21 +129,21 @@ Append changes to the server.
 Here's a minimal Express server that works with the HTTP remote:
 
 ```ts
-import express from 'express';
-import { SqliteDb } from '@rippledb/db-sqlite';
+import express from "express";
+import { SqliteDb } from "@rippledb/db-sqlite";
 
 const app = express();
 app.use(express.json());
 
-const db = new SqliteDb<MySchema>({ filename: './data.db' });
+const db = new SqliteDb<MySchema>({ filename: "./data.db" });
 
-app.post('/pull', async (req, res) => {
+app.post("/pull", async (req, res) => {
   const { stream, cursor, limit } = req.body;
   const result = await db.pull({ stream, cursor, limit });
   res.json(result);
 });
 
-app.post('/append', async (req, res) => {
+app.post("/append", async (req, res) => {
   const { stream, idempotencyKey, changes } = req.body;
   const result = await db.append({ stream, idempotencyKey, changes });
   res.json(result);
@@ -158,9 +158,9 @@ Add authentication headers:
 
 ```ts
 const remote = createHttpRemote({
-  baseUrl: 'https://api.example.com',
+  baseUrl: "https://api.example.com",
   headers: {
-    'Authorization': `Bearer ${token}`,
+    Authorization: `Bearer ${token}`,
   },
 });
 ```
@@ -170,10 +170,10 @@ const remote = createHttpRemote({
 Use a custom fetch implementation (useful for testing or React Native):
 
 ```ts
-import nodeFetch from 'node-fetch';
+import nodeFetch from "node-fetch";
 
 const remote = createHttpRemote({
-  baseUrl: 'https://api.example.com',
+  baseUrl: "https://api.example.com",
   fetch: nodeFetch as unknown as typeof fetch,
 });
 ```
@@ -184,7 +184,7 @@ The remote throws on non-2xx responses:
 
 ```ts
 try {
-  await remote.pull({ stream: 'user-123', cursor: null });
+  await remote.pull({ stream: "user-123", cursor: null });
 } catch (error) {
   // error.message: "remote.pull failed: 401"
 }

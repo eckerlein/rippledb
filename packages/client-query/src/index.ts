@@ -1,22 +1,25 @@
-import type { Store } from '@rippledb/client';
+import {
+  type ListRegistry,
+  wireTanstackInvalidation,
+} from "@rippledb/bind-tanstack-query";
+import type { Store } from "@rippledb/client";
+import {
+  createEntityController,
+  type EntityController,
+} from "@rippledb/client-controllers";
 import type {
-  RippleSchema,
-  EntityName,
-  SchemaDescriptor,
   DescriptorSchema,
+  EntityName,
   InferSchema,
-} from '@rippledb/core';
-import type { QueryClient } from '@tanstack/query-core';
-import { createEntityController, type EntityController } from '@rippledb/client-controllers';
-import { wireTanstackInvalidation, type ListRegistry } from '@rippledb/bind-tanstack-query';
+  RippleSchema,
+  SchemaDescriptor,
+} from "@rippledb/core";
+import type { QueryClient } from "@tanstack/query-core";
 
 /**
  * Query helper options for registering list queries with automatic invalidation.
  */
-export type QueryOptions<
-  S extends RippleSchema = RippleSchema,
-  T = unknown,
-> = {
+export type QueryOptions<S extends RippleSchema = RippleSchema, T = unknown> = {
   /**
    * The query key prefix to invalidate (e.g. ['todos'], ['todoList']).
    */
@@ -34,12 +37,12 @@ export type QueryOptions<
 
 /**
  * Client Query API that combines controllers with TanStack Query invalidation.
- * 
+ *
  * Provides:
  * - Dynamic entity controllers (api.todos, api.users, etc.)
  * - Automatic cache invalidation
  * - Query helpers with dependency tracking
- * 
+ *
  * @example
  * ```ts
  * const api = createClientQueryApi({
@@ -48,11 +51,11 @@ export type QueryOptions<
  *   queryClient,
  *   schema: schemaDescriptor,
  * });
- * 
+ *
  * // CRUD operations
  * const todo = await api.todos.create({ title: 'Buy milk' });
  * const fetched = await api.todos.read('todo-1');
- * 
+ *
  * // Query helpers with automatic invalidation
  * const todos = await api.query({
  *   key: ['todos'],
@@ -73,12 +76,12 @@ export type ClientQueryApi<
 } & {
   /**
    * Query helper that registers a query with automatic invalidation.
-   * 
+   *
    * @param options - Query options with key, deps, and fn
    * @returns The result of the query function
    */
   query<T>(options: QueryOptions<S, T>): Promise<T>;
-  
+
   /**
    * Cleanup function to unsubscribe from invalidation events.
    */
@@ -94,28 +97,28 @@ export type CreateClientQueryApiOptions<
    * Must be typed with the inferred schema type.
    */
   store: Store<InferSchema<SchemaDescriptor<D>>, ListQuery>;
-  
+
   /**
    * The stream ID for all changes created by controllers.
    */
   stream: string;
-  
+
   /**
    * TanStack QueryClient instance.
    */
   queryClient: QueryClient;
-  
+
   /**
    * Schema descriptor for runtime entity discovery.
    */
   schema: SchemaDescriptor<D>;
-  
+
   /**
    * Optional list registry for custom query key mappings.
    * If not provided, a default registry is created from query() calls.
    */
   registry?: ListRegistry;
-  
+
   /**
    * Debounce time in milliseconds for invalidation coalescing.
    * @default 50
@@ -125,16 +128,16 @@ export type CreateClientQueryApiOptions<
 
 /**
  * Creates a Client Query API that combines controllers with TanStack Query invalidation.
- * 
+ *
  * The API dynamically creates entity controllers from the schema descriptor,
  * allowing you to use `api.todos`, `api.users`, etc. without manually creating
  * controllers for each entity.
- * 
+ *
  * @example
  * ```ts
  * import { defineSchema, s, InferSchema } from '@rippledb/core';
  * import { createClientQueryApi } from '@rippledb/client-query';
- * 
+ *
  * const schema = defineSchema({
  *   todos: {
  *     id: s.string(),
@@ -147,17 +150,17 @@ export type CreateClientQueryApiOptions<
  *     email: s.string(),
  *   },
  * });
- * 
+ *
  * type MySchema = InferSchema<typeof schema>;
  * const store = new MemoryStore<MySchema>();
- * 
+ *
  * const api = createClientQueryApi({
  *   store,
  *   stream: 'user-123',
  *   queryClient,
  *   schema,
  * });
- * 
+ *
  * // Use dynamic controllers
  * const todo = await api.todos.create({ title: 'Buy milk' });
  * const user = await api.users.read('user-1');
@@ -170,7 +173,7 @@ export function createClientQueryApi<
   options: CreateClientQueryApiOptions<D, ListQuery>,
 ): ClientQueryApi<InferSchema<SchemaDescriptor<D>>, ListQuery> {
   type S = InferSchema<SchemaDescriptor<D>>;
-  
+
   const {
     store,
     stream,
@@ -181,8 +184,11 @@ export function createClientQueryApi<
   } = options;
 
   // Create controllers for each entity dynamically
-  const controllers = {} as Record<EntityName<S>, EntityController<S, EntityName<S>, ListQuery>>;
-  
+  const controllers = {} as Record<
+    EntityName<S>,
+    EntityController<S, EntityName<S>, ListQuery>
+  >;
+
   for (const entityName of schema.entities) {
     // Cast entity name to the correct type
     const entity = entityName as EntityName<S>;
@@ -226,7 +232,7 @@ export function createClientQueryApi<
   // Create the API object with dynamic entity controllers
   const api = {
     ...controllers,
-    
+
     async query<T>(queryOptions: QueryOptions<S, T>): Promise<T> {
       registerQueryIfNeeded(queryOptions);
 
@@ -237,7 +243,7 @@ export function createClientQueryApi<
         queryFn: async () => queryOptions.fn(),
       });
     },
-    
+
     cleanup,
   } as ClientQueryApi<S, ListQuery>;
 
@@ -245,5 +251,5 @@ export function createClientQueryApi<
 }
 
 // Re-export types for convenience
-export type { EntityController } from '@rippledb/client-controllers';
-export type { ListRegistry } from '@rippledb/bind-tanstack-query';
+export type { ListRegistry } from "@rippledb/bind-tanstack-query";
+export type { EntityController } from "@rippledb/client-controllers";

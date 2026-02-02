@@ -3,7 +3,7 @@ title: "@rippledb/client"
 description: Client-side sync orchestration and Store interface
 ---
 
-import { Diagram } from '@/components/diagram';
+import { Diagram } from "@/components/diagram";
 
 # @rippledb/client
 
@@ -21,7 +21,10 @@ The contract for client-side local storage:
 interface Store<S extends RippleSchema, ListQuery = unknown> {
   applyChanges(changes: Change<S>[]): Promise<void>;
   getRow<E extends EntityName<S>>(entity: E, id: string): Promise<S[E] | null>;
-  getRows<E extends EntityName<S>>(entity: E, ids: string[]): Promise<Map<string, S[E]>>;
+  getRows<E extends EntityName<S>>(
+    entity: E,
+    ids: string[],
+  ): Promise<Map<string, S[E]>>;
   listRows(query: ListQuery): Promise<Array<S[EntityName<S>]>>;
   onEvent?(cb: (event: DbEvent<S>) => void): () => void;
 }
@@ -43,7 +46,7 @@ await store.applyChanges([
 Fetch a single entity by primary key.
 
 ```ts
-const todo = await store.getRow('todos', 'todo-1');
+const todo = await store.getRow("todos", "todo-1");
 ```
 
 ### `getRows<E>(entity: E, ids: string[]): Promise<Map<string, S[E]>>`
@@ -51,7 +54,7 @@ const todo = await store.getRow('todos', 'todo-1');
 Bulk read by primary key. Required method for efficient batch loading. Implementations should optimize this when possible (e.g., single SQL query), but can fall back to parallel `getRow` calls if needed.
 
 ```ts
-const todos = await store.getRows('todos', ['todo-1', 'todo-2']);
+const todos = await store.getRows("todos", ["todo-1", "todo-2"]);
 // Returns Map with found entities (missing/deleted ones are omitted)
 ```
 
@@ -61,7 +64,7 @@ Run an arbitrary query. Shape is store-specific.
 
 ```ts
 // Example with SQL store
-const todos = await store.listRows('SELECT * FROM todos WHERE done = 0');
+const todos = await store.listRows("SELECT * FROM todos WHERE done = 0");
 ```
 
 ### `onEvent?(cb: (event: DbEvent<S>) => void): () => void`
@@ -78,7 +81,7 @@ const unsubscribe = store.onEvent?.((event) => {
 ## DbEvent
 
 ```ts
-type DbEventKind = 'insert' | 'update' | 'delete';
+type DbEventKind = "insert" | "update" | "delete";
 
 type DbEvent<S extends RippleSchema, E extends EntityName<S>> = {
   entity: E;
@@ -153,20 +156,20 @@ const pending = outbox.drain('user-123');
 Single sync cycle: pull → apply → push.
 
 ```ts
-import { syncOnce } from '@rippledb/client';
+import { syncOnce } from "@rippledb/client";
 
 const result = await syncOnce({
-  stream: 'user-123',
+  stream: "user-123",
   store,
   remote,
   cursor: lastCursor,
   outbox,
   limit: 100,
-  idempotencyKey: 'sync-abc',
+  idempotencyKey: "sync-abc",
 });
 
-console.log(result.pulled);     // Changes pulled from server
-console.log(result.pushed);     // Changes pushed to server
+console.log(result.pulled); // Changes pulled from server
+console.log(result.pushed); // Changes pushed to server
 console.log(result.nextCursor); // Save for next sync
 ```
 
@@ -235,7 +238,7 @@ type ReplicatorOptions<S extends RippleSchema> = {
   stream: string;
   store: Store<S>;
   remote: Remote<S>;
-  outbox?: Outbox<S>;  // Default: InMemoryOutbox
+  outbox?: Outbox<S>; // Default: InMemoryOutbox
   cursor?: string | null;
   limit?: number;
   idempotencyKey?: string;
@@ -249,23 +252,50 @@ The canonical sync order is **Pull → Apply → Push**:
 <Diagram
   height={260}
   nodes={[
-    { id: 'server1', x: 20, y: 10, label: 'Server' },
-    { id: 'client', x: 260, y: 10, label: 'Client' },
-    { id: 'pull-label', relativeTo: 'server1', anchor: 'right', offset: { x: 60 }, variant: 'label', label: 'pull' },
-    { id: 'apply', x: 260, y: 100, label: 'apply changes' },
-    { id: 'outbox', x: 260, y: 180, label: 'Outbox' },
-    { id: 'server2', x: 20, y: 180, label: 'Server' },
-    { id: 'push-label', relativeTo: 'outbox', anchor: 'left', offset: { x: -60 }, variant: 'label', label: 'push' },
+    { id: "server1", x: 20, y: 10, label: "Server" },
+    { id: "client", x: 260, y: 10, label: "Client" },
+    {
+      id: "pull-label",
+      relativeTo: "server1",
+      anchor: "right",
+      offset: { x: 60 },
+      variant: "label",
+      label: "pull",
+    },
+    { id: "apply", x: 260, y: 100, label: "apply changes" },
+    { id: "outbox", x: 260, y: 180, label: "Outbox" },
+    { id: "server2", x: 20, y: 180, label: "Server" },
+    {
+      id: "push-label",
+      relativeTo: "outbox",
+      anchor: "left",
+      offset: { x: -60 },
+      variant: "label",
+      label: "push",
+    },
   ]}
   edges={[
-    { from: 'server1', to: 'client', fromSide: 'right', toSide: 'left', orthogonal: true },
-    { from: 'client', to: 'apply', orthogonal: true },
-    { from: 'apply', to: 'outbox', orthogonal: true },
-    { from: 'outbox', to: 'server2', fromSide: 'left', toSide: 'right', orthogonal: true },
+    {
+      from: "server1",
+      to: "client",
+      fromSide: "right",
+      toSide: "left",
+      orthogonal: true,
+    },
+    { from: "client", to: "apply", orthogonal: true },
+    { from: "apply", to: "outbox", orthogonal: true },
+    {
+      from: "outbox",
+      to: "server2",
+      fromSide: "left",
+      toSide: "right",
+      orthogonal: true,
+    },
   ]}
 />
 
 This ensures:
+
 1. Remote truth is incorporated first
 2. Local changes are reapplied
 3. Conflicts resolve deterministically

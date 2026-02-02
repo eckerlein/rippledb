@@ -3,7 +3,7 @@ title: materialize-db
 description: SQL-based state materializer for raw SQL projects
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Callout } from "fumadocs-ui/components/callout";
 
 # @rippledb/materialize-db
 
@@ -18,15 +18,17 @@ A SQL-based materializer that projects changes into domain tables. Works with `d
 Materialization is the process of applying changes to your domain tables so you can query them efficiently.
 
 **Without materialization:**
+
 ```sql
 -- Expensive: replay all changes to compute current state
-SELECT * FROM ripple_changes 
+SELECT * FROM ripple_changes
 WHERE entity = 'todos' AND entity_id = 'todo-1'
 ORDER BY seq;
 -- Then apply LWW in code...
 ```
 
 **With materialization:**
+
 ```sql
 -- Fast: directly query current state
 SELECT * FROM todos WHERE id = 'todo-1';
@@ -35,9 +37,9 @@ SELECT * FROM todos WHERE id = 'todo-1';
 ## Basic Usage
 
 ```ts
-import { defineSchema, s } from '@rippledb/core';
-import { SqliteDb } from '@rippledb/db-sqlite';
-import { createSyncMaterializer } from '@rippledb/materialize-db';
+import { defineSchema, s } from "@rippledb/core";
+import { SqliteDb } from "@rippledb/db-sqlite";
+import { createSyncMaterializer } from "@rippledb/materialize-db";
 
 const schema = defineSchema({
   todos: { id: s.string(), title: s.string(), done: s.boolean() },
@@ -45,18 +47,18 @@ const schema = defineSchema({
 });
 
 const db = new SqliteDb({
-  filename: './data.db',
+  filename: "./data.db",
   schema,
   materializer: ({ db, schema }) =>
     createSyncMaterializer({
       schema,
       db,
-      dialect: 'sqlite',
+      dialect: "sqlite",
       // Optional overrides:
-      tableMap: { todos: 'todos', users: 'users' },
+      tableMap: { todos: "todos", users: "users" },
       fieldMap: {
-        todos: { id: 'id', title: 'title', done: 'done' },
-        users: { id: 'id', name: 'name', email: 'email' },
+        todos: { id: "id", title: "title", done: "done" },
+        users: { id: "id", name: "name", email: "email" },
       },
     }),
 });
@@ -85,15 +87,15 @@ Built-in SQL dialect. Currently supported:
 - `'sqlite'` — For SQLite and Turso
 
 ```ts
-import { createSyncMaterializer } from '@rippledb/materialize-db';
+import { createSyncMaterializer } from "@rippledb/materialize-db";
 
 materializer: ({ db, schema }) =>
   createSyncMaterializer({
     schema,
     db,
-    dialect: 'sqlite',
-    tableMap: { todos: 'todos' },
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    dialect: "sqlite",
+    tableMap: { todos: "todos" },
+    fieldMap: { todos: { id: "id", title: "title", done: "done" } },
   });
 ```
 
@@ -104,10 +106,10 @@ If omitted, entity names are used as-is.
 
 ```ts
 const sqlConfig = {
-  dialect: 'sqlite',
+  dialect: "sqlite",
   tableMap: {
-    todos: 'todos',      // Entity 'todos' → table 'todos'
-    users: 'app_users',  // Entity 'users' → table 'app_users'
+    todos: "todos", // Entity 'todos' → table 'todos'
+    users: "app_users", // Entity 'users' → table 'app_users'
   },
 } as const;
 
@@ -123,15 +125,16 @@ materializer: ({ db, schema }) =>
 
 Maps schema field names to database column names.
 If omitted, field names are used as-is.
+
 ```ts
 const sqlConfig = {
-  dialect: 'sqlite',
-  tableMap: { todos: 'todos' },
+  dialect: "sqlite",
+  tableMap: { todos: "todos" },
   fieldMap: {
     todos: {
-      id: 'id',
-      title: 'title',
-      done: 'is_done',  // Schema field 'done' → column 'is_done'
+      id: "id",
+      title: "title",
+      done: "is_done", // Schema field 'done' → column 'is_done'
     },
   },
 } as const;
@@ -150,9 +153,9 @@ Name of the table storing entity tags/metadata. Default: `'ripple_tags'`
 
 ```ts
 const sqlConfig = {
-  dialect: 'sqlite',
-  tableMap: { todos: 'todos' },
-  tagsTable: 'my_ripple_tags',
+  dialect: "sqlite",
+  tableMap: { todos: "todos" },
+  tagsTable: "my_ripple_tags",
 } as const;
 
 materializer: ({ db, schema }) =>
@@ -184,10 +187,13 @@ CREATE TABLE ripple_tags (
 For databases not covered by built-in dialects, provide custom SQL commands:
 
 ```ts
-import { createSyncSqlExecutor, createSyncMaterializer } from '@rippledb/materialize-db';
+import {
+  createSyncSqlExecutor,
+  createSyncMaterializer,
+} from "@rippledb/materialize-db";
 
 const sqlConfig = {
-  tableMap: { todos: 'todos' },
+  tableMap: { todos: "todos" },
   loadCommand: (tagsTable) => `
     SELECT data, tags, deleted, deleted_tag 
     FROM ${tagsTable} 
@@ -231,8 +237,8 @@ materializer: ({ db, schema }) =>
   createMaterializer({
     schema,
     db,
-    tableMap: { todos: 'todos' },
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    tableMap: { todos: "todos" },
+    fieldMap: { todos: { id: "id", title: "title", done: "done" } },
     executor: {
       ensureTagsTable: async (db) => {
         // Create tags table if needed
@@ -263,25 +269,25 @@ materializer: ({ db, schema }) =>
   createSyncMaterializer({
     schema,
     db,
-    dialect: 'sqlite',
-    tagsTable: 'ripple_tags',
-    tableMap: { todos: 'todos' },
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    dialect: "sqlite",
+    tagsTable: "ripple_tags",
+    tableMap: { todos: "todos" },
+    fieldMap: { todos: { id: "id", title: "title", done: "done" } },
   });
 ```
 
 For async databases (like Turso), use `createMaterializer`:
 
 ```ts
-import { createMaterializer } from '@rippledb/materialize-db';
+import { createMaterializer } from "@rippledb/materialize-db";
 
 materializer: ({ db, schema }) =>
   createMaterializer({
     schema,
     db,
-    dialect: 'sqlite',
-    tableMap: { todos: 'todos' },
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+    dialect: "sqlite",
+    tableMap: { todos: "todos" },
+    fieldMap: { todos: { id: "id", title: "title", done: "done" } },
   });
 ```
 
