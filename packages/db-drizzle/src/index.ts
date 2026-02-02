@@ -390,6 +390,21 @@ export class DrizzleDb<
   private schema: SchemaDescriptor<any>;
   private isSync: boolean;
 
+  /**
+   * Create a new DrizzleDb instance.
+   * 
+   * Note: DrizzleDb does not create tables automatically.
+   * Run Drizzle Kit migrations before creating the instance.
+   * 
+   * @example
+   * ```ts
+   * // Run migrations first
+   * await migrate(drizzleDb, { migrationsFolder: './migrations' });
+   * 
+   * // Then create DrizzleDb (tables already exist)
+   * const rippleDb = new DrizzleDb({ ... });
+   * ```
+   */
   constructor(opts: DrizzleDbOptions<S, TDb, TTable>) {
     this.db = opts.db;
     this.changesTable = opts.changesTable;
