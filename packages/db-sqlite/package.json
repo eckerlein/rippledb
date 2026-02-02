@@ -21,7 +21,6 @@
     "better-sqlite3": "^12.4.1"
   },
   "devDependencies": {
-    "@rippledb/materialize-db": "workspace:*",
     "@rippledb/materialize-drizzle": "workspace:*",
     "@types/better-sqlite3": "^7.6.9",
     "drizzle-orm": "^0.36.4",
