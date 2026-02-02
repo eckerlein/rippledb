@@ -41,13 +41,19 @@ export type MaterializerState<
   deletedTag: Hlc | null;
 };
 
+/**
+ * Helper type to allow both sync and async return types.
+ * This makes MaterializerAdapter compatible with both sync (SQLite) and async (Turso, Drizzle) adapters.
+ */
+type MaybePromise<T> = T | Promise<T>;
+
 export type MaterializerAdapter<
   S extends RippleSchema = RippleSchema,
   TDb = MaterializerDb,
 > = {
-  load<E extends EntityName<S>>(db: TDb, entity: E, id: string): Promise<MaterializerState<S, E> | null>;
-  save<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): Promise<void>;
-  remove<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): Promise<void>;
+  load<E extends EntityName<S>>(db: TDb, entity: E, id: string): MaybePromise<MaterializerState<S, E> | null>;
+  save<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): MaybePromise<void>;
+  remove<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): MaybePromise<void>;
 };
 
 type ApplyResult<S extends RippleSchema, E extends EntityName<S>> = {

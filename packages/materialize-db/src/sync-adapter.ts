@@ -15,10 +15,16 @@ import type {
 } from './types';
 import { dialects } from './dialects';
 
+import type { MaterializerAdapter } from '@rippledb/materialize-core';
+
 /**
  * Synchronous materializer adapter for SQLite.
  * All methods are synchronous and use the same SQLite connection.
  * Methods receive db as first parameter (stateless).
+ * 
+ * This type is compatible with MaterializerAdapter since MaterializerAdapter
+ * uses MaybePromise (T | Promise<T>), and sync values (T) are assignable to it.
+ * The return types here are the synchronous variants that satisfy MaterializerAdapter.
  */
 export type SyncMaterializerAdapter<
   S extends RippleSchema = RippleSchema,
@@ -27,7 +33,7 @@ export type SyncMaterializerAdapter<
   load<E extends EntityName<S>>(db: TDb, entity: E, id: string): MaterializerState<S, E> | null;
   save<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): void;
   remove<E extends EntityName<S>>(db: TDb, entity: E, id: string, state: MaterializerState<S, E>): void;
-};
+} & MaterializerAdapter<S, TDb>;
 
 /**
  * Synchronous executor for materialization operations.

@@ -156,6 +156,7 @@ export class SqliteDb<
       // Pass this.db to materializer methods (stateless)
       if (this.materializer) {
         for (const change of input.changes) {
+          // SyncMaterializerAdapter ensures load() returns synchronously (not a Promise)
           const current = this.materializer.load(this.db, change.entity, change.entityId);
           const result = applyChangeToState(current, change);
 
