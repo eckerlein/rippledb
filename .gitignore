@@ -9,3 +9,11 @@ build
 .env.*.local
 chats
 
+# TypeScript incremental build info
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+scripts/dist
+
+# TypeScript declaration source maps
+*.d.ts.map
