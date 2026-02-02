@@ -21,7 +21,8 @@
     "prepare": "husky",
     "perf:tsc": "tsx scripts/src/measure-tsc-performance.ts",
     "perf:profile": "tsx scripts/src/profile-tsc-performance.ts",
-    "perf:diagnose": "tsx scripts/src/diagnose-all-packages.ts"
+    "perf:diagnose": "tsx scripts/src/diagnose-all-packages.ts",
+    "perf:find-types": "tsx scripts/src/find-slow-types.ts"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.2",
