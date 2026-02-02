@@ -251,7 +251,7 @@ describe('DrizzleDb with SQLite', () => {
           getTableConfig,
           fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
           normalizeValue: (value: unknown) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
-        }),
+      }),
     });
 
     const hlc = tickHlc(createHlcState('node-1'), 100);
@@ -301,9 +301,9 @@ describe('DrizzleDb with SQLite', () => {
       schema,
       materializer: () => ({
         load: async (_txDb, entity, id) => {
-          const row = sqlite
-            .prepare('SELECT id, data, tags, deleted, deleted_tag FROM ripple_tags WHERE entity = ? AND id = ?')
-            .get(entity, id) as TagsRow | undefined;
+            const row = sqlite
+              .prepare('SELECT id, data, tags, deleted, deleted_tag FROM ripple_tags WHERE entity = ? AND id = ?')
+              .get(entity, id) as TagsRow | undefined;
           if (!row) return null;
           return {
             values: JSON.parse(row.data) as Partial<TestSchema[typeof entity]>,
@@ -311,17 +311,17 @@ describe('DrizzleDb with SQLite', () => {
             deleted: row.deleted === 1,
             deletedTag: row.deleted_tag as Hlc | null,
           };
-        },
+          },
         save: async (_txDb, entity, id, state) => {
-          // This will cause a CHECK constraint failure with deleted = 2
-          sqlite
-            .prepare(
-              'INSERT OR REPLACE INTO ripple_tags (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 2, NULL)',
-            )
+            // This will cause a CHECK constraint failure with deleted = 2
+            sqlite
+              .prepare(
+                'INSERT OR REPLACE INTO ripple_tags (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 2, NULL)',
+              )
             .run(entity, id, JSON.stringify(state.values), JSON.stringify(state.tags));
-        },
+          },
         remove: async () => {
-          // no-op
+            // no-op
         },
       }),
     });

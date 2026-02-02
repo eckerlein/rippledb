@@ -154,14 +154,14 @@ const db = new TursoDb<AppSchema>({
       schema,
       db,
       dialect: 'sqlite',
-      tableMap: {
-        todos: 'todos',
-        users: 'users',
-      },
-      fieldMap: {
-        todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' },
-        users: { id: 'id', name: 'name', email: 'email' },
-      },
+    tableMap: {
+      todos: 'todos',
+      users: 'users',
+    },
+    fieldMap: {
+      todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' },
+      users: { id: 'id', name: 'name', email: 'email' },
+    },
     }),
 });
 
@@ -229,11 +229,11 @@ const db = new DrizzleDb<AppSchema, typeof drizzleDb>({
   materializer: ({ schema }) =>
     createDrizzleSyncMaterializer({
       schema,
-      tableMap: { todos: todosTable },
-      tagsTableDef: tagsTable,
-      getTableConfig,
-      fieldMap: { todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' } },
-    }),
+    tableMap: { todos: todosTable },
+    tagsTableDef: tagsTable,
+    getTableConfig,
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' } },
+  }),
 });
 
 export { db, drizzleDb, todosTable };

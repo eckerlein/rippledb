@@ -282,11 +282,11 @@ const db = new DrizzleDb<MySchema, typeof drizzleDb>({
   materializer: ({ schema }) =>
     createDrizzleMaterializer({
       schema,
-      tableMap: { todos: todosTable },
-      tagsTableDef: tagsTable,
-      getTableConfig,
-      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-    }),
+    tableMap: { todos: todosTable },
+    tagsTableDef: tagsTable,
+    getTableConfig,
+    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+  }),
 });
 ```
 
