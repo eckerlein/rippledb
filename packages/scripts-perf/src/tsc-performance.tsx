@@ -271,6 +271,7 @@ function PerformanceTable({
 function App({ isCheckMode }: { isCheckMode: boolean; }) {
   const [results, setResults] = useState<PackageDiagnostics[]>([]);
   const [limits, setLimits] = useState<PerformanceLimits | null>(null);
+  const [limitsLoadError, setLimitsLoadError] = useState<string | null>(null);
   const [rerunningPackages, setRerunningPackages] = useState<Set<string>>(
     new Set(),
   );
@@ -287,8 +288,11 @@ function App({ isCheckMode }: { isCheckMode: boolean; }) {
     if (isCheckMode) {
       try {
         setLimits(loadLimits());
-      } catch {
-        // Will show error in UI
+        setLimitsLoadError(null);
+      } catch (error) {
+        setLimitsLoadError(
+          error instanceof Error ? error.message : "Failed to load limits",
+        );
       }
     }
   }, [isCheckMode]);
@@ -529,12 +533,15 @@ function App({ isCheckMode }: { isCheckMode: boolean; }) {
     };
   }, [isCheckMode, limits]);
 
-  if (isCheckMode && !limits) {
+  // Only show error if we've attempted to load and it failed
+  if (isCheckMode && limitsLoadError) {
     return (
       <Box flexDirection="column">
         <Text color="red">
-          Error: Performance limits file not found. Create
-          .github/tsc-performance-limits.json
+          Error: {limitsLoadError}
+        </Text>
+        <Text color="red">
+          Create .github/tsc-performance-limits.json
         </Text>
       </Box>
     );
