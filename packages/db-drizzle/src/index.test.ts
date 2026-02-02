@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeUpsert, tickHlc, type Change, defineSchema, s, type ChangeTags, type Hlc } from '@rippledb/core';
+import { createHlcState, makeUpsert, tickHlc, type Change, defineSchema, s } from '@rippledb/core';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { sqliteTable, text, integer, getTableConfig } from 'drizzle-orm/sqlite-core';
@@ -7,7 +7,7 @@ import { createDrizzleSyncMaterializer } from '@rippledb/materialize-drizzle';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { unlinkSync } from 'node:fs';
-import { DrizzleDb, type TagsRow } from './index';
+import { DrizzleDb } from './index';
 
 type TestSchema = {
   todos: {
@@ -278,14 +278,19 @@ describe('DrizzleDb with SQLite', () => {
   });
 
   it('rolls back transaction on error (atomicity)', async () => {
-    // Create tags table with a CHECK constraint
+    // Create domain table with CHECK constraint and tags table
     sqlite.exec(`
+      CREATE TABLE todos (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        done INTEGER CHECK (done IN (0, 1))
+      );
       CREATE TABLE ripple_tags (
         entity TEXT NOT NULL,
         id TEXT NOT NULL,
         data TEXT NOT NULL,
         tags TEXT NOT NULL,
-        deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1)),
+        deleted INTEGER NOT NULL DEFAULT 0,
         deleted_tag TEXT,
         PRIMARY KEY (entity, id)
       );
@@ -299,44 +304,31 @@ describe('DrizzleDb with SQLite', () => {
       getTableConfig,
       isSync: true,
       schema,
-      materializer: () => ({
-        load: async (_txDb, entity, id) => {
-            const row = sqlite
-              .prepare('SELECT id, data, tags, deleted, deleted_tag FROM ripple_tags WHERE entity = ? AND id = ?')
-              .get(entity, id) as TagsRow | undefined;
-          if (!row) return null;
-          return {
-            values: JSON.parse(row.data) as Partial<TestSchema[typeof entity]>,
-            tags: JSON.parse(row.tags) as ChangeTags<TestSchema, typeof entity>,
-            deleted: row.deleted === 1,
-            deletedTag: row.deleted_tag as Hlc | null,
-          };
-          },
-        save: async (_txDb, entity, id, state) => {
-            // This will cause a CHECK constraint failure with deleted = 2
-            sqlite
-              .prepare(
-                'INSERT OR REPLACE INTO ripple_tags (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 2, NULL)',
-              )
-            .run(entity, id, JSON.stringify(state.values), JSON.stringify(state.tags));
-          },
-        remove: async () => {
-            // no-op
-        },
-      }),
+      materializer: ({ schema: schemaDescriptor }) =>
+        createDrizzleSyncMaterializer({
+          schema: schemaDescriptor,
+          tableMap: { todos: todosTable },
+          tagsTableDef: tagsTable,
+          getTableConfig,
+          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+          normalizeValue: (value: unknown) => (typeof value === 'boolean' ? (value ? 1 : 0) : value),
+        }),
     });
 
-    const hlc = tickHlc(createHlcState('node-1'), 100);
-    const change = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { id: 'todo-1', title: 'Buy milk', done: false },
-      hlc,
-    });
+    // Create a change with done: 2 which violates CHECK (done IN (0, 1)) constraint
+    const invalidChange = {
+      ...makeUpsert<TestSchema>({
+        stream: 'test',
+        entity: 'todos',
+        entityId: 'todo-1',
+        patch: { id: 'todo-1', title: 'Buy milk', done: false },
+        hlc: tickHlc(createHlcState('node-1'), 100),
+      }),
+      patch: { id: 'todo-1', title: 'Buy milk', done: 2 }, // Violates CHECK constraint
+    } as unknown as Change<TestSchema>;
 
     // Append should fail due to CHECK constraint
-    await expect(rippleDb.append({ stream: 'test', changes: [change] })).rejects.toThrow();
+    await expect(rippleDb.append({ stream: 'test', changes: [invalidChange] })).rejects.toThrow();
 
     // Verify no changes were persisted (transaction rolled back)
     const changeCount = sqlite.prepare('SELECT COUNT(*) as count FROM ripple_changes').get() as { count: number };
