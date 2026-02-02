@@ -4,7 +4,6 @@ import { createSyncMaterializer, createSyncSqlExecutor } from '@rippledb/materia
 import type { InferSchema } from '@rippledb/core';
 import { createDrizzleSyncMaterializer } from '@rippledb/materialize-drizzle';
 import type { MaterializerState } from '@rippledb/materialize-core';
-import { createDrizzleMaterializer } from '@rippledb/materialize-drizzle';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { getTableConfig, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
