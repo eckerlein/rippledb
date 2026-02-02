@@ -1,5 +1,5 @@
-import type { RippleConfig } from '../config.js';
-import { object, optional, parse, string } from 'valibot';
+import { object, optional, parse, string } from "valibot";
+import type { RippleConfig } from "../config.js";
 
 const drizzleSchema = object({
   entities: string(),
@@ -19,7 +19,9 @@ function validateConfig(value: unknown, configPath: string): RippleConfig {
     return parse(rippleConfigSchema, value);
   } catch (err) {
     if (err instanceof Error) {
-      throw new Error(`Invalid RippleDB config (${configPath}): ${err.message}`);
+      throw new Error(
+        `Invalid RippleDB config (${configPath}): ${err.message}`,
+      );
     }
     throw err;
   }
@@ -30,23 +32,31 @@ function validateConfig(value: unknown, configPath: string): RippleConfig {
  */
 export async function loadConfig(configPath: string): Promise<RippleConfig> {
   // Use jiti for TypeScript config file support
-  const { createJiti } = await import('jiti');
+  const { createJiti } = await import("jiti");
   const jiti = createJiti(process.cwd());
 
   try {
-    const configModule = await jiti.import(configPath) as { default?: RippleConfig } | RippleConfig;
+    const configModule = (await jiti.import(configPath)) as
+      | {
+        default?: RippleConfig;
+      }
+      | RippleConfig;
 
     // Handle both default export and named export
-    const config = 'default' in configModule ? configModule.default : configModule;
+    const config = "default" in configModule
+      ? configModule.default
+      : configModule;
 
     if (!config) {
-      throw new Error('Config file must export a configuration object');
+      throw new Error("Config file must export a configuration object");
     }
 
     return validateConfig(config, configPath);
   } catch (err) {
     if (err instanceof Error) {
-      throw new Error(`Failed to load config from ${configPath}: ${err.message}`);
+      throw new Error(
+        `Failed to load config from ${configPath}: ${err.message}`,
+      );
     }
     throw err;
   }

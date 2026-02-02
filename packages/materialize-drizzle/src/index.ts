@@ -1,13 +1,16 @@
 import type {
-  RippleSchema,
-  EntityName,
-  SchemaDescriptor,
-  InferSchema,
   ChangeTags,
+  EntityName,
   Hlc,
-} from '@rippledb/core';
-import type { MaterializerAdapter, MaterializerState } from '@rippledb/materialize-core';
-import { and, eq } from 'drizzle-orm';
+  InferSchema,
+  RippleSchema,
+  SchemaDescriptor,
+} from "@rippledb/core";
+import type {
+  MaterializerAdapter,
+  MaterializerState,
+} from "@rippledb/materialize-core";
+import { and, eq } from "drizzle-orm";
 
 type DrizzleTable = object;
 
@@ -39,7 +42,13 @@ type DrizzleDbClient<
 type DrizzleMaterializerExecutor<TDb> = {
   ensureTagsTable?: (db: TDb) => Promise<void>;
   loadTags: (db: TDb, entity: string, id: string) => Promise<TagsRow | null>;
-  saveTags: (db: TDb, entity: string, id: string, dataJson: string, tagsJson: string) => Promise<void>;
+  saveTags: (
+    db: TDb,
+    entity: string,
+    id: string,
+    dataJson: string,
+    tagsJson: string,
+  ) => Promise<void>;
   removeTags: (
     db: TDb,
     entity: string,
@@ -61,7 +70,13 @@ type DrizzleMaterializerExecutor<TDb> = {
 type DrizzleSyncMaterializerExecutor<TDb> = {
   ensureTagsTable?: (db: TDb) => void;
   loadTags: (db: TDb, entity: string, id: string) => TagsRow | null;
-  saveTags: (db: TDb, entity: string, id: string, dataJson: string, tagsJson: string) => void;
+  saveTags: (
+    db: TDb,
+    entity: string,
+    id: string,
+    dataJson: string,
+    tagsJson: string,
+  ) => void;
   removeTags: (
     db: TDb,
     entity: string,
@@ -82,7 +97,7 @@ type DrizzleSyncMaterializerExecutor<TDb> = {
 
 type BivariantCallback<Args extends unknown[], Result> = {
   bivarianceHack: (...args: Args) => Result;
-}['bivarianceHack'];
+}["bivarianceHack"];
 
 type DrizzleMaterializerOptions<
   S extends RippleSchema,
@@ -116,7 +131,10 @@ type DrizzleMaterializerOptions<
    * Optional value normalizer before writing to the database.
    * Useful for SQLite boolean -> integer conversions.
    */
-  normalizeValue?: (value: unknown, context: { tableName: string; columnName: string }) => unknown;
+  normalizeValue?: (
+    value: unknown,
+    context: { tableName: string; columnName: string; },
+  ) => unknown;
 
   /**
    * Optional hook to ensure tags table exists (migrations).
@@ -208,7 +226,10 @@ export function createDrizzleMaterializerExecutor<
   }
 
   const runWrite = async (query: unknown): Promise<void> => {
-    const candidate = query as { run?: () => unknown; execute?: () => Promise<unknown> };
+    const candidate = query as {
+      run?: () => unknown;
+      execute?: () => Promise<unknown>;
+    };
     if (candidate.run) {
       candidate.run();
       return;
@@ -235,9 +256,12 @@ export function createDrizzleMaterializerExecutor<
     return [];
   };
 
-  const getColumnKeyByName = (tableConfig: DrizzleTableConfig, name: string) => {
+  const getColumnKeyByName = (
+    tableConfig: DrizzleTableConfig,
+    name: string,
+  ) => {
     if (Array.isArray(tableConfig.columns)) {
-      const column = tableConfig.columns.find((col) => col.name === name);
+      const column = tableConfig.columns.find(col => col.name === name);
       return column ? column.name : null;
     }
     for (const [key, column] of Object.entries(tableConfig.columns)) {
@@ -246,9 +270,12 @@ export function createDrizzleMaterializerExecutor<
     return null;
   };
 
-  const getColumnByName = (tableConfig: DrizzleTableConfig, name: string): DrizzleColumn | null => {
+  const getColumnByName = (
+    tableConfig: DrizzleTableConfig,
+    name: string,
+  ): DrizzleColumn | null => {
     if (Array.isArray(tableConfig.columns)) {
-      return tableConfig.columns.find((col) => col.name === name) ?? null;
+      return tableConfig.columns.find(col => col.name === name) ?? null;
     }
     for (const column of Object.values(tableConfig.columns)) {
       if (column.name === name) return column;
@@ -256,20 +283,28 @@ export function createDrizzleMaterializerExecutor<
     return null;
   };
 
-  const executor: DrizzleMaterializerExecutor<DrizzleDbClient<TTable, TTagsTable>> = {
+  const executor: DrizzleMaterializerExecutor<
+    DrizzleDbClient<TTable, TTagsTable>
+  > = {
     ensureTagsTable: async (db: DrizzleDbClient<TTable, TTagsTable>) => {
       void db;
       // Optional user hook (noop if not provided)
       if (ensureTagsTable) await ensureTagsTable();
     },
-    async loadTags(db: DrizzleDbClient<TTable, TTagsTable>, entity: string, id: string): Promise<TagsRow | null> {
+    async loadTags(
+      db: DrizzleDbClient<TTable, TTagsTable>,
+      entity: string,
+      id: string,
+    ): Promise<TagsRow | null> {
       const dbClient = db;
       const entityColumn = (tagsTableDef as Record<string, unknown>).entity;
       const idColumn = (tagsTableDef as Record<string, unknown>).id;
       const rows = await loadRows(
         (dbClient.select() as SelectChain)
           .from(tagsTableDef)
-          .where(and(eq(entityColumn as never, entity), eq(idColumn as never, id)))
+          .where(
+            and(eq(entityColumn as never, entity), eq(idColumn as never, id)),
+          )
           .limit(1),
       );
       return (rows[0] as TagsRow | undefined) ?? null;
@@ -282,7 +317,8 @@ export function createDrizzleMaterializerExecutor<
       tagsJson: string,
     ): Promise<void> {
       await runWrite(
-        (db.insert(tagsTableDef) as InsertChain).values({
+        (db.insert(tagsTableDef) as InsertChain)
+          .values({
             entity,
             id,
             data: dataJson,
@@ -313,7 +349,8 @@ export function createDrizzleMaterializerExecutor<
       deletedTag: string,
     ): Promise<void> {
       await runWrite(
-        (db.insert(tagsTableDef) as InsertChain).values({
+        (db.insert(tagsTableDef) as InsertChain)
+          .values({
             entity,
             id,
             data: dataJson,
@@ -349,8 +386,8 @@ export function createDrizzleMaterializerExecutor<
       }
 
       const tableConfig = getTableConfig(drizzleTable);
-      const idKey = getColumnKeyByName(tableConfig, 'id');
-      const idColumn = getColumnByName(tableConfig, 'id');
+      const idKey = getColumnKeyByName(tableConfig, "id");
+      const idColumn = getColumnByName(tableConfig, "id");
       if (!idKey || !idColumn) {
         throw new Error(`No id column found in Drizzle table ${tableName}`);
       }
@@ -362,7 +399,9 @@ export function createDrizzleMaterializerExecutor<
         const columnName = columns[i];
         const key = getColumnKeyByName(tableConfig, columnName);
         if (!key) {
-          throw new Error(`Column ${columnName} not found in Drizzle table ${tableName}`);
+          throw new Error(
+            `Column ${columnName} not found in Drizzle table ${tableName}`,
+          );
         }
         const normalizedValue = normalizeValue
           ? normalizeValue(values[i], { tableName, columnName })
@@ -375,10 +414,12 @@ export function createDrizzleMaterializerExecutor<
       }
 
       await runWrite(
-        (db.insert(drizzleTable) as InsertChain).values(insertValues).onConflictDoUpdate({
-          target: [idColumn],
-          set: updateSet,
-        }),
+        (db.insert(drizzleTable) as InsertChain)
+          .values(insertValues)
+          .onConflictDoUpdate({
+            target: [idColumn],
+            set: updateSet,
+          }),
       );
     },
   };
@@ -396,14 +437,19 @@ type CreateDrizzleMaterializerOptions<
   TConfig extends DrizzleTableConfig = DrizzleTableConfig,
   TTagsTable extends DrizzleTable = DrizzleTable,
 > = {
-  schema: D;  // For field discovery only (schema.getFields())
+  schema: D; // For field discovery only (schema.getFields())
   // NO db parameter! ensureTagsTable is noop/user hook
-  tableMap: Record<EntityName<InferSchema<D>>, TTable>;  // Primary mapping: entity → Drizzle table
+  tableMap: Record<EntityName<InferSchema<D>>, TTable>; // Primary mapping: entity → Drizzle table
   tagsTableDef: TTagsTable;
   getTableConfig: BivariantCallback<[TTable], TConfig>;
-  fieldMap?: Partial<Record<EntityName<InferSchema<D>>, Record<string, string>>>;
-  normalizeValue?: (value: unknown, context: { tableName: string; columnName: string }) => unknown;
-  ensureTagsTable?: () => Promise<void> | void;  // Optional user migration hook
+  fieldMap?: Partial<
+    Record<EntityName<InferSchema<D>>, Record<string, string>>
+  >;
+  normalizeValue?: (
+    value: unknown,
+    context: { tableName: string; columnName: string; },
+  ) => unknown;
+  ensureTagsTable?: () => Promise<void> | void; // Optional user migration hook
 };
 
 /**
@@ -415,7 +461,7 @@ type CreateDrizzleMaterializerOptions<
  * const schema = defineSchema({
  *   todos: { id: s.string(), title: s.string(), done: s.boolean() },
  * });
- * 
+ *
  * const adapter = createDrizzleMaterializer({
  *   schema,
  *   tableMap: { todos: todosTable },
@@ -431,21 +477,24 @@ export function createDrizzleMaterializer<
   TConfig extends DrizzleTableConfig = DrizzleTableConfig,
   TTagsTable extends DrizzleTable = DrizzleTable,
 >(
-  opts: CreateDrizzleMaterializerOptions<D, TTable, TConfig, TTagsTable>
+  opts: CreateDrizzleMaterializerOptions<D, TTable, TConfig, TTagsTable>,
 ): MaterializerAdapter<InferSchema<D>, DrizzleDbClient<TTable, TTagsTable>> {
   // Store schema directly in closure (for field discovery)
   const schema = opts.schema;
-  
+
   // Use opts.tableMap directly (primary mapping, no derivation)
   const tableMap = opts.tableMap;
-  
+
   // Derive string tableMap internally
-  const stringTableMap: Record<EntityName<InferSchema<D>>, string> = {} as Record<EntityName<InferSchema<D>>, string>;
+  const stringTableMap: Record<
+    EntityName<InferSchema<D>>,
+    string
+  > = {} as Record<EntityName<InferSchema<D>>, string>;
   for (const [entity, table] of Object.entries(tableMap)) {
     const config = opts.getTableConfig(table);
     stringTableMap[entity as EntityName<InferSchema<D>>] = config.name;
   }
-  
+
   // Create executor (no db needed)
   const executor = createDrizzleMaterializerExecutor({
     tableMap,
@@ -455,31 +504,33 @@ export function createDrizzleMaterializer<
     normalizeValue: opts.normalizeValue,
     ensureTagsTable: opts.ensureTagsTable,
   });
-  
+
   // Call ensureTagsTable if provided (noop if not, no db needed)
   // This is a user hook, so we call it immediately if provided
   if (opts.ensureTagsTable) {
     const result = opts.ensureTagsTable();
     void result;
   }
-  
+
   const fieldMap = opts.fieldMap;
-  
-  const getTableName = <E extends EntityName<InferSchema<D>>>(entity: E): string => {
+
+  const getTableName = <E extends EntityName<InferSchema<D>>>(
+    entity: E,
+  ): string => {
     const table = stringTableMap[entity];
     if (!table) {
       throw new Error(`No table mapping for entity: ${entity}`);
     }
     return table;
   };
-  
+
   const getColumnName = <E extends EntityName<InferSchema<D>>>(
     entity: E,
     field: string,
   ): string => {
     return fieldMap?.[entity]?.[field] ?? field;
   };
-  
+
   return {
     async load<E extends EntityName<InferSchema<D>>>(
       db: DrizzleDbClient<TTable, TTagsTable>,
@@ -487,9 +538,9 @@ export function createDrizzleMaterializer<
       id: string,
     ): Promise<MaterializerState<InferSchema<D>, E> | null> {
       const row = await executor.loadTags(db, entity, id);
-      
+
       if (!row) return null;
-      
+
       return {
         values: JSON.parse(row.data) as Partial<InferSchema<D>[E]>,
         tags: JSON.parse(row.tags) as ChangeTags<InferSchema<D>, E>,
@@ -497,7 +548,7 @@ export function createDrizzleMaterializer<
         deletedTag: row.deleted_tag as Hlc | null,
       };
     },
-    
+
     async save<E extends EntityName<InferSchema<D>>>(
       db: DrizzleDbClient<TTable, TTagsTable>,
       entity: E,
@@ -507,38 +558,45 @@ export function createDrizzleMaterializer<
       const tableName = getTableName(entity);
       const dataJson = JSON.stringify(state.values);
       const tagsJson = JSON.stringify(state.tags);
-      
+
       // Save to tags table
       await executor.saveTags(db, entity, id, dataJson, tagsJson);
-      
+
       // Optionally save values to actual table columns if fieldMap is provided
       if (fieldMap?.[entity] && Object.keys(state.values).length > 0) {
         const columns: string[] = [];
         const values: unknown[] = [];
         const updates: string[] = [];
-        
+
         // Use schema.getFields() for field iteration
         const fields = schema.getFields(entity);
         for (const field of fields) {
           if (!(field in state.values)) continue;
           // Skip 'id' field - it's handled separately
-          if (field === 'id') continue;
+          if (field === "id") continue;
           const column = getColumnName(entity, field);
           const value = state.values[field as keyof typeof state.values];
           columns.push(column);
           values.push(value);
           updates.push(`${column} = ?`);
         }
-        
+
         if (columns.length > 0) {
           if (!executor.saveEntity) {
-            throw new Error('No saveEntity executor provided for fieldMap');
+            throw new Error("No saveEntity executor provided for fieldMap");
           }
-          await executor.saveEntity(db, tableName, id, columns, values, updates);
+          await executor.saveEntity(
+            db,
+            tableName,
+            id,
+            columns,
+            values,
+            updates,
+          );
         }
       }
     },
-    
+
     async remove<E extends EntityName<InferSchema<D>>>(
       db: DrizzleDbClient<TTable, TTagsTable>,
       entity: E,
@@ -547,8 +605,8 @@ export function createDrizzleMaterializer<
     ): Promise<void> {
       const dataJson = JSON.stringify(state.values);
       const tagsJson = JSON.stringify(state.tags);
-      const deletedTag = state.deletedTag ?? '';
-      
+      const deletedTag = state.deletedTag ?? "";
+
       await executor.removeTags(db, entity, id, dataJson, tagsJson, deletedTag);
     },
   };
@@ -565,12 +623,15 @@ export function createDrizzleSyncMaterializer<
   TConfig extends DrizzleTableConfig = DrizzleTableConfig,
   TTagsTable extends DrizzleTable = DrizzleTable,
 >(
-  opts: CreateDrizzleMaterializerOptions<D, TTable, TConfig, TTagsTable>
+  opts: CreateDrizzleMaterializerOptions<D, TTable, TConfig, TTagsTable>,
 ): MaterializerAdapter<InferSchema<D>, DrizzleDbClient<TTable, TTagsTable>> {
   const schema = opts.schema;
   const tableMap = opts.tableMap;
 
-  const stringTableMap: Record<EntityName<InferSchema<D>>, string> = {} as Record<EntityName<InferSchema<D>>, string>;
+  const stringTableMap: Record<
+    EntityName<InferSchema<D>>,
+    string
+  > = {} as Record<EntityName<InferSchema<D>>, string>;
   for (const [entity, table] of Object.entries(tableMap)) {
     const config = opts.getTableConfig(table);
     stringTableMap[entity as EntityName<InferSchema<D>>] = config.name;
@@ -592,7 +653,9 @@ export function createDrizzleSyncMaterializer<
 
   const fieldMap = opts.fieldMap;
 
-  const getTableName = <E extends EntityName<InferSchema<D>>>(entity: E): string => {
+  const getTableName = <E extends EntityName<InferSchema<D>>>(
+    entity: E,
+  ): string => {
     const table = stringTableMap[entity];
     if (!table) {
       throw new Error(`No table mapping for entity: ${entity}`);
@@ -638,7 +701,7 @@ export function createDrizzleSyncMaterializer<
         const fields = schema.getFields(entity);
         for (const field of fields) {
           if (!(field in state.values)) continue;
-          if (field === 'id') continue;
+          if (field === "id") continue;
           const column = getColumnName(entity, field);
           const value = state.values[field as keyof typeof state.values];
           columns.push(column);
@@ -648,7 +711,7 @@ export function createDrizzleSyncMaterializer<
 
         if (columns.length > 0) {
           if (!executor.saveEntity) {
-            throw new Error('No saveEntity executor provided for fieldMap');
+            throw new Error("No saveEntity executor provided for fieldMap");
           }
           executor.saveEntity(db, tableName, id, columns, values, updates);
         }
@@ -662,7 +725,7 @@ export function createDrizzleSyncMaterializer<
     ): void {
       const dataJson = JSON.stringify(state.values);
       const tagsJson = JSON.stringify(state.tags);
-      const deletedTag = state.deletedTag ?? '';
+      const deletedTag = state.deletedTag ?? "";
       executor.removeTags(db, entity, id, dataJson, tagsJson, deletedTag);
     },
   };
@@ -695,14 +758,14 @@ export function createDrizzleSyncMaterializerExecutor<
   type SelectChain = {
     from: (table: TTable | TTagsTable) => {
       where: (...args: unknown[]) => {
-        limit: (limit: number) => { all: () => unknown[] };
+        limit: (limit: number) => { all: () => unknown[]; };
       };
     };
   };
 
   type InsertChain = {
     values: (values: Record<string, unknown>) => {
-      onConflictDoUpdate: (options: unknown) => { run: () => void };
+      onConflictDoUpdate: (options: unknown) => { run: () => void; };
     };
   };
 
@@ -711,9 +774,12 @@ export function createDrizzleSyncMaterializerExecutor<
     tableNameToDrizzleTable.set(config.name, table);
   }
 
-  const getColumnKeyByName = (tableConfig: DrizzleTableConfig, name: string) => {
+  const getColumnKeyByName = (
+    tableConfig: DrizzleTableConfig,
+    name: string,
+  ) => {
     if (Array.isArray(tableConfig.columns)) {
-      const column = tableConfig.columns.find((col) => col.name === name);
+      const column = tableConfig.columns.find(col => col.name === name);
       return column ? column.name : null;
     }
     for (const [key, column] of Object.entries(tableConfig.columns)) {
@@ -722,9 +788,12 @@ export function createDrizzleSyncMaterializerExecutor<
     return null;
   };
 
-  const getColumnByName = (tableConfig: DrizzleTableConfig, name: string): DrizzleColumn | null => {
+  const getColumnByName = (
+    tableConfig: DrizzleTableConfig,
+    name: string,
+  ): DrizzleColumn | null => {
     if (Array.isArray(tableConfig.columns)) {
-      return tableConfig.columns.find((col) => col.name === name) ?? null;
+      return tableConfig.columns.find(col => col.name === name) ?? null;
     }
     for (const column of Object.values(tableConfig.columns)) {
       if (column.name === name) return column;
@@ -732,19 +801,27 @@ export function createDrizzleSyncMaterializerExecutor<
     return null;
   };
 
-  const executor: DrizzleSyncMaterializerExecutor<DrizzleDbClient<TTable, TTagsTable>> = {
+  const executor: DrizzleSyncMaterializerExecutor<
+    DrizzleDbClient<TTable, TTagsTable>
+  > = {
     ensureTagsTable: (db: DrizzleDbClient<TTable, TTagsTable>) => {
       void db;
       // Optional user hook (noop if not provided)
       if (ensureTagsTable) ensureTagsTable();
     },
-    loadTags(db: DrizzleDbClient<TTable, TTagsTable>, entity: string, id: string): TagsRow | null {
+    loadTags(
+      db: DrizzleDbClient<TTable, TTagsTable>,
+      entity: string,
+      id: string,
+    ): TagsRow | null {
       const dbClient = db;
       const entityColumn = (tagsTableDef as Record<string, unknown>).entity;
       const idColumn = (tagsTableDef as Record<string, unknown>).id;
       const rows = (dbClient.select() as SelectChain)
         .from(tagsTableDef)
-        .where(and(eq(entityColumn as never, entity), eq(idColumn as never, id)))
+        .where(
+          and(eq(entityColumn as never, entity), eq(idColumn as never, id)),
+        )
         .limit(1)
         .all();
       return (rows[0] as TagsRow | undefined) ?? null;
@@ -827,8 +904,8 @@ export function createDrizzleSyncMaterializerExecutor<
       }
 
       const tableConfig = getTableConfig(drizzleTable);
-      const idKey = getColumnKeyByName(tableConfig, 'id');
-      const idColumn = getColumnByName(tableConfig, 'id');
+      const idKey = getColumnKeyByName(tableConfig, "id");
+      const idColumn = getColumnByName(tableConfig, "id");
       if (!idKey || !idColumn) {
         throw new Error(`No id column found in Drizzle table ${tableName}`);
       }
@@ -840,7 +917,9 @@ export function createDrizzleSyncMaterializerExecutor<
         const columnName = columns[i];
         const key = getColumnKeyByName(tableConfig, columnName);
         if (!key) {
-          throw new Error(`Column ${columnName} not found in Drizzle table ${tableName}`);
+          throw new Error(
+            `Column ${columnName} not found in Drizzle table ${tableName}`,
+          );
         }
         const normalizedValue = normalizeValue
           ? normalizeValue(values[i], { tableName, columnName })
@@ -864,4 +943,3 @@ export function createDrizzleSyncMaterializerExecutor<
 
   return executor;
 }
-

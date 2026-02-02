@@ -1,6 +1,6 @@
-import type { Hlc } from './hlc';
+import type { Hlc } from "./hlc";
 
-export type ChangeKind = 'upsert' | 'delete';
+export type ChangeKind = "upsert" | "delete";
 
 export type RippleSchema = Record<string, Record<string, unknown>>;
 
@@ -57,15 +57,16 @@ export function makeUpsert<
   S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
 >(input: UpsertChangeInput<S, E>): Change<S, E> {
-  const tags =
-    input.tags ??
-    (Object.fromEntries(Object.keys(input.patch).map((key) => [key, input.hlc])) as ChangeTags<S, E>);
+  const tags = input.tags
+    ?? (Object.fromEntries(
+      Object.keys(input.patch).map(key => [key, input.hlc]),
+    ) as ChangeTags<S, E>);
 
   return {
     stream: input.stream,
     entity: input.entity,
     entityId: input.entityId,
-    kind: 'upsert',
+    kind: "upsert",
     patch: input.patch,
     tags,
     hlc: input.hlc,
@@ -80,7 +81,7 @@ export function makeDelete<
     stream: input.stream,
     entity: input.entity,
     entityId: input.entityId,
-    kind: 'delete',
+    kind: "delete",
     patch: {},
     tags: {},
     hlc: input.hlc,

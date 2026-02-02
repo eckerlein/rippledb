@@ -11,12 +11,14 @@
     "lint": "turbo lint",
     "check:packages": "node scripts/verify-packages.mjs",
     "clean": "turbo clean",
-    "format": "prettier -w .",
+    "format": "dprint fmt",
+    "format:check": "dprint check",
     "test": "vitest run",
     "test:watch": "vitest --watch",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "pnpm build && pnpm -r publish --access public"
+    "release": "pnpm build && pnpm -r publish --access public",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.2",
@@ -24,7 +26,10 @@
     "@eslint/js": "^9.37.0",
     "@types/node": "^22.0.0",
     "create-fumadocs-app": "^16.0.42",
+    "dprint": "^0.51.1",
     "eslint": "^9.37.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.4.2",
     "tsup": "^8.5.0",
     "tsx": "^4.19.2",

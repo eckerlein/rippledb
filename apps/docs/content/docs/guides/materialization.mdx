@@ -3,15 +3,16 @@ title: Materialization
 description: Project changes into queryable domain tables
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Callout } from "fumadocs-ui/components/callout";
 
 # Materialization
 
 Materialization projects your change log into domain tables for fast queries.
 
 <Callout type="info">
-This guide covers **server-side** materialization. On the client, the `Store` interface 
-handles applying changes to local state. See [Client Sync](/docs/guides/client-sync) for client patterns.
+  This guide covers **server-side** materialization. On the client, the `Store`
+  interface handles applying changes to local state. See [Client
+  Sync](/docs/guides/client-sync) for client patterns.
 </Callout>
 
 ## Why Materialize?
@@ -38,23 +39,73 @@ SELECT * FROM todos WHERE id = 'todo-1';
 <Diagram
   height={380}
   nodes={[
-    { id: 'append', x: 20, y: 10, label: 'db.append()' },
-    { id: 'load', x: 20, y: 70, label: '1. Load existing tags' },
-    { id: 'lww', x: 20, y: 140, label: ['2. Apply field-level LWW', '(compare HLC timestamps)'] },
-    { id: 'domain', x: 20, y: 220, label: '3. Update domain table' },
-    { id: 'tags', x: 20, y: 290, label: '4. Update tags table' },
-    { id: 'tags-read', relativeTo: 'load', anchor: 'right', offset: { x: 40 }, variant: 'label', label: 'ripple_tags' },
-    { id: 'todos', relativeTo: 'domain', anchor: 'right', offset: { x: 40 }, variant: 'label', label: 'todos' },
-    { id: 'tags-write', relativeTo: 'tags', anchor: 'right', offset: { x: 40 }, variant: 'label', label: 'ripple_tags' },
+    { id: "append", x: 20, y: 10, label: "db.append()" },
+    { id: "load", x: 20, y: 70, label: "1. Load existing tags" },
+    {
+      id: "lww",
+      x: 20,
+      y: 140,
+      label: ["2. Apply field-level LWW", "(compare HLC timestamps)"],
+    },
+    { id: "domain", x: 20, y: 220, label: "3. Update domain table" },
+    { id: "tags", x: 20, y: 290, label: "4. Update tags table" },
+    {
+      id: "tags-read",
+      relativeTo: "load",
+      anchor: "right",
+      offset: { x: 40 },
+      variant: "label",
+      label: "ripple_tags",
+    },
+    {
+      id: "todos",
+      relativeTo: "domain",
+      anchor: "right",
+      offset: { x: 40 },
+      variant: "label",
+      label: "todos",
+    },
+    {
+      id: "tags-write",
+      relativeTo: "tags",
+      anchor: "right",
+      offset: { x: 40 },
+      variant: "label",
+      label: "ripple_tags",
+    },
   ]}
   edges={[
-    { from: 'append', to: 'load', orthogonal: true },
-    { from: 'load', to: 'lww', orthogonal: true },
-    { from: 'lww', to: 'domain', orthogonal: true },
-    { from: 'domain', to: 'tags', orthogonal: true },
-    { from: 'tags-read', to: 'load', fromSide: 'left', toSide: 'right', dashed: true, animated: true, orthogonal: true },
-    { from: 'domain', to: 'todos', fromSide: 'right', toSide: 'left', dashed: true, animated: true, orthogonal: true },
-    { from: 'tags', to: 'tags-write', fromSide: 'right', toSide: 'left', dashed: true, animated: true, orthogonal: true },
+    { from: "append", to: "load", orthogonal: true },
+    { from: "load", to: "lww", orthogonal: true },
+    { from: "lww", to: "domain", orthogonal: true },
+    { from: "domain", to: "tags", orthogonal: true },
+    {
+      from: "tags-read",
+      to: "load",
+      fromSide: "left",
+      toSide: "right",
+      dashed: true,
+      animated: true,
+      orthogonal: true,
+    },
+    {
+      from: "domain",
+      to: "todos",
+      fromSide: "right",
+      toSide: "left",
+      dashed: true,
+      animated: true,
+      orthogonal: true,
+    },
+    {
+      from: "tags",
+      to: "tags-write",
+      fromSide: "right",
+      toSide: "left",
+      dashed: true,
+      animated: true,
+      orthogonal: true,
+    },
   ]}
 />
 
@@ -93,6 +144,7 @@ Maps schema fields to database columns:
 **Without fieldMap**, only the `ripple_tags` table is updated. The domain table is unchanged.
 
 **With fieldMap**, both `ripple_tags` and the domain table are updated.
+
 </Callout>
 
 ## Field-Level LWW in Action
@@ -127,33 +179,33 @@ When a change arrives, each field is compared independently:
 
 ## Choosing a Materializer
 
-| If you use... | Materializer |
-|--------------|--------------|
-| `db-sqlite` | `materialize-db` |
-| `db-turso` | `materialize-db` |
-| `db-drizzle` | `materialize-drizzle` |
+| If you use... | Materializer          |
+| ------------- | --------------------- |
+| `db-sqlite`   | `materialize-db`      |
+| `db-turso`    | `materialize-db`      |
+| `db-drizzle`  | `materialize-drizzle` |
 
 ### materialize-db Example
 
 ```ts
-import { defineSchema, s } from '@rippledb/core';
-import { SqliteDb } from '@rippledb/db-sqlite';
-import { createSyncMaterializer } from '@rippledb/materialize-db';
+import { defineSchema, s } from "@rippledb/core";
+import { SqliteDb } from "@rippledb/db-sqlite";
+import { createSyncMaterializer } from "@rippledb/materialize-db";
 
 const schema = defineSchema({
   todos: { id: s.string(), title: s.string(), done: s.boolean() },
 });
 
 const db = new SqliteDb({
-  filename: './data.db',
+  filename: "./data.db",
   schema,
   materializer: ({ db, schema }) =>
     createSyncMaterializer({
       schema,
       db,
-      dialect: 'sqlite',
-    tableMap: { todos: 'todos' },
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      dialect: "sqlite",
+      tableMap: { todos: "todos" },
+      fieldMap: { todos: { id: "id", title: "title", done: "done" } },
     }),
 });
 ```
@@ -161,17 +213,17 @@ const db = new SqliteDb({
 ### materialize-drizzle Example
 
 ```ts
-import { defineSchema, s } from '@rippledb/core';
-import { SqliteDb } from '@rippledb/db-sqlite';
-import { createDrizzleSyncMaterializer } from '@rippledb/materialize-drizzle';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { defineSchema, s } from "@rippledb/core";
+import { SqliteDb } from "@rippledb/db-sqlite";
+import { createDrizzleSyncMaterializer } from "@rippledb/materialize-drizzle";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 
 const schema = defineSchema({
   todos: { id: s.string(), title: s.string(), done: s.boolean() },
 });
 
 const db = new SqliteDb<MySchema>({
-  filename: './data.db',
+  filename: "./data.db",
   schema,
   materializer: ({ db, schema }) => {
     const drizzleDb = drizzle(db);
@@ -180,7 +232,7 @@ const db = new SqliteDb<MySchema>({
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
       getTableConfig,
-      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      fieldMap: { todos: { id: "id", title: "title", done: "done" } },
     });
   },
 });
@@ -207,35 +259,35 @@ CREATE TABLE ripple_tags (
 For advanced cases, implement a custom executor:
 
 ```ts
-import { createMaterializer } from '@rippledb/materialize-db';
+import { createMaterializer } from "@rippledb/materialize-db";
 
 const db = new SqliteDb<MySchema>({
-  filename: './data.db',
+  filename: "./data.db",
   schema,
   materializer: ({ db, schema }) =>
     createMaterializer({
       schema,
       db,
-    tableMap: { todos: 'todos' },
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
-    executor: {
+      tableMap: { todos: "todos" },
+      fieldMap: { todos: { id: "id", title: "title", done: "done" } },
+      executor: {
         ensureTagsTable: async (db) => {
-        // Create tags table
-      },
+          // Create tags table
+        },
         loadTags: async (db, entity, id) => {
-        // Return TagsRow or null
-      },
+          // Return TagsRow or null
+        },
         saveTags: async (db, entity, id, dataJson, tagsJson) => {
-        // Upsert tags row
-      },
+          // Upsert tags row
+        },
         removeTags: async (db, entity, id, dataJson, tagsJson, deletedTag) => {
-        // Upsert with deleted flag
-      },
+          // Upsert with deleted flag
+        },
         saveEntity: async (db, tableName, id, columns, values, updates) => {
-        // Upsert domain table
+          // Upsert domain table
+        },
       },
-    },
-  }),
+    }),
 });
 ```
 

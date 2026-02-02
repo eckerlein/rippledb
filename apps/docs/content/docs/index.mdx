@@ -3,13 +3,16 @@ title: RippleDB
 description: A local-first sync engine with field-level conflict resolution
 ---
 
-import { Cards, Card } from 'fumadocs-ui/components/card';
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from "fumadocs-ui/components/card";
+import { Callout } from "fumadocs-ui/components/callout";
 
 # RippleDB
 
 <Callout type="warning">
-**Early Development**: RippleDB is currently in early stages of development. APIs may change, and some features are still being refined. Use at your own discretion and feel free to [contribute feedback](https://github.com/eckerlein/rippledb)!
+  **Early Development**: RippleDB is currently in early stages of development.
+  APIs may change, and some features are still being refined. Use at your own
+  discretion and feel free to [contribute
+  feedback](https://github.com/eckerlein/rippledb)!
 </Callout>
 
 A **local-first sync engine** that treats local storage as the source of truth. Changes replicate via an append-only log, and conflicts resolve deterministically at the field level using hybrid logical clocks.
@@ -33,6 +36,7 @@ RippleDB follows a **headless, adapter-based architecture**:
 <ArchitectureStack />
 
 This means:
+
 - **Swap databases** without changing application code
 - **Test with in-memory** adapters, deploy with SQLite or Turso
 - **Integrate with existing ORMs** like Drizzle seamlessly
@@ -40,58 +44,60 @@ This means:
 ## Quick Example
 
 ```ts
-import { defineSchema, s } from '@rippledb/core';
-import { SqliteDb } from '@rippledb/db-sqlite';
-import { createSyncMaterializer } from '@rippledb/materialize-db';
-import { makeUpsert } from '@rippledb/core';
-import { tickHlc, createHlcState } from '@rippledb/core';
+import { defineSchema, s } from "@rippledb/core";
+import { SqliteDb } from "@rippledb/db-sqlite";
+import { createSyncMaterializer } from "@rippledb/materialize-db";
+import { makeUpsert } from "@rippledb/core";
+import { tickHlc, createHlcState } from "@rippledb/core";
 
 const schema = defineSchema({
   todos: { id: s.string(), title: s.string(), done: s.boolean() },
 });
 
 const db = new SqliteDb({
-  filename: './data.db',
+  filename: "./data.db",
   schema,
   materializer: ({ db, schema }) =>
     createSyncMaterializer({
       schema,
       db,
-      dialect: 'sqlite',
-      tableMap: { todos: 'todos' },
-      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      dialect: "sqlite",
+      tableMap: { todos: "todos" },
+      fieldMap: { todos: { id: "id", title: "title", done: "done" } },
     }),
 });
 
 // Append a change
-const hlc = tickHlc(createHlcState('node-1'), Date.now());
+const hlc = tickHlc(createHlcState("node-1"), Date.now());
 await db.append({
-  stream: 'my-stream',
-  changes: [makeUpsert({
-    stream: 'my-stream',
-  entity: 'todos',
-  entityId: 'todo-1',
-    patch: { id: 'todo-1', title: 'Buy milk', done: false },
-    hlc,
-  })],
+  stream: "my-stream",
+  changes: [
+    makeUpsert({
+      stream: "my-stream",
+      entity: "todos",
+      entityId: "todo-1",
+      patch: { id: "todo-1", title: "Buy milk", done: false },
+      hlc,
+    }),
+  ],
 });
 ```
 
 ## Get Started
 
 <Cards>
-  <Card 
-    title="Installation" 
+  <Card
+    title="Installation"
     description="Install RippleDB and set up your first project"
     href="/docs/getting-started"
   />
-  <Card 
-    title="Quick Start" 
+  <Card
+    title="Quick Start"
     description="Build a sync-enabled app in 5 minutes"
     href="/docs/getting-started/quick-start"
   />
-  <Card 
-    title="Core Concepts" 
+  <Card
+    title="Core Concepts"
     description="Understand HLCs, changes, streams, and materialization"
     href="/docs/getting-started/concepts"
   />
@@ -100,13 +106,13 @@ await db.append({
 ## Choose Your Path
 
 <Cards>
-  <Card 
-    title="Adapters" 
+  <Card
+    title="Adapters"
     description="Pick the right database and materializer for your use case"
     href="/docs/adapters"
   />
-  <Card 
-    title="API Reference" 
+  <Card
+    title="API Reference"
     description="Full API documentation for all packages"
     href="/docs/reference"
   />
@@ -116,24 +122,24 @@ await db.append({
 
 **Core** (interfaces & pure logic):
 
-| Package | Description |
-|---------|-------------|
-| `@rippledb/core` | HLC, Change types, pure merge logic |
+| Package            | Description                         |
+| ------------------ | ----------------------------------- |
+| `@rippledb/core`   | HLC, Change types, pure merge logic |
 | `@rippledb/server` | Db interface, append/pull contracts |
 | `@rippledb/client` | Store interface, sync orchestration |
 
 **Database Adapters** (server-side persistence):
 
-| Package | Best For |
-|---------|----------|
-| `@rippledb/db-sqlite` | Local servers, Electron, tests |
-| `@rippledb/db-turso` | Edge deployments, serverless |
+| Package                | Best For                           |
+| ---------------------- | ---------------------------------- |
+| `@rippledb/db-sqlite`  | Local servers, Electron, tests     |
+| `@rippledb/db-turso`   | Edge deployments, serverless       |
 | `@rippledb/db-drizzle` | Existing Drizzle projects (any DB) |
-| `@rippledb/db-memory` | Unit tests, prototyping |
+| `@rippledb/db-memory`  | Unit tests, prototyping            |
 
 **Materializers** (project changes → queryable tables):
 
-| Package | Best For |
-|---------|----------|
-| `@rippledb/materialize-db` | Raw SQL projects |
+| Package                         | Best For                     |
+| ------------------------------- | ---------------------------- |
+| `@rippledb/materialize-db`      | Raw SQL projects             |
 | `@rippledb/materialize-drizzle` | Drizzle projects (type-safe) |

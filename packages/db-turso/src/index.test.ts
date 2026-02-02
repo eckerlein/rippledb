@@ -1,11 +1,21 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeUpsert, tickHlc, type Change, defineSchema, s } from '@rippledb/core';
-import { TursoDb } from './index';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { unlinkSync } from 'node:fs';
-import { createClient } from '@libsql/client';
-import { createMaterializer, createSqlExecutor } from '@rippledb/materialize-db';
+import { createClient } from "@libsql/client";
+import {
+  type Change,
+  createHlcState,
+  defineSchema,
+  makeUpsert,
+  s,
+  tickHlc,
+} from "@rippledb/core";
+import {
+  createMaterializer,
+  createSqlExecutor,
+} from "@rippledb/materialize-db";
+import { unlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { TursoDb } from "./index";
 
 type TestSchema = {
   todos: {
@@ -23,16 +33,19 @@ const schema = defineSchema({
   },
 });
 
-describe('TursoDb', () => {
+describe("TursoDb", () => {
   let db: TursoDb<TestSchema>;
   let dbPath: string;
 
   beforeEach(async () => {
     // Use a temporary file for testing (libSQL can use file: protocol)
-    dbPath = join(tmpdir(), `test-turso-${Date.now()}-${Math.random().toString(36).slice(2)}.db`);
+    dbPath = join(
+      tmpdir(),
+      `test-turso-${Date.now()}-${Math.random().toString(36).slice(2)}.db`,
+    );
     db = new TursoDb({
       url: `file:${dbPath}`,
-      authToken: '', // Not needed for local file mode
+      authToken: "", // Not needed for local file mode
       schema,
     });
     await db.init();
@@ -48,48 +61,48 @@ describe('TursoDb', () => {
     }
   });
 
-  it('appends changes and pulls them back', async () => {
-    const hlc = tickHlc(createHlcState('node-1'), 100);
+  it("appends changes and pulls them back", async () => {
+    const hlc = tickHlc(createHlcState("node-1"), 100);
     const change = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { id: 'todo-1', title: 'Buy milk', done: false },
+      stream: "test",
+      entity: "todos",
+      entityId: "todo-1",
+      patch: { id: "todo-1", title: "Buy milk", done: false },
       hlc,
     });
 
     const appendResult = await db.append({
-      stream: 'test',
+      stream: "test",
       changes: [change],
     });
 
     expect(appendResult.accepted).toBe(1);
 
     const pullResult = await db.pull({
-      stream: 'test',
+      stream: "test",
       cursor: null,
       limit: 10,
     });
 
     expect(pullResult.changes).toHaveLength(1);
-    expect(pullResult.changes[0].entity).toBe('todos');
-    expect(pullResult.changes[0].entityId).toBe('todo-1');
+    expect(pullResult.changes[0].entity).toBe("todos");
+    expect(pullResult.changes[0].entityId).toBe("todo-1");
     expect(pullResult.nextCursor).toBeTruthy();
   });
 
-  it('handles idempotency keys', async () => {
-    const hlc = tickHlc(createHlcState('node-1'), 100);
+  it("handles idempotency keys", async () => {
+    const hlc = tickHlc(createHlcState("node-1"), 100);
     const change = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { id: 'todo-1', title: 'Buy milk', done: false },
+      stream: "test",
+      entity: "todos",
+      entityId: "todo-1",
+      patch: { id: "todo-1", title: "Buy milk", done: false },
       hlc,
     });
 
     const firstAppend = await db.append({
-      stream: 'test',
-      idempotencyKey: 'key-1',
+      stream: "test",
+      idempotencyKey: "key-1",
       changes: [change],
     });
 
@@ -97,24 +110,25 @@ describe('TursoDb', () => {
 
     // Same idempotency key should be rejected
     const secondAppend = await db.append({
-      stream: 'test',
-      idempotencyKey: 'key-1',
+      stream: "test",
+      idempotencyKey: "key-1",
       changes: [change],
     });
 
     expect(secondAppend.accepted).toBe(0);
   });
 
-  it('materializes changes when materializer is configured', async () => {
+  it("materializes changes when materializer is configured", async () => {
     // Create entity table and tags table first using a separate client
     // The materializer will create tags table on first use, but we need it for the load() call
     const setupClient = createClient({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
     });
     await setupClient.batch([
       {
-        sql: 'CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)',
+        sql:
+          "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)",
         args: [],
       },
       {
@@ -134,67 +148,67 @@ describe('TursoDb', () => {
 
     const dbWithMaterializer = await TursoDb.create<TestSchema>({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
       schema,
       materializer: ({ db, schema }) => {
         const sqlConfig = {
-          dialect: 'sqlite',
-          tableMap: { todos: 'todos' },
-          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+          dialect: "sqlite",
+          tableMap: { todos: "todos" },
+          fieldMap: { todos: { id: "id", title: "title", done: "done" } },
         } as const;
         return createMaterializer({
           schema,
           db,
-          dialect: 'sqlite',
+          dialect: "sqlite",
           tableMap: sqlConfig.tableMap,
           fieldMap: sqlConfig.fieldMap,
         });
       },
     });
 
-    const hlc = tickHlc(createHlcState('node-1'), 100);
+    const hlc = tickHlc(createHlcState("node-1"), 100);
     const change = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { id: 'todo-1', title: 'Buy milk', done: false },
+      stream: "test",
+      entity: "todos",
+      entityId: "todo-1",
+      patch: { id: "todo-1", title: "Buy milk", done: false },
       hlc,
     });
 
     await dbWithMaterializer.append({
-      stream: 'test',
+      stream: "test",
       changes: [change],
     });
 
     // Small delay to ensure batch execution completes
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Verify materialization: check that the todo was saved to the todos table
     const verifyClient = createClient({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
     });
     const result = await verifyClient.execute({
-      sql: 'SELECT id, title, done FROM todos WHERE id = ?',
-      args: ['todo-1'],
+      sql: "SELECT id, title, done FROM todos WHERE id = ?",
+      args: ["todo-1"],
     });
     verifyClient.close();
 
     expect(result.rows).toHaveLength(1);
     const row = result.rows[0];
-    expect(row.id).toBe('todo-1');
-    expect(row.title).toBe('Buy milk');
+    expect(row.id).toBe("todo-1");
+    expect(row.title).toBe("Buy milk");
     expect(row.done).toBe(0); // SQLite stores booleans as integers
 
     dbWithMaterializer.close();
   });
 
-  it('handles cursor pagination', async () => {
+  it("handles cursor pagination", async () => {
     const changes = Array.from({ length: 5 }, (_, i) => {
-      const hlc = tickHlc(createHlcState('node-1'), 100 + i);
+      const hlc = tickHlc(createHlcState("node-1"), 100 + i);
       return makeUpsert<TestSchema>({
-        stream: 'test',
-        entity: 'todos',
+        stream: "test",
+        entity: "todos",
         entityId: `todo-${i}`,
         patch: { id: `todo-${i}`, title: `Todo ${i}`, done: false },
         hlc,
@@ -202,13 +216,13 @@ describe('TursoDb', () => {
     });
 
     await db.append({
-      stream: 'test',
+      stream: "test",
       changes,
     });
 
     // Pull first 2
     const firstPull = await db.pull({
-      stream: 'test',
+      stream: "test",
       cursor: null,
       limit: 2,
     });
@@ -218,7 +232,7 @@ describe('TursoDb', () => {
 
     // Pull next 2 using cursor
     const secondPull = await db.pull({
-      stream: 'test',
+      stream: "test",
       cursor: firstPull.nextCursor,
       limit: 2,
     });
@@ -228,7 +242,7 @@ describe('TursoDb', () => {
 
     // Pull remaining
     const thirdPull = await db.pull({
-      stream: 'test',
+      stream: "test",
       cursor: secondPull.nextCursor,
       limit: 2,
     });
@@ -236,15 +250,16 @@ describe('TursoDb', () => {
     expect(thirdPull.changes).toHaveLength(1);
   });
 
-  it('rolls back all writes when materialization fails (atomicity)', async () => {
+  it("rolls back all writes when materialization fails (atomicity)", async () => {
     // Create entity table
     const setupClient = createClient({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
     });
     await setupClient.batch([
       {
-        sql: 'CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)',
+        sql:
+          "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)",
         args: [],
       },
       {
@@ -264,41 +279,41 @@ describe('TursoDb', () => {
 
     const dbWithMaterializer = await TursoDb.create<TestSchema>({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
       schema,
       materializer: ({ db, schema }) => {
         return createMaterializer({
           schema,
           db,
-          dialect: 'sqlite',
-          tableMap: { todos: 'todos' },
-          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+          dialect: "sqlite",
+          tableMap: { todos: "todos" },
+          fieldMap: { todos: { id: "id", title: "title", done: "done" } },
         });
       },
     });
 
     // First, insert a valid change to create todo-1
     const firstChange = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { id: 'todo-1', title: 'First todo', done: false },
-      hlc: tickHlc(createHlcState('node-1'), 100),
+      stream: "test",
+      entity: "todos",
+      entityId: "todo-1",
+      patch: { id: "todo-1", title: "First todo", done: false },
+      hlc: tickHlc(createHlcState("node-1"), 100),
     });
 
     await dbWithMaterializer.append({
-      stream: 'test',
+      stream: "test",
       changes: [firstChange],
     });
 
     // Verify it was written
     const verifyClient1 = createClient({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
     });
     const count1 = await verifyClient1.execute({
-      sql: 'SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?',
-      args: ['test'],
+      sql: "SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?",
+      args: ["test"],
     });
     verifyClient1.close();
     expect(count1.rows[0]?.count).toBe(1);
@@ -306,43 +321,44 @@ describe('TursoDb', () => {
     // Now try to append two changes: one valid, one that will violate CHECK constraint
     const setupClient2 = createClient({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
     });
     await setupClient2.execute({
-      sql: 'DROP TABLE IF EXISTS todos',
+      sql: "DROP TABLE IF EXISTS todos",
       args: [],
     });
     await setupClient2.execute({
-      sql: 'CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER CHECK (done IN (0, 1)))',
+      sql:
+        "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER CHECK (done IN (0, 1)))",
       args: [],
     });
     setupClient2.close();
 
     // Create a valid change
     const validChange = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-2',
-      patch: { id: 'todo-2', title: 'Second todo', done: false },
-      hlc: tickHlc(createHlcState('node-1'), 101),
+      stream: "test",
+      entity: "todos",
+      entityId: "todo-2",
+      patch: { id: "todo-2", title: "Second todo", done: false },
+      hlc: tickHlc(createHlcState("node-1"), 101),
     });
 
     // Create a change that violates the CHECK constraint (done = 2)
     const invalidChange = {
       ...makeUpsert<TestSchema>({
-        stream: 'test',
-        entity: 'todos',
-        entityId: 'todo-invalid',
-        patch: { id: 'todo-invalid', title: 'Invalid', done: false },
-        hlc: tickHlc(createHlcState('node-1'), 103),
+        stream: "test",
+        entity: "todos",
+        entityId: "todo-invalid",
+        patch: { id: "todo-invalid", title: "Invalid", done: false },
+        hlc: tickHlc(createHlcState("node-1"), 103),
       }),
-      patch: { id: 'todo-invalid', title: 'Invalid', done: 2 }, // Violates CHECK constraint
+      patch: { id: "todo-invalid", title: "Invalid", done: 2 }, // Violates CHECK constraint
     } as unknown as Change<TestSchema>;
 
     // Try to append both - the invalid one should cause the whole batch to fail
     await expect(
       dbWithMaterializer.append({
-        stream: 'test',
+        stream: "test",
         changes: [validChange, invalidChange],
       }),
     ).rejects.toThrow();
@@ -350,11 +366,11 @@ describe('TursoDb', () => {
     // Verify that NEITHER change was written to the change log (atomic rollback)
     const verifyClient2 = createClient({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
     });
     const changeLogResult = await verifyClient2.execute({
-      sql: 'SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?',
-      args: ['test'],
+      sql: "SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?",
+      args: ["test"],
     });
     verifyClient2.close();
 
@@ -365,11 +381,11 @@ describe('TursoDb', () => {
     // Verify that the new todos were NOT materialized
     const verifyClient3 = createClient({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
     });
     const todosResult = await verifyClient3.execute({
-      sql: 'SELECT id FROM todos WHERE id IN (?, ?)',
-      args: ['todo-2', 'todo-invalid'],
+      sql: "SELECT id FROM todos WHERE id IN (?, ?)",
+      args: ["todo-2", "todo-invalid"],
     });
     verifyClient3.close();
 
@@ -378,15 +394,16 @@ describe('TursoDb', () => {
     dbWithMaterializer.close();
   });
 
-  it('rolls back all writes when materializer generates invalid SQL (adapter-level test)', async () => {
+  it("rolls back all writes when materializer generates invalid SQL (adapter-level test)", async () => {
     // Create entity table
     const setupClient = createClient({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
     });
     await setupClient.batch([
       {
-        sql: 'CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)',
+        sql:
+          "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)",
         args: [],
       },
       {
@@ -408,12 +425,12 @@ describe('TursoDb', () => {
     // This will cause the batch to fail, testing atomicity through the adapter
     const dbWithInvalidMaterializer = await TursoDb.create<TestSchema>({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
       schema,
       materializer: ({ db, schema }) => {
         const executor = createSqlExecutor({
-          tableMap: { todos: 'todos' },
-          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+          tableMap: { todos: "todos" },
+          fieldMap: { todos: { id: "id", title: "title", done: "done" } },
           // Custom commands that will generate invalid SQL
           loadCommand: (tagsTable: string) =>
             `SELECT data, tags, deleted, deleted_tag FROM ${tagsTable} WHERE entity = ? AND id = ?`,
@@ -422,42 +439,55 @@ describe('TursoDb', () => {
           removeCommand: (tagsTable: string) =>
             `INSERT OR REPLACE INTO ${tagsTable} (entity, id, data, tags, deleted, deleted_tag) VALUES (?, ?, ?, ?, 1, ?)`,
           // This will generate invalid SQL - trying to insert into a non-existent column
-          saveEntityCommand: (tableName: string, id: string, columns: string[], values: unknown[]) => ({
-            sql: `INSERT INTO ${tableName} (id, ${columns.join(', ')}, invalid_column) VALUES (?, ${values.map(() => '?').join(', ')}, ?)`,
-            params: [id, ...values, 'invalid'],
+          saveEntityCommand: (
+            tableName: string,
+            id: string,
+            columns: string[],
+            values: unknown[],
+          ) => ({
+            sql: `INSERT INTO ${tableName} (id, ${
+              columns.join(
+                ", ",
+              )
+            }, invalid_column) VALUES (?, ${
+              values
+                .map(() => "?")
+                .join(", ")
+            }, ?)`,
+            params: [id, ...values, "invalid"],
           }),
         });
         return createMaterializer({
           schema,
           db,
           executor,
-          tableMap: { todos: 'todos' },
-          fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+          tableMap: { todos: "todos" },
+          fieldMap: { todos: { id: "id", title: "title", done: "done" } },
         });
       },
     });
 
     // Create two valid changes
     const change1 = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { id: 'todo-1', title: 'First todo', done: false },
-      hlc: tickHlc(createHlcState('node-1'), 100),
+      stream: "test",
+      entity: "todos",
+      entityId: "todo-1",
+      patch: { id: "todo-1", title: "First todo", done: false },
+      hlc: tickHlc(createHlcState("node-1"), 100),
     });
 
     const change2 = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-2',
-      patch: { id: 'todo-2', title: 'Second todo', done: false },
-      hlc: tickHlc(createHlcState('node-1'), 101),
+      stream: "test",
+      entity: "todos",
+      entityId: "todo-2",
+      patch: { id: "todo-2", title: "Second todo", done: false },
+      hlc: tickHlc(createHlcState("node-1"), 101),
     });
 
     // Try to append both - the invalid SQL should cause the whole batch to fail
     await expect(
       dbWithInvalidMaterializer.append({
-        stream: 'test',
+        stream: "test",
         changes: [change1, change2],
       }),
     ).rejects.toThrow();
@@ -465,11 +495,11 @@ describe('TursoDb', () => {
     // Verify that NEITHER change was written to the change log (atomic rollback)
     const verifyClient = createClient({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
     });
     const changeLogResult = await verifyClient.execute({
-      sql: 'SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?',
-      args: ['test'],
+      sql: "SELECT COUNT(*) as count FROM ripple_changes WHERE stream = ?",
+      args: ["test"],
     });
     verifyClient.close();
 
@@ -479,11 +509,11 @@ describe('TursoDb', () => {
     // Verify that NEITHER todo was materialized
     const verifyClient2 = createClient({
       url: `file:${dbPath}`,
-      authToken: '',
+      authToken: "",
     });
     const todosResult = await verifyClient2.execute({
-      sql: 'SELECT id FROM todos WHERE id IN (?, ?)',
-      args: ['todo-1', 'todo-2'],
+      sql: "SELECT id FROM todos WHERE id IN (?, ?)",
+      args: ["todo-1", "todo-2"],
     });
     verifyClient2.close();
 

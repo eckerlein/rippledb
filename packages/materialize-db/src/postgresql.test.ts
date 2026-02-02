@@ -1,16 +1,38 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createHlcState, makeDelete, makeUpsert, tickHlc, defineSchema, s, type InferSchema } from '@rippledb/core';
-import { materializeChange, type MaterializerAdapter } from '@rippledb/materialize-core';
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import pg from 'pg';
-import { createMaterializer } from './adapter';
-import type { Db } from './types';
-import { createPostgresDb, type TestSchema } from './test-helpers';
+import {
+  createHlcState,
+  defineSchema,
+  type InferSchema,
+  makeDelete,
+  makeUpsert,
+  s,
+  tickHlc,
+} from "@rippledb/core";
+import {
+  materializeChange,
+  type MaterializerAdapter,
+} from "@rippledb/materialize-core";
+import {
+  PostgreSqlContainer,
+  StartedPostgreSqlContainer,
+} from "@testcontainers/postgresql";
+import pg from "pg";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
+import { createMaterializer } from "./adapter";
+import { createPostgresDb, type TestSchema } from "./test-helpers";
+import type { Db } from "./types";
 
 // Each test suite gets its own database for complete isolation
-const TEST_DB_NAME = 'test_materialize_db';
+const TEST_DB_NAME = "test_materialize_db";
 
-describe('createMaterializer - PostgreSQL dialect', () => {
+describe("createMaterializer - PostgreSQL dialect", () => {
   let container: StartedPostgreSqlContainer | null = null;
   type SchemaDescriptorShape = {
     todos: {
@@ -33,18 +55,20 @@ describe('createMaterializer - PostgreSQL dialect', () => {
 
   beforeAll(async () => {
     try {
-      container = await new PostgreSqlContainer('postgres:16-alpine')
+      container = await new PostgreSqlContainer("postgres:16-alpine")
         .withReuse()
         .start();
 
       // Create isolated database for this test suite
-      const adminClient = new pg.Client({ connectionString: container.getConnectionUri() });
+      const adminClient = new pg.Client({
+        connectionString: container.getConnectionUri(),
+      });
       await adminClient.connect();
       await adminClient.query(`DROP DATABASE IF EXISTS ${TEST_DB_NAME}`);
       await adminClient.query(`CREATE DATABASE ${TEST_DB_NAME}`);
       await adminClient.end();
     } catch {
-      throw new Error('PostgreSQL testcontainer failed to start');
+      throw new Error("PostgreSQL testcontainer failed to start");
     }
   }, 30000);
 
@@ -55,7 +79,9 @@ describe('createMaterializer - PostgreSQL dialect', () => {
     }
     // Drop the test database
     if (container) {
-      const adminClient = new pg.Client({ connectionString: container.getConnectionUri() });
+      const adminClient = new pg.Client({
+        connectionString: container.getConnectionUri(),
+      });
       await adminClient.connect();
       await adminClient.query(`DROP DATABASE IF EXISTS ${TEST_DB_NAME}`);
       await adminClient.end();
@@ -66,7 +92,7 @@ describe('createMaterializer - PostgreSQL dialect', () => {
 
   beforeEach(async () => {
     if (!container) {
-      throw new Error('Container not started');
+      throw new Error("Container not started");
     }
     // Close previous connection if it exists
     if (dbClose) {
@@ -79,14 +105,17 @@ describe('createMaterializer - PostgreSQL dialect', () => {
     db = dbWrapper.db;
     dbClose = dbWrapper.close;
     // Create fresh tables
-    await db.run('DROP TABLE IF EXISTS todos', []);
-    await db.run('DROP TABLE IF EXISTS ripple_tags', []);
-    await db.run('CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)', []);
+    await db.run("DROP TABLE IF EXISTS todos", []);
+    await db.run("DROP TABLE IF EXISTS ripple_tags", []);
+    await db.run(
+      "CREATE TABLE todos (id TEXT PRIMARY KEY, title TEXT, done INTEGER)",
+      [],
+    );
     adapter = createMaterializer({
       schema,
       db,
-      dialect: 'postgresql',
-      tableMap: { todos: 'todos' },
+      dialect: "postgresql",
+      tableMap: { todos: "todos" },
     });
   });
 
@@ -98,77 +127,83 @@ describe('createMaterializer - PostgreSQL dialect', () => {
     }
   });
 
-  it('creates tags table and saves entity', async () => {
+  it("creates tags table and saves entity", async () => {
     const adapterWithFieldMap = createMaterializer({
       schema,
       db,
-      dialect: 'postgresql',
-      tableMap: { todos: 'todos' },
-      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      dialect: "postgresql",
+      tableMap: { todos: "todos" },
+      fieldMap: { todos: { id: "id", title: "title", done: "done" } },
     });
 
-    const hlc = tickHlc(createHlcState('node-1'), 100);
+    const hlc = tickHlc(createHlcState("node-1"), 100);
     const change = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { id: 'todo-1', title: 'Buy milk', done: false },
+      stream: "test",
+      entity: "todos",
+      entityId: "todo-1",
+      patch: { id: "todo-1", title: "Buy milk", done: false },
       hlc,
     });
 
     await materializeChange(adapterWithFieldMap, db, change);
 
     // Verify tags table exists and has data
-    const row = await db.get<{ data: string; tags: string; deleted: number }>(
-      'SELECT data, tags, deleted FROM ripple_tags WHERE entity = $1 AND id = $2',
-      ['todos', 'todo-1'],
+    const row = await db.get<{ data: string; tags: string; deleted: number; }>(
+      "SELECT data, tags, deleted FROM ripple_tags WHERE entity = $1 AND id = $2",
+      ["todos", "todo-1"],
     );
     expect(row).toBeTruthy();
-    expect(JSON.parse(row!.data)).toEqual({ id: 'todo-1', title: 'Buy milk', done: false });
+    expect(JSON.parse(row!.data)).toEqual({
+      id: "todo-1",
+      title: "Buy milk",
+      done: false,
+    });
     expect(row!.deleted).toBe(0);
 
     // Check entity table
-    const entityRow = await db.get<{ id: string; title: string; done: number }>(
-      'SELECT id, title, done FROM todos WHERE id = $1',
-      ['todo-1'],
+    const entityRow = await db.get<
+      { id: string; title: string; done: number; }
+    >(
+      "SELECT id, title, done FROM todos WHERE id = $1",
+      ["todo-1"],
     );
-    expect(entityRow).toEqual({ id: 'todo-1', title: 'Buy milk', done: 0 });
+    expect(entityRow).toEqual({ id: "todo-1", title: "Buy milk", done: 0 });
   });
 
-  it('handles updates and deletes', async () => {
-    const hlc1 = tickHlc(createHlcState('node-1'), 100);
+  it("handles updates and deletes", async () => {
+    const hlc1 = tickHlc(createHlcState("node-1"), 100);
     const change1 = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { id: 'todo-1', title: 'Buy milk', done: false },
+      stream: "test",
+      entity: "todos",
+      entityId: "todo-1",
+      patch: { id: "todo-1", title: "Buy milk", done: false },
       hlc: hlc1,
     });
     await materializeChange(adapter, db, change1);
 
-    const hlc2 = tickHlc(createHlcState('node-1'), 101);
+    const hlc2 = tickHlc(createHlcState("node-1"), 101);
     const change2 = makeUpsert<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
+      stream: "test",
+      entity: "todos",
+      entityId: "todo-1",
       patch: { done: true },
       hlc: hlc2,
     });
     await materializeChange(adapter, db, change2);
 
-    const state1 = await adapter.load<'todos'>(db, 'todos', 'todo-1');
+    const state1 = await adapter.load<"todos">(db, "todos", "todo-1");
     expect(state1!.values.done).toBe(true);
 
-    const hlc3 = tickHlc(createHlcState('node-1'), 102);
+    const hlc3 = tickHlc(createHlcState("node-1"), 102);
     const change3 = makeDelete<TestSchema>({
-      stream: 'test',
-      entity: 'todos',
-      entityId: 'todo-1',
+      stream: "test",
+      entity: "todos",
+      entityId: "todo-1",
       hlc: hlc3,
     });
     await materializeChange(adapter, db, change3);
 
-    const state2 = await adapter.load(db, 'todos', 'todo-1');
+    const state2 = await adapter.load(db, "todos", "todo-1");
     expect(state2!.deleted).toBe(true);
   });
 });

@@ -7,7 +7,7 @@ This page locks in how we organize RippleDB as a monorepo so the core stays port
 
 ## The key split: client vs server persistence
 
-RippleDB has *two* categories of “backend” implementations that must not be blurred:
+RippleDB has _two_ categories of “backend” implementations that must not be blurred:
 
 - **Client-side local truth**: the database the UI reads from, updated transactionally via replication.
   - packages: `@rippledb/store-*`
@@ -56,4 +56,3 @@ If the names don’t encode this split, contributors will mix responsibilities a
 - `@rippledb/bind-*` → depends on `@rippledb/core` types + its UI library; **never required by core/client/server**
 
 To keep this true over time, we should enforce it with workspace constraints or lint rules.
-

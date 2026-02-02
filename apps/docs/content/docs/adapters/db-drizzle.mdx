@@ -3,7 +3,7 @@ title: db-drizzle
 description: Database-agnostic adapter using Drizzle ORM
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Callout } from "fumadocs-ui/components/callout";
 
 # @rippledb/db-drizzle
 
@@ -11,7 +11,7 @@ A database-agnostic adapter that uses [Drizzle ORM](https://orm.drizzle.team/) f
 
 ## Installation
 
-<InstallCommandTabs packages={['@rippledb/db-drizzle', 'drizzle-orm']} />
+<InstallCommandTabs packages={["@rippledb/db-drizzle", "drizzle-orm"]} />
 
 Plus your database driver:
 
@@ -29,33 +29,33 @@ pnpm add mysql2
 ## Basic Usage (SQLite)
 
 ```ts
-import { defineSchema, s } from '@rippledb/core';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
-import { getTableConfig } from 'drizzle-orm/sqlite-core';
-import { DrizzleDb } from '@rippledb/db-drizzle';
-import { createDrizzleSyncMaterializer } from '@rippledb/materialize-drizzle';
+import { defineSchema, s } from "@rippledb/core";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { getTableConfig } from "drizzle-orm/sqlite-core";
+import { DrizzleDb } from "@rippledb/db-drizzle";
+import { createDrizzleSyncMaterializer } from "@rippledb/materialize-drizzle";
 
 const schema = defineSchema({
   todos: { id: s.string(), title: s.string(), done: s.boolean() },
 });
 
 // Define Drizzle table schemas for internal tables
-const changesTable = sqliteTable('ripple_changes', {
-  seq: integer('seq').primaryKey({ autoIncrement: true }),
-  stream: text('stream').notNull(),
-  change_json: text('change_json').notNull(),
+const changesTable = sqliteTable("ripple_changes", {
+  seq: integer("seq").primaryKey({ autoIncrement: true }),
+  stream: text("stream").notNull(),
+  change_json: text("change_json").notNull(),
 });
 
-const idempotencyTable = sqliteTable('ripple_idempotency', {
-  stream: text('stream').notNull(),
-  idempotency_key: text('idempotency_key').notNull(),
-  last_seq: integer('last_seq').notNull(),
+const idempotencyTable = sqliteTable("ripple_idempotency", {
+  stream: text("stream").notNull(),
+  idempotency_key: text("idempotency_key").notNull(),
+  last_seq: integer("last_seq").notNull(),
 });
 
 // Create the database
-const sqlite = new Database('./data.db');
+const sqlite = new Database("./data.db");
 const drizzleDb = drizzle(sqlite);
 
 // Create tables (use Drizzle migrations in production)
@@ -79,34 +79,34 @@ const db = new DrizzleDb({
   changesTable,
   idempotencyTable,
   getTableConfig,
-  isSync: true,  // Required for better-sqlite3
+  isSync: true, // Required for better-sqlite3
 });
 ```
 
 ## Basic Usage (PostgreSQL)
 
 ```ts
-import { defineSchema, s } from '@rippledb/core';
-import { Client } from 'pg';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { pgTable, text, serial, integer } from 'drizzle-orm/pg-core';
-import { getTableConfig } from 'drizzle-orm/pg-core';
-import { DrizzleDb } from '@rippledb/db-drizzle';
+import { defineSchema, s } from "@rippledb/core";
+import { Client } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { pgTable, text, serial, integer } from "drizzle-orm/pg-core";
+import { getTableConfig } from "drizzle-orm/pg-core";
+import { DrizzleDb } from "@rippledb/db-drizzle";
 
 const schema = defineSchema({
   todos: { id: s.string(), title: s.string(), done: s.boolean() },
 });
 
-const changesTable = pgTable('ripple_changes', {
-  seq: serial('seq').primaryKey(),
-  stream: text('stream').notNull(),
-  change_json: text('change_json').notNull(),
+const changesTable = pgTable("ripple_changes", {
+  seq: serial("seq").primaryKey(),
+  stream: text("stream").notNull(),
+  change_json: text("change_json").notNull(),
 });
 
-const idempotencyTable = pgTable('ripple_idempotency', {
-  stream: text('stream').notNull(),
-  idempotency_key: text('idempotency_key').notNull(),
-  last_seq: integer('last_seq').notNull(),
+const idempotencyTable = pgTable("ripple_idempotency", {
+  stream: text("stream").notNull(),
+  idempotency_key: text("idempotency_key").notNull(),
+  last_seq: integer("last_seq").notNull(),
 });
 
 const client = new Client({ connectionString: process.env.DATABASE_URL });
@@ -126,17 +126,17 @@ const db = new DrizzleDb({
 ## The `isSync` Flag
 
 <Callout type="warning">
-**Critical for SQLite with better-sqlite3**: You must set `isSync: true`.
+  **Critical for SQLite with better-sqlite3**: You must set `isSync: true`.
 </Callout>
 
 The `isSync` flag tells RippleDB whether the underlying Drizzle driver is synchronous or asynchronous:
 
-| Driver | `isSync` Value |
-|--------|---------------|
-| `better-sqlite3` | `true` |
+| Driver               | `isSync` Value    |
+| -------------------- | ----------------- |
+| `better-sqlite3`     | `true`            |
 | `pg` (node-postgres) | `false` (default) |
-| `mysql2` | `false` (default) |
-| `@libsql/client` | `false` (default) |
+| `mysql2`             | `false` (default) |
+| `@libsql/client`     | `false` (default) |
 
 ### Why Is This Needed?
 
@@ -164,24 +164,24 @@ RippleDB needs to know which style to use for proper transaction handling.
 ## With Materialization
 
 ```ts
-import { DrizzleDb } from '@rippledb/db-drizzle';
-import { and, eq } from 'drizzle-orm';
+import { DrizzleDb } from "@rippledb/db-drizzle";
+import { and, eq } from "drizzle-orm";
 
 // Tags table for materialization
-const tagsTable = sqliteTable('ripple_tags', {
-  entity: text('entity').notNull(),
-  id: text('id').notNull(),
-  data: text('data').notNull(),
-  tags: text('tags').notNull(),
-  deleted: integer('deleted').notNull().default(0),
-  deleted_tag: text('deleted_tag'),
+const tagsTable = sqliteTable("ripple_tags", {
+  entity: text("entity").notNull(),
+  id: text("id").notNull(),
+  data: text("data").notNull(),
+  tags: text("tags").notNull(),
+  deleted: integer("deleted").notNull().default(0),
+  deleted_tag: text("deleted_tag"),
 });
 
 // Your domain table
-const todosTable = sqliteTable('todos', {
-  id: text('id').primaryKey(),
-  title: text('title'),
-  done: integer('done'),
+const todosTable = sqliteTable("todos", {
+  id: text("id").primaryKey(),
+  title: text("title"),
+  done: integer("done"),
 });
 
 const db = new DrizzleDb<MySchema, typeof drizzleDb>({
@@ -197,13 +197,15 @@ const db = new DrizzleDb<MySchema, typeof drizzleDb>({
       tableMap: { todos: todosTable },
       tagsTableDef: tagsTable,
       getTableConfig,
-      fieldMap: { todos: { id: 'id', title: 'title', done: 'done' } },
+      fieldMap: { todos: { id: "id", title: "title", done: "done" } },
     }),
 });
 ```
 
 <Callout type="info">
-For a simpler materializer setup, consider using [materialize-drizzle](/docs/adapters/materialize-drizzle) which provides sensible defaults.
+  For a simpler materializer setup, consider using
+  [materialize-drizzle](/docs/adapters/materialize-drizzle) which provides
+  sensible defaults.
 </Callout>
 
 ## Options
@@ -235,9 +237,9 @@ Primary key: `(stream, idempotency_key)`
 Import from your Drizzle dialect:
 
 ```ts
-import { getTableConfig } from 'drizzle-orm/sqlite-core';
-import { getTableConfig } from 'drizzle-orm/pg-core';
-import { getTableConfig } from 'drizzle-orm/mysql-core';
+import { getTableConfig } from "drizzle-orm/sqlite-core";
+import { getTableConfig } from "drizzle-orm/pg-core";
+import { getTableConfig } from "drizzle-orm/mysql-core";
 ```
 
 ### `isSync?`
@@ -281,12 +283,12 @@ CREATE TABLE ripple_idempotency (
 
 ## Benefits Over db-sqlite
 
-| Feature | db-sqlite | db-drizzle |
-|---------|-----------|------------|
-| Database support | SQLite only | Any Drizzle-supported DB |
-| Type-safe queries | No | Yes |
-| ORM integration | Manual | Native |
-| Custom materializer | SQL-based | Drizzle query builder |
+| Feature             | db-sqlite   | db-drizzle               |
+| ------------------- | ----------- | ------------------------ |
+| Database support    | SQLite only | Any Drizzle-supported DB |
+| Type-safe queries   | No          | Yes                      |
+| ORM integration     | Manual      | Native                   |
+| Custom materializer | SQL-based   | Drizzle query builder    |
 
 ## Related
 

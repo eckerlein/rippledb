@@ -2,7 +2,8 @@
 
 HTTP client for RippleDB sync.
 
-📚 **Documentation:** [rippledb.dev/docs/reference/remote-http](https://rippledb.dev/docs/reference/remote-http)
+📚 **Documentation:**
+[rippledb.dev/docs/reference/remote-http](https://rippledb.dev/docs/reference/remote-http)
 
 ## Installation
 
@@ -13,18 +14,18 @@ npm install @rippledb/remote-http @rippledb/client @rippledb/core
 ## Usage
 
 ```typescript
-import { createHttpRemote } from '@rippledb/remote-http';
-import { createReplicator } from '@rippledb/client';
+import { createReplicator } from "@rippledb/client";
+import { createHttpRemote } from "@rippledb/remote-http";
 
 const remote = createHttpRemote({
-  baseUrl: 'https://api.example.com/ripple',
+  baseUrl: "https://api.example.com/ripple",
   headers: {
     Authorization: `Bearer ${token}`,
   },
 });
 
 const replicator = createReplicator({
-  stream: 'user-123',
+  stream: "user-123",
   store,
   remote,
 });

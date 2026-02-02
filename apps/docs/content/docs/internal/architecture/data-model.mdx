@@ -11,13 +11,13 @@ A change is the atomic unit of replication.
 
 ```ts
 type Change = {
-  stream: string;                // opaque partition key
-  entity: string;                // domain entity name
-  entityId: string;              // primary key
-  kind: "upsert" | "delete";     // fixed semantics
-  patch: Record<string, any>;    // changed fields only
-  tags: Record<string, string>;  // field -> HLC tag
-  hlc: string;                   // change-level HLC
+  stream: string; // opaque partition key
+  entity: string; // domain entity name
+  entityId: string; // primary key
+  kind: "upsert" | "delete"; // fixed semantics
+  patch: Record<string, any>; // changed fields only
+  tags: Record<string, string>; // field -> HLC tag
+  hlc: string; // change-level HLC
 };
 ```
 
@@ -76,4 +76,3 @@ Why:
 
 - prevents resurrection
 - resolves delete/update conflicts cleanly
-

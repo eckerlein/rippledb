@@ -1,12 +1,12 @@
-import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
-import Image from 'next/image';
-import { GradientText } from '@/components/ui/gradient-text';
+import { GradientText } from "@/components/ui/gradient-text";
+import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
+import Image from "next/image";
 
 export function baseOptions(): BaseLayoutProps {
   return {
     themeSwitch: {
       enabled: true,
-      mode: 'light-dark-system',
+      mode: "light-dark-system",
     },
     nav: {
       title: (

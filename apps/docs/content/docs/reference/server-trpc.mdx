@@ -3,21 +3,20 @@ title: "@rippledb/server-trpc"
 description: tRPC router exposing RippleDB pull/append procedures
 ---
 
-
 # @rippledb/server-trpc
 
 A small helper to expose RippleDB sync over tRPC by generating a router with `pull` and `append` procedures backed by your `Db` implementation.
 
 ## Installation
 
-<InstallCommandTabs packages={['@rippledb/server-trpc', '@trpc/server']} />
+<InstallCommandTabs packages={["@rippledb/server-trpc", "@trpc/server"]} />
 
 ## Usage
 
 ```ts
-import { MemoryDb } from '@rippledb/db-memory';
-import { createRippleTrpcRouter } from '@rippledb/server-trpc';
-import { initTRPC } from '@trpc/server';
+import { MemoryDb } from "@rippledb/db-memory";
+import { createRippleTrpcRouter } from "@rippledb/server-trpc";
+import { initTRPC } from "@trpc/server";
 
 // 1) Create a RippleDB Db implementation (use a real db-* adapter in production)
 type DemoSchema = {
@@ -38,4 +37,3 @@ export const appRouter = t.router({
   ripple: rippleRouter,
 });
 ```
-

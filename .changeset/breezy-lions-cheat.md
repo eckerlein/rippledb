@@ -10,11 +10,15 @@
 
 Refactor materializer adapters to stateless API
 
-- MaterializerFactory now receives `{ db, schema }` and returns MaterializerAdapter directly
-- Adapters and executors are stateless (db passed per call instead of bound at creation)
-- Add schema-driven helpers: `createMaterializer`, `createSyncMaterializer`, `createDrizzleMaterializer`, `createDrizzleSyncMaterializer`
+- MaterializerFactory now receives `{ db, schema }` and returns
+  MaterializerAdapter directly
+- Adapters and executors are stateless (db passed per call instead of bound at
+  creation)
+- Add schema-driven helpers: `createMaterializer`, `createSyncMaterializer`,
+  `createDrizzleMaterializer`, `createDrizzleSyncMaterializer`
 - Add `MaterializerDb` interface in `@rippledb/core` for database contract
 - Adapters are cached in DB constructors for performance
 - Update all DB adapters to use new factory pattern
 
-BREAKING CHANGE: MaterializerFactory signature changed. Materializer adapters now receive `db` as first parameter in all methods.
+BREAKING CHANGE: MaterializerFactory signature changed. Materializer adapters
+now receive `db` as first parameter in all methods.

@@ -1,9 +1,16 @@
-import Database from 'better-sqlite3';
-import type { Change, RippleSchema, SchemaDescriptor } from '@rippledb/core';
-import type { AppendRequest, AppendResult, Cursor, Db, PullRequest, PullResponse } from '@rippledb/server';
-import { applyChangeToState } from '@rippledb/materialize-core';
-import type { MaterializerFactory } from '@rippledb/materialize-core';
-import type { SyncMaterializerAdapter } from '@rippledb/materialize-db';
+import type { Change, RippleSchema, SchemaDescriptor } from "@rippledb/core";
+import { applyChangeToState } from "@rippledb/materialize-core";
+import type { MaterializerFactory } from "@rippledb/materialize-core";
+import type { SyncMaterializerAdapter } from "@rippledb/materialize-db";
+import type {
+  AppendRequest,
+  AppendResult,
+  Cursor,
+  Db,
+  PullRequest,
+  PullResponse,
+} from "@rippledb/server";
+import Database from "better-sqlite3";
 
 export type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -11,19 +18,28 @@ export type SqliteDbOptions<
   S extends RippleSchema = RippleSchema,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   D extends SchemaDescriptor<any> = SchemaDescriptor<any>,
-> = {
-  /**
-   * SQLite pragmas to apply (only when using `filename`).
-   * Default: ['journal_mode = WAL']
-   */
-  pragmas?: string[];
-  materializer?: MaterializerFactory<SqliteDatabase, S, SyncMaterializerAdapter<S, SqliteDatabase>>;
-  schema: D;
-} & ({
-  filename: string;
-} | {
-  db: SqliteDatabase;
-});
+> =
+  & {
+    /**
+     * SQLite pragmas to apply (only when using `filename`).
+     * Default: ['journal_mode = WAL']
+     */
+    pragmas?: string[];
+    materializer?: MaterializerFactory<
+      SqliteDatabase,
+      S,
+      SyncMaterializerAdapter<S, SqliteDatabase>
+    >;
+    schema: D;
+  }
+  & (
+    | {
+      filename: string;
+    }
+    | {
+      db: SqliteDatabase;
+    }
+  );
 
 type ChangeRow = {
   seq: number;
@@ -52,17 +68,18 @@ export class SqliteDb<
 > implements Db<S> {
   private db: SqliteDatabase;
   private ownsDb: boolean;
-  private insertChange: ReturnType<SqliteDatabase['prepare']>;
-  private selectChanges: ReturnType<SqliteDatabase['prepare']>;
-  private idempotencyGet: ReturnType<SqliteDatabase['prepare']>;
-  private idempotencyInsert: ReturnType<SqliteDatabase['prepare']>;
-  private idempotencyUpdate: ReturnType<SqliteDatabase['prepare']>;
-  private materializerFactory: SqliteDbOptions<S>['materializer'];
-  private materializer: SyncMaterializerAdapter<S, SqliteDatabase> | null = null;
+  private insertChange: ReturnType<SqliteDatabase["prepare"]>;
+  private selectChanges: ReturnType<SqliteDatabase["prepare"]>;
+  private idempotencyGet: ReturnType<SqliteDatabase["prepare"]>;
+  private idempotencyInsert: ReturnType<SqliteDatabase["prepare"]>;
+  private idempotencyUpdate: ReturnType<SqliteDatabase["prepare"]>;
+  private materializerFactory: SqliteDbOptions<S>["materializer"];
+  private materializer: SyncMaterializerAdapter<S, SqliteDatabase> | null =
+    null;
   private schema: D;
 
   constructor(opts: SqliteDbOptions<S, D>) {
-    if ('db' in opts) {
+    if ("db" in opts) {
       this.db = opts.db;
       this.ownsDb = false;
     } else {
@@ -70,7 +87,7 @@ export class SqliteDb<
       this.ownsDb = true;
 
       // Only apply pragmas when we create the database
-      for (const pragma of opts.pragmas ?? ['journal_mode = WAL']) {
+      for (const pragma of opts.pragmas ?? ["journal_mode = WAL"]) {
         this.db.pragma(pragma);
       }
     }
@@ -91,30 +108,33 @@ export class SqliteDb<
     `);
 
     this.insertChange = this.db.prepare(
-      'INSERT INTO ripple_changes (stream, change_json) VALUES (@stream, @change_json)',
+      "INSERT INTO ripple_changes (stream, change_json) VALUES (@stream, @change_json)",
     );
     this.selectChanges = this.db.prepare(
-      'SELECT seq, change_json FROM ripple_changes WHERE stream = @stream AND seq > @afterSeq ORDER BY seq ASC LIMIT @limit',
+      "SELECT seq, change_json FROM ripple_changes WHERE stream = @stream AND seq > @afterSeq ORDER BY seq ASC LIMIT @limit",
     );
     this.idempotencyGet = this.db.prepare(
-      'SELECT last_seq FROM ripple_idempotency WHERE stream = @stream AND idempotency_key = @idempotency_key',
+      "SELECT last_seq FROM ripple_idempotency WHERE stream = @stream AND idempotency_key = @idempotency_key",
     );
     this.idempotencyInsert = this.db.prepare(
-      'INSERT INTO ripple_idempotency (stream, idempotency_key, last_seq) VALUES (@stream, @idempotency_key, @last_seq)',
+      "INSERT INTO ripple_idempotency (stream, idempotency_key, last_seq) VALUES (@stream, @idempotency_key, @last_seq)",
     );
     this.idempotencyUpdate = this.db.prepare(
-      'UPDATE ripple_idempotency SET last_seq = @last_seq WHERE stream = @stream AND idempotency_key = @idempotency_key',
+      "UPDATE ripple_idempotency SET last_seq = @last_seq WHERE stream = @stream AND idempotency_key = @idempotency_key",
     );
 
     this.materializerFactory = opts.materializer;
     this.schema = opts.schema;
-    
+
     // Cache materializer adapter if factory is provided
     // Factory returns adapter directly (ensureTagsTable runs during factory execution)
     // For SQLite, this.db is always the same instance, so we can safely cache the materializer
     if (this.materializerFactory) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ctx: { db: SqliteDatabase; schema: SchemaDescriptor<any> } = { db: this.db, schema: this.schema };
+      const ctx: { db: SqliteDatabase; schema: SchemaDescriptor<any>; } = {
+        db: this.db,
+        schema: this.schema,
+      };
       this.materializer = this.materializerFactory(ctx);
     }
   }
@@ -157,14 +177,28 @@ export class SqliteDb<
       if (this.materializer) {
         for (const change of input.changes) {
           // SyncMaterializerAdapter ensures load() returns synchronously (not a Promise)
-          const current = this.materializer.load(this.db, change.entity, change.entityId);
+          const current = this.materializer.load(
+            this.db,
+            change.entity,
+            change.entityId,
+          );
           const result = applyChangeToState(current, change);
 
           if (result.changed) {
             if (result.deleted) {
-              this.materializer.remove(this.db, change.entity, change.entityId, result.state);
+              this.materializer.remove(
+                this.db,
+                change.entity,
+                change.entityId,
+                result.state,
+              );
             } else {
-              this.materializer.save(this.db, change.entity, change.entityId, result.state);
+              this.materializer.save(
+                this.db,
+                change.entity,
+                change.entityId,
+                result.state,
+              );
             }
           }
         }
@@ -185,7 +219,7 @@ export class SqliteDb<
       limit,
     }) as ChangeRow[];
 
-    const changes = rows.map((row) => JSON.parse(row.change_json) as Change<S>);
+    const changes = rows.map(row => JSON.parse(row.change_json) as Change<S>);
     const last = rows[rows.length - 1];
 
     return {
@@ -205,4 +239,3 @@ export class SqliteDb<
     }
   }
 }
-

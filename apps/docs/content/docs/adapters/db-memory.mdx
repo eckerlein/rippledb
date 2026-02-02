@@ -3,14 +3,14 @@ title: db-memory
 description: In-memory adapter for testing
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Callout } from "fumadocs-ui/components/callout";
 
 # @rippledb/db-memory
 
 A simple in-memory adapter for unit testing. No persistence, no dependencies.
 
 <Callout type="warning">
-**Not for production.** Data is lost when the process exits.
+  **Not for production.** Data is lost when the process exits.
 </Callout>
 
 ## Installation
@@ -20,26 +20,28 @@ A simple in-memory adapter for unit testing. No persistence, no dependencies.
 ## Usage
 
 ```ts
-import { MemoryDb } from '@rippledb/db-memory';
+import { MemoryDb } from "@rippledb/db-memory";
 
 const db = new MemoryDb<MySchema>();
 
 // Append changes
 await db.append({
-  stream: 'test-stream',
-  changes: [{
-    entity: 'todos',
-    entityId: 'todo-1',
-    kind: 'upsert',
-    patch: { title: 'Test' },
-    tags: { title: hlc() },
-    hlc: hlc(),
-  }],
+  stream: "test-stream",
+  changes: [
+    {
+      entity: "todos",
+      entityId: "todo-1",
+      kind: "upsert",
+      patch: { title: "Test" },
+      tags: { title: hlc() },
+      hlc: hlc(),
+    },
+  ],
 });
 
 // Pull changes
 const { changes, nextCursor } = await db.pull({
-  stream: 'test-stream',
+  stream: "test-stream",
   cursor: null,
 });
 ```
@@ -60,58 +62,58 @@ const { changes, nextCursor } = await db.pull({
 ## Testing Example
 
 ```ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { MemoryDb } from '@rippledb/db-memory';
-import { makeUpsert } from '@rippledb/core';
+import { describe, it, expect, beforeEach } from "vitest";
+import { MemoryDb } from "@rippledb/db-memory";
+import { makeUpsert } from "@rippledb/core";
 
-describe('TodoService', () => {
+describe("TodoService", () => {
   let db: MemoryDb<MySchema>;
 
   beforeEach(() => {
     db = new MemoryDb();
   });
 
-  it('creates a todo', async () => {
+  it("creates a todo", async () => {
     await db.append({
-      stream: 'user-123',
+      stream: "user-123",
       changes: [
         makeUpsert({
-          stream: 'user-123',
-          entity: 'todos',
-          entityId: 'todo-1',
-          patch: { id: 'todo-1', title: 'Test', done: false },
-          hlc: '1000:0:test',
+          stream: "user-123",
+          entity: "todos",
+          entityId: "todo-1",
+          patch: { id: "todo-1", title: "Test", done: false },
+          hlc: "1000:0:test",
         }),
       ],
     });
 
-    const { changes } = await db.pull({ stream: 'user-123', cursor: null });
+    const { changes } = await db.pull({ stream: "user-123", cursor: null });
     expect(changes).toHaveLength(1);
-    expect(changes[0].patch.title).toBe('Test');
+    expect(changes[0].patch.title).toBe("Test");
   });
 
-  it('supports idempotency', async () => {
+  it("supports idempotency", async () => {
     const change = makeUpsert({
-      stream: 'user-123',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { id: 'todo-1', title: 'Test', done: false },
-      hlc: '1000:0:test',
+      stream: "user-123",
+      entity: "todos",
+      entityId: "todo-1",
+      patch: { id: "todo-1", title: "Test", done: false },
+      hlc: "1000:0:test",
     });
 
     // First append succeeds
     const result1 = await db.append({
-      stream: 'user-123',
+      stream: "user-123",
       changes: [change],
-      idempotencyKey: 'key-1',
+      idempotencyKey: "key-1",
     });
     expect(result1.accepted).toBe(1);
 
     // Second append with same key is ignored
     const result2 = await db.append({
-      stream: 'user-123',
+      stream: "user-123",
       changes: [change],
-      idempotencyKey: 'key-1',
+      idempotencyKey: "key-1",
     });
     expect(result2.accepted).toBe(0);
   });
@@ -120,12 +122,12 @@ describe('TodoService', () => {
 
 ## When to Use
 
-| Scenario | Recommendation |
-|----------|----------------|
-| Unit tests | db-memory |
+| Scenario          | Recommendation            |
+| ----------------- | ------------------------- |
+| Unit tests        | db-memory                 |
 | Integration tests | db-sqlite with `:memory:` |
-| E2E tests | Real database adapter |
-| Development | db-sqlite or db-turso |
+| E2E tests         | Real database adapter     |
+| Development       | db-sqlite or db-turso     |
 
 ## Related
 

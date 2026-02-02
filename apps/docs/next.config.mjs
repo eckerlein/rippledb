@@ -1,16 +1,16 @@
-import { createMDX } from 'fumadocs-mdx/next';
+import { createMDX } from "fumadocs-mdx/next";
 
 const withMDX = createMDX();
 
 /** @type {import('next').NextConfig} */
-const isExport = process.env.DOCS_EXPORT === '1';
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const isExport = process.env.DOCS_EXPORT === "1";
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const config = {
   reactStrictMode: true,
   ...(isExport
     ? {
-        output: 'export',
+        output: "export",
         trailingSlash: true,
         // GitHub Pages has no image optimizer runtime.
         images: { unoptimized: true },
@@ -22,8 +22,8 @@ const config = {
         async rewrites() {
           return [
             {
-              source: '/docs/:path*.mdx',
-              destination: '/llms.mdx/docs/:path*',
+              source: "/docs/:path*.mdx",
+              destination: "/llms.mdx/docs/:path*",
             },
           ];
         },

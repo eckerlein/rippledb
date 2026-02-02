@@ -1,6 +1,11 @@
-import type { Store } from '@rippledb/client';
-import type { RippleSchema, HlcState, EntityName } from '@rippledb/core';
-import { makeUpsert, makeDelete, tickHlc, createHlcState } from '@rippledb/core';
+import type { Store } from "@rippledb/client";
+import type { EntityName, HlcState, RippleSchema } from "@rippledb/core";
+import {
+  createHlcState,
+  makeDelete,
+  makeUpsert,
+  tickHlc,
+} from "@rippledb/core";
 
 /**
  * Batch loader interface for efficient bulk reads.
@@ -18,7 +23,7 @@ export interface BatchLoader<K, V> {
   loadMany(keys: K[]): Promise<Map<K, V>>;
 }
 
-export type BatchLoaderFlushStrategy = 'auto' | 'microtask' | 'raf';
+export type BatchLoaderFlushStrategy = "auto" | "microtask" | "raf";
 
 export type CreateBatchLoaderOptions = {
   /**
@@ -51,7 +56,11 @@ type PendingRequest<V> = {
 export function createBatchLoader<
   S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
->(store: Store<S>, entity: E, options: CreateBatchLoaderOptions = {}): BatchLoader<string, S[E]> {
+>(
+  store: Store<S>,
+  entity: E,
+  options: CreateBatchLoaderOptions = {},
+): BatchLoader<string, S[E]> {
   const pending = new Map<string, PendingRequest<S[E]>[]>();
   let scheduled = false;
 
@@ -90,16 +99,22 @@ export function createBatchLoader<
     }
   };
 
-  const flushStrategy: BatchLoaderFlushStrategy = options.flush ?? 'auto';
+  const flushStrategy: BatchLoaderFlushStrategy = options.flush ?? "auto";
 
   const scheduleFlush = () => {
     if (scheduled) return;
     scheduled = true;
 
-    const raf = (globalThis as unknown as { requestAnimationFrame?: (cb: () => void) => number })
-      .requestAnimationFrame;
+    const raf = (
+      globalThis as unknown as {
+        requestAnimationFrame?: (cb: () => void) => number;
+      }
+    ).requestAnimationFrame;
 
-    if (typeof raf === 'function' && (flushStrategy === 'raf' || flushStrategy === 'auto')) {
+    if (
+      typeof raf === "function"
+      && (flushStrategy === "raf" || flushStrategy === "auto")
+    ) {
       raf(() => {
         void flush();
       });
@@ -132,9 +147,9 @@ export function createBatchLoader<
       // cause two bulk reads (one for the flush + one for loadMany). We can add an
       // explicit opt-in like `loadMany(ids, { coalesce: true })` later if we
       // see real call-sites where this matters.
-	  // I see two options:
-	  // 1. loadMany separates each key into a separate function call to move them into the schedule.
-	  // 2. loadMany lets currently scheduled keys piggy back on its load call.
+      // I see two options:
+      // 1. loadMany separates each key into a separate function call to move them into the schedule.
+      // 2. loadMany lets currently scheduled keys piggy back on its load call.
       const uniqueKeys = Array.from(new Set(keys));
       return await store.getRows(entity, uniqueKeys);
     },
@@ -236,12 +251,14 @@ export function createEntityController<
   S extends RippleSchema = RippleSchema,
   E extends EntityName<S> = EntityName<S>,
   ListQuery = unknown,
->(options: CreateEntityControllerOptions<S, E, ListQuery>): EntityController<S, E, ListQuery> {
+>(
+  options: CreateEntityControllerOptions<S, E, ListQuery>,
+): EntityController<S, E, ListQuery> {
   const {
     store,
     entity,
     stream,
-    hlcState = createHlcState('controller'),
+    hlcState = createHlcState("controller"),
     generateId = () => crypto.randomUUID(),
     batch,
   } = options;
@@ -252,7 +269,8 @@ export function createEntityController<
   return {
     async create(patch: Partial<S[E]>): Promise<S[E]> {
       // Extract ID from patch if present, otherwise generate one
-      const id = (patch as Record<string, unknown>).id as string | undefined ?? generateId();
+      const id = ((patch as Record<string, unknown>).id as string | undefined)
+        ?? generateId();
       const hlc = getHlc();
 
       await store.applyChanges([

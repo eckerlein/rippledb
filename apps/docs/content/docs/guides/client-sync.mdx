@@ -3,9 +3,9 @@ title: Client Sync
 description: Implement client-side sync with offline support
 ---
 
-import { Steps, Step } from 'fumadocs-ui/components/steps';
-import { Callout } from 'fumadocs-ui/components/callout';
-import { Diagram } from '@/components/diagram';
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+import { Diagram } from "@/components/diagram";
 
 # Client Sync
 
@@ -16,14 +16,37 @@ This guide shows how to set up client-side sync with a RippleDB server.
 <Diagram
   height={180}
   nodes={[
-    { id: 'store', x: 20, y: 10, label: ['Store', '(local state)'] },
-    { id: 'outbox', x: 20, y: 90, label: ['Outbox', '(pending)'] },
-    { id: 'server', x: 280, y: 40, label: ['Server', '(Db)'] },
-    { id: 'sync', relativeTo: 'server', anchor: 'left', offset: { x: -60 }, variant: 'label', label: 'sync' },
+    { id: "store", x: 20, y: 10, label: ["Store", "(local state)"] },
+    { id: "outbox", x: 20, y: 90, label: ["Outbox", "(pending)"] },
+    { id: "server", x: 280, y: 40, label: ["Server", "(Db)"] },
+    {
+      id: "sync",
+      relativeTo: "server",
+      anchor: "left",
+      offset: { x: -60 },
+      variant: "label",
+      label: "sync",
+    },
   ]}
   edges={[
-    { from: 'server', to: 'store', fromSide: 'left', toSide: 'right', orthogonal: true, dashed: true, animated: true },
-    { from: 'outbox', to: 'server', fromSide: 'right', toSide: 'bottom', orthogonal: true, dashed: true, animated: true },
+    {
+      from: "server",
+      to: "store",
+      fromSide: "left",
+      toSide: "right",
+      orthogonal: true,
+      dashed: true,
+      animated: true,
+    },
+    {
+      from: "outbox",
+      to: "server",
+      fromSide: "right",
+      toSide: "bottom",
+      orthogonal: true,
+      dashed: true,
+      animated: true,
+    },
   ]}
 />
 
@@ -41,16 +64,17 @@ This guide shows how to set up client-side sync with a RippleDB server.
 ### Create the Remote
 
 ```ts title="src/remote.ts"
-import { createHttpRemote } from '@rippledb/remote-http';
-import type { AppSchema } from './schema';
+import { createHttpRemote } from "@rippledb/remote-http";
+import type { AppSchema } from "./schema";
 
 export const remote = createHttpRemote<AppSchema>({
-  baseUrl: process.env.API_URL ?? 'http://localhost:3000',
+  baseUrl: process.env.API_URL ?? "http://localhost:3000",
   headers: {
-    'Authorization': `Bearer ${getAuthToken()}`,
+    Authorization: `Bearer ${getAuthToken()}`,
   },
 });
 ```
+
 </Step>
 
 <Step>
@@ -59,9 +83,9 @@ export const remote = createHttpRemote<AppSchema>({
 The Store interface manages local state:
 
 ```ts title="src/store.ts"
-import type { Store, DbEvent } from '@rippledb/client';
-import type { Change, EntityName } from '@rippledb/core';
-import type { AppSchema } from './schema';
+import type { Store, DbEvent } from "@rippledb/client";
+import type { Change, EntityName } from "@rippledb/core";
+import type { AppSchema } from "./schema";
 
 export class InMemoryStore implements Store<AppSchema> {
   private data: Map<string, Map<string, unknown>> = new Map();
@@ -70,33 +94,37 @@ export class InMemoryStore implements Store<AppSchema> {
   async applyChanges(changes: Change<AppSchema>[]): Promise<void> {
     for (const change of changes) {
       const entityMap = this.data.get(change.entity) ?? new Map();
-      
-      if (change.kind === 'delete') {
+
+      if (change.kind === "delete") {
         entityMap.delete(change.entityId);
-        this.emit({ entity: change.entity, kind: 'delete', id: change.entityId });
+        this.emit({
+          entity: change.entity,
+          kind: "delete",
+          id: change.entityId,
+        });
       } else {
         const existing = entityMap.get(change.entityId) ?? {};
         const updated = { ...existing, ...change.patch };
         entityMap.set(change.entityId, updated);
         this.data.set(change.entity, entityMap);
-        this.emit({ 
-          entity: change.entity, 
-          kind: existing ? 'update' : 'insert', 
-          id: change.entityId 
+        this.emit({
+          entity: change.entity,
+          kind: existing ? "update" : "insert",
+          id: change.entityId,
         });
       }
     }
   }
 
   async getRow<E extends EntityName<AppSchema>>(
-    entity: E, 
-    id: string
+    entity: E,
+    id: string,
   ): Promise<AppSchema[E] | null> {
     return (this.data.get(entity)?.get(id) as AppSchema[E]) ?? null;
   }
 
   async listRows<E extends EntityName<AppSchema>>(
-    entity: E
+    entity: E,
   ): Promise<AppSchema[E][]> {
     const entityMap = this.data.get(entity);
     if (!entityMap) return [];
@@ -115,17 +143,23 @@ export class InMemoryStore implements Store<AppSchema> {
   }
 }
 ```
+
 </Step>
 
 <Step>
 ### Create the Replicator
 
 ```ts title="src/sync.ts"
-import { createReplicator, InMemoryOutbox } from '@rippledb/client';
-import { createHlcState, tickHlc, makeUpsert, makeDelete } from '@rippledb/core';
-import { remote } from './remote';
-import { InMemoryStore } from './store';
-import type { AppSchema } from './schema';
+import { createReplicator, InMemoryOutbox } from "@rippledb/client";
+import {
+  createHlcState,
+  tickHlc,
+  makeUpsert,
+  makeDelete,
+} from "@rippledb/core";
+import { remote } from "./remote";
+import { InMemoryStore } from "./store";
+import type { AppSchema } from "./schema";
 
 // Initialize components
 const store = new InMemoryStore();
@@ -148,7 +182,7 @@ export function hlc() {
 export async function createTodo(id: string, title: string) {
   const change = makeUpsert<AppSchema>({
     stream: replicator.stream,
-    entity: 'todos',
+    entity: "todos",
     entityId: id,
     patch: { id, title, done: false, createdAt: new Date().toISOString() },
     hlc: hlc(),
@@ -157,10 +191,13 @@ export async function createTodo(id: string, title: string) {
 }
 
 // Helper to update a todo
-export async function updateTodo(id: string, patch: Partial<AppSchema['todos']>) {
+export async function updateTodo(
+  id: string,
+  patch: Partial<AppSchema["todos"]>,
+) {
   const change = makeUpsert<AppSchema>({
     stream: replicator.stream,
-    entity: 'todos',
+    entity: "todos",
     entityId: id,
     patch,
     hlc: hlc(),
@@ -172,7 +209,7 @@ export async function updateTodo(id: string, patch: Partial<AppSchema['todos']>)
 export async function deleteTodo(id: string) {
   const change = makeDelete<AppSchema>({
     stream: replicator.stream,
-    entity: 'todos',
+    entity: "todos",
     entityId: id,
     hlc: hlc(),
   });
@@ -181,13 +218,14 @@ export async function deleteTodo(id: string) {
 
 export { store };
 ```
+
 </Step>
 
 <Step>
 ### Sync Periodically
 
 ```ts title="src/app.ts"
-import { replicator, store } from './sync';
+import { replicator, store } from "./sync";
 
 // Initial sync
 await replicator.sync();
@@ -198,7 +236,7 @@ setInterval(async () => {
     const result = await replicator.sync();
     console.log(`Synced: pulled ${result.pulled}, pushed ${result.pushed}`);
   } catch (error) {
-    console.error('Sync failed:', error);
+    console.error("Sync failed:", error);
   }
 }, 30000);
 
@@ -208,6 +246,7 @@ store.onEvent((event) => {
   // Trigger UI re-render
 });
 ```
+
 </Step>
 
 </Steps>
@@ -224,39 +263,39 @@ The replicator handles offline gracefully:
 // Check if online before syncing
 async function syncWhenOnline() {
   if (!navigator.onLine) {
-    console.log('Offline, skipping sync');
+    console.log("Offline, skipping sync");
     return;
   }
-  
+
   try {
     await replicator.sync();
   } catch (error) {
-    console.error('Sync failed, will retry');
+    console.error("Sync failed, will retry");
   }
 }
 
 // Listen for online/offline events
-window.addEventListener('online', syncWhenOnline);
+window.addEventListener("online", syncWhenOnline);
 ```
 
 ## React Integration
 
 ```tsx
-import { useEffect, useState, useCallback } from 'react';
-import { replicator, store, createTodo, updateTodo } from './sync';
-import type { AppSchema } from './schema';
+import { useEffect, useState, useCallback } from "react";
+import { replicator, store, createTodo, updateTodo } from "./sync";
+import type { AppSchema } from "./schema";
 
 function useTodos() {
-  const [todos, setTodos] = useState<AppSchema['todos'][]>([]);
+  const [todos, setTodos] = useState<AppSchema["todos"][]>([]);
 
   useEffect(() => {
     // Load initial data
-    store.listRows('todos').then(setTodos);
+    store.listRows("todos").then(setTodos);
 
     // Subscribe to changes
     return store.onEvent((event) => {
-      if (event.entity === 'todos') {
-        store.listRows('todos').then(setTodos);
+      if (event.entity === "todos") {
+        store.listRows("todos").then(setTodos);
       }
     });
   }, []);
@@ -268,10 +307,10 @@ function TodoApp() {
   const todos = useTodos();
 
   const handleAdd = async () => {
-    await createTodo(crypto.randomUUID(), 'New todo');
+    await createTodo(crypto.randomUUID(), "New todo");
   };
 
-  const handleToggle = async (todo: AppSchema['todos']) => {
+  const handleToggle = async (todo: AppSchema["todos"]) => {
     await updateTodo(todo.id, { done: !todo.done });
   };
 
@@ -279,9 +318,9 @@ function TodoApp() {
     <div>
       <button onClick={handleAdd}>Add Todo</button>
       <ul>
-        {todos.map(todo => (
+        {todos.map((todo) => (
           <li key={todo.id} onClick={() => handleToggle(todo)}>
-            {todo.done ? '✓' : '○'} {todo.title}
+            {todo.done ? "✓" : "○"} {todo.title}
           </li>
         ))}
       </ul>
@@ -296,10 +335,10 @@ Conflicts are resolved automatically via field-level LWW:
 
 ```ts
 // Client A: Update title
-await updateTodo('todo-1', { title: 'A title' });
+await updateTodo("todo-1", { title: "A title" });
 
 // Client B: Update done (concurrently)
-await updateTodo('todo-1', { done: true });
+await updateTodo("todo-1", { done: true });
 
 // After sync, both see:
 // { title: 'A title', done: true }
@@ -307,7 +346,8 @@ await updateTodo('todo-1', { done: true });
 ```
 
 <Callout type="info">
-No manual conflict resolution needed. RippleDB's field-level LWW ensures consistent, deterministic merges across all clients.
+  No manual conflict resolution needed. RippleDB's field-level LWW ensures
+  consistent, deterministic merges across all clients.
 </Callout>
 
 ## Next Steps

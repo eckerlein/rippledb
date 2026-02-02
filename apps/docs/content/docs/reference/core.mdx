@@ -3,7 +3,7 @@ title: "@rippledb/core"
 description: HLC timestamps, Change types, and pure merge logic
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Callout } from "fumadocs-ui/components/callout";
 
 # @rippledb/core
 
@@ -41,9 +41,9 @@ type HlcState = {
 Create a new HLC state for a node.
 
 ```ts
-import { createHlcState } from '@rippledb/core';
+import { createHlcState } from "@rippledb/core";
 
-const state = createHlcState('server-abc123');
+const state = createHlcState("server-abc123");
 // { lastWallMs: 0, counter: 0, nodeId: 'server-abc123' }
 ```
 
@@ -52,9 +52,9 @@ const state = createHlcState('server-abc123');
 Generate a new HLC timestamp. Mutates `state` to ensure monotonicity.
 
 ```ts
-import { createHlcState, tickHlc } from '@rippledb/core';
+import { createHlcState, tickHlc } from "@rippledb/core";
 
-const state = createHlcState('node-1');
+const state = createHlcState("node-1");
 const ts1 = tickHlc(state, Date.now());
 const ts2 = tickHlc(state, Date.now());
 // ts2 > ts1 (always increasing)
@@ -65,10 +65,10 @@ const ts2 = tickHlc(state, Date.now());
 Update local state after observing a remote HLC. Ensures local clock stays ahead.
 
 ```ts
-import { createHlcState, observeHlc } from '@rippledb/core';
+import { createHlcState, observeHlc } from "@rippledb/core";
 
-const state = createHlcState('node-1');
-const remoteTs = '1706123456789:5:node-2';
+const state = createHlcState("node-1");
+const remoteTs = "1706123456789:5:node-2";
 const localTs = observeHlc(state, remoteTs, Date.now());
 // localTs >= remoteTs
 ```
@@ -78,9 +78,9 @@ const localTs = observeHlc(state, remoteTs, Date.now());
 Parse an HLC string into its components.
 
 ```ts
-import { parseHlc } from '@rippledb/core';
+import { parseHlc } from "@rippledb/core";
 
-const parsed = parseHlc('1706123456789:5:node-1');
+const parsed = parseHlc("1706123456789:5:node-1");
 // { wallMs: 1706123456789, counter: 5, nodeId: 'node-1' }
 ```
 
@@ -89,9 +89,9 @@ const parsed = parseHlc('1706123456789:5:node-1');
 Format ParsedHlc back to string.
 
 ```ts
-import { formatHlc } from '@rippledb/core';
+import { formatHlc } from "@rippledb/core";
 
-const hlc = formatHlc({ wallMs: 1706123456789, counter: 5, nodeId: 'node-1' });
+const hlc = formatHlc({ wallMs: 1706123456789, counter: 5, nodeId: "node-1" });
 // '1706123456789:5:node-1'
 ```
 
@@ -100,11 +100,11 @@ const hlc = formatHlc({ wallMs: 1706123456789, counter: 5, nodeId: 'node-1' });
 Compare two HLCs. Returns -1, 0, or 1.
 
 ```ts
-import { compareHlc } from '@rippledb/core';
+import { compareHlc } from "@rippledb/core";
 
-compareHlc('1000:0:a', '1001:0:b'); // -1 (a < b)
-compareHlc('1000:0:a', '1000:0:a'); // 0 (equal)
-compareHlc('1000:1:a', '1000:0:a'); // 1 (a > b)
+compareHlc("1000:0:a", "1001:0:b"); // -1 (a < b)
+compareHlc("1000:0:a", "1000:0:a"); // 0 (equal)
+compareHlc("1000:1:a", "1000:0:a"); // 1 (a > b)
 ```
 
 ## Changes
@@ -112,7 +112,7 @@ compareHlc('1000:1:a', '1000:0:a'); // 1 (a > b)
 ### Types
 
 ```ts
-type ChangeKind = 'upsert' | 'delete';
+type ChangeKind = "upsert" | "delete";
 
 type RippleSchema = Record<string, Record<string, unknown>>;
 
@@ -134,16 +134,16 @@ type Change<S extends RippleSchema, E extends EntityName<S>> = {
 Create an upsert change. Auto-generates tags if not provided.
 
 ```ts
-import { makeUpsert } from '@rippledb/core';
+import { makeUpsert } from "@rippledb/core";
 
 type MySchema = { todos: { id: string; title: string; done: boolean } };
 
 const change = makeUpsert<MySchema>({
-  stream: 'user-123',
-  entity: 'todos',
-  entityId: 'todo-1',
-  patch: { title: 'Buy milk', done: false },
-  hlc: '1706123456789:0:server-1',
+  stream: "user-123",
+  entity: "todos",
+  entityId: "todo-1",
+  patch: { title: "Buy milk", done: false },
+  hlc: "1706123456789:0:server-1",
 });
 // {
 //   stream: 'user-123',
@@ -174,13 +174,13 @@ type UpsertChangeInput<S, E> = {
 Create a delete change (tombstone).
 
 ```ts
-import { makeDelete } from '@rippledb/core';
+import { makeDelete } from "@rippledb/core";
 
 const change = makeDelete<MySchema>({
-  stream: 'user-123',
-  entity: 'todos',
-  entityId: 'todo-1',
-  hlc: '1706123456789:0:server-1',
+  stream: "user-123",
+  entity: "todos",
+  entityId: "todo-1",
+  hlc: "1706123456789:0:server-1",
 });
 // {
 //   stream: 'user-123',
@@ -213,9 +213,9 @@ RippleDB uses typed field descriptors to define schemas with full type inference
 Use `defineSchema()` with `s.*` field builders to define your schema:
 
 ```ts
-import { defineSchema, s, InferSchema } from '@rippledb/core';
+import { defineSchema, s, InferSchema } from "@rippledb/core";
 
-const status = ['pending', 'active', 'done'] as const;
+const status = ["pending", "active", "done"] as const;
 
 const schema = defineSchema({
   todos: {
@@ -247,22 +247,23 @@ const store = new MemoryStore<MySchema>();
 
 The `s` object provides builders for all supported field types:
 
-| Builder | TypeScript Type | Description |
-|---------|-----------------|-------------|
-| `s.string()` | `string` | String field |
-| `s.number()` | `number` | Number field |
-| `s.boolean()` | `boolean` | Boolean field |
-| `s.enum(['a', 'b'])` | `'a' \| 'b'` | String literal union (use `as const` for inference) |
+| Builder              | TypeScript Type | Description                                         |
+| -------------------- | --------------- | --------------------------------------------------- |
+| `s.string()`         | `string`        | String field                                        |
+| `s.number()`         | `number`        | Number field                                        |
+| `s.boolean()`        | `boolean`       | Boolean field                                       |
+| `s.enum(['a', 'b'])` | `'a' \| 'b'`    | String literal union (use `as const` for inference) |
 
 All builders support the `.optional()` modifier:
 
 ```ts
-s.string().optional()  // string | undefined
-s.number().optional()  // number | undefined
+s.string().optional(); // string | undefined
+s.number().optional(); // number | undefined
 ```
 
 <Callout type="info">
-Tip: Use a const assertion on your enum array for literal type inference. Without it, TypeScript infers `string[]` instead of the literal union.
+  Tip: Use a const assertion on your enum array for literal type inference.
+  Without it, TypeScript infers `string[]` instead of the literal union.
 </Callout>
 
 ### `InferSchema<D>`
@@ -270,7 +271,7 @@ Tip: Use a const assertion on your enum array for literal type inference. Withou
 Type helper to extract the data type from a schema descriptor:
 
 ```ts
-import { defineSchema, s, InferSchema } from '@rippledb/core';
+import { defineSchema, s, InferSchema } from "@rippledb/core";
 
 const schema = defineSchema({
   todos: { id: s.string(), title: s.string(), done: s.boolean() },
@@ -294,15 +295,15 @@ const schema = defineSchema({
 
 // Entity discovery
 schema.entities; // ['todos', 'users']
-schema.entityMap.has('todos'); // true
+schema.entityMap.has("todos"); // true
 
 // Field discovery
-schema.getFields('todos'); // ['id', 'title', 'done']
-schema.hasField('todos', 'title'); // true
-schema.hasField('todos', 'missing'); // false
+schema.getFields("todos"); // ['id', 'title', 'done']
+schema.hasField("todos", "title"); // true
+schema.hasField("todos", "missing"); // false
 
 // Field type access
-schema.getFieldDescriptor('todos', 'done');
+schema.getFieldDescriptor("todos", "done");
 // { _type: 'boolean', _optional: false }
 ```
 
@@ -312,28 +313,28 @@ schema.getFieldDescriptor('todos', 'done');
 type SchemaDescriptor<S extends DescriptorSchema> = {
   // Original schema with field descriptors
   readonly schema: S;
-  
+
   // Array of entity names for runtime discovery
   readonly entities: readonly (keyof S & string)[];
-  
+
   // Map for O(1) entity lookup
   readonly entityMap: ReadonlyMap<keyof S & string, true>;
-  
+
   // Map of entity names to their field names
   readonly entityFields: ReadonlyMap<keyof S & string, readonly string[]>;
-  
+
   // Get field names for a specific entity
   getFields<E extends keyof S & string>(entity: E): readonly string[];
-  
+
   // Check if an entity has a specific field
   hasField<E extends keyof S & string>(entity: E, field: string): boolean;
-  
+
   // Get field descriptor for runtime type access
   getFieldDescriptor<E, F>(entity: E, field: F): FieldDescriptor | undefined;
-  
+
   // Extensible metadata (Zod schemas, Drizzle tables, etc.)
   readonly extensions: ReadonlyMap<string, SchemaExtension>;
-  
+
   // Attach metadata extensions
   extend<K extends string, E extends SchemaExtension>(
     key: K,
@@ -347,8 +348,8 @@ type SchemaDescriptor<S extends DescriptorSchema> = {
 Extensions allow adapters to attach metadata to schema descriptors:
 
 ```ts
-import { withZod } from '@rippledb/zod';
-import { z } from 'zod';
+import { withZod } from "@rippledb/zod";
+import { z } from "zod";
 
 // Using the withZod() wrapper for auto-generated Zod schemas
 const schemaWithZod = withZod(schema);
@@ -362,7 +363,7 @@ const schemaWithRefinements = withZod(schema, {
 });
 
 // Manual extension attachment
-const schemaWithDrizzle = schema.extend('drizzle', {
+const schemaWithDrizzle = schema.extend("drizzle", {
   tableMap: { todos: todosTable, users: usersTable },
 });
 ```

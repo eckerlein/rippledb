@@ -1,36 +1,51 @@
-import { getPageImage, source } from '@/lib/source';
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layouts/docs/page';
-import { notFound } from 'next/navigation';
-import { getMDXComponents } from '@/mdx-components';
-import type { Metadata } from 'next';
-import { createRelativeLink } from 'fumadocs-ui/mdx';
-import { LLMCopyButton, ViewOptions } from '@/components/ai/page-actions';
+import { LLMCopyButton, ViewOptions } from "@/components/ai/page-actions";
+import { getPageImage, source } from "@/lib/source";
+import { getMDXComponents } from "@/mdx-components";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+} from "fumadocs-ui/layouts/docs/page";
+import { createRelativeLink } from "fumadocs-ui/mdx";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
+export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
   const params = await props.params;
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
   const MDX = page.data.body;
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
-  const slugs = source.getPages().map((p) => p.slugs);
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+  const slugs = source.getPages().map(p => p.slugs);
   const parentSet = new Set<string>();
   for (const slug of slugs) {
-    for (let i = 1; i < slug.length; i++) parentSet.add(slug.slice(0, i).join('/'));
+    for (let i = 1; i < slug.length; i++) {
+      parentSet.add(slug.slice(0, i).join("/"));
+    }
   }
-  const llmsSegments = page.slugs.length === 0 ? ['index'] : page.slugs;
-  const llmsOut = parentSet.has(llmsSegments.join('/')) ? [...llmsSegments, 'index'] : llmsSegments;
-  const markdownUrl = `${basePath}/llms.mdx/docs/${llmsOut.join('/')}`;
+  const llmsSegments = page.slugs.length === 0 ? ["index"] : page.slugs;
+  const llmsOut = parentSet.has(llmsSegments.join("/"))
+    ? [...llmsSegments, "index"]
+    : llmsSegments;
+  const markdownUrl = `${basePath}/llms.mdx/docs/${llmsOut.join("/")}`;
   const gitConfig = {
-    user: 'username',
-    repo: 'repo',
-    branch: 'main',
+    user: "username",
+    repo: "repo",
+    branch: "main",
   };
 
   return (
-    <DocsPage toc={page.data.toc} full={page.data.full} tableOfContent={{style: 'clerk'}}>
+    <DocsPage
+      toc={page.data.toc}
+      full={page.data.full}
+      tableOfContent={{ style: "clerk" }}
+    >
       <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
+      <DocsDescription className="mb-0">
+        {page.data.description}
+      </DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
         <LLMCopyButton markdownUrl={markdownUrl} />
         <ViewOptions
@@ -55,7 +70,9 @@ export async function generateStaticParams() {
   return source.generateParams();
 }
 
-export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): Promise<Metadata> {
+export async function generateMetadata(
+  props: PageProps<"/docs/[[...slug]]">,
+): Promise<Metadata> {
   const params = await props.params;
   const page = source.getPage(params.slug);
   if (!page) notFound();

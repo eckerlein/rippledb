@@ -3,9 +3,9 @@ title: Server Setup
 description: Build a production-ready RippleDB server
 ---
 
-import { Steps, Step } from 'fumadocs-ui/components/steps';
-import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Steps, Step } from "fumadocs-ui/components/steps";
+import { Tabs, Tab } from "fumadocs-ui/components/tabs";
+import { Callout } from "fumadocs-ui/components/callout";
 
 # Server Setup
 
@@ -48,7 +48,7 @@ This guide walks through setting up a RippleDB server with HTTP endpoints for sy
 ### Define Your Schema
 
 ```ts title="src/schema.ts"
-import { defineSchema, s, type InferSchema } from '@rippledb/core';
+import { defineSchema, s, type InferSchema } from "@rippledb/core";
 
 export const schema = defineSchema({
   todos: {
@@ -66,14 +66,15 @@ export const schema = defineSchema({
 
 export type AppSchema = InferSchema<typeof schema>;
 ```
+
 </Step>
 
 <Step>
 ### Set Up HLC Generator
 
 ```ts title="src/hlc.ts"
-import { createHlcState, tickHlc } from '@rippledb/core';
-import { randomUUID } from 'crypto';
+import { createHlcState, tickHlc } from "@rippledb/core";
+import { randomUUID } from "crypto";
 
 const nodeId = process.env.NODE_ID ?? `server-${randomUUID().slice(0, 8)}`;
 const hlcState = createHlcState(nodeId);
@@ -101,12 +102,11 @@ import { schema } from './schema';
 
 // Create domain tables
 const db = new SqliteDb<AppSchema>({
-  filename: process.env.DB_PATH ?? './data.db',
-  schema,
-  materializer: ({ db, schema }) => {
-    // Create domain tables if they don't exist
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS todos (
+filename: process.env.DB_PATH ?? './data.db',
+schema,
+materializer: ({ db, schema }) => {
+// Create domain tables if they don't exist
+db.exec(`       CREATE TABLE IF NOT EXISTS todos (
         id TEXT PRIMARY KEY,
         title TEXT,
         done INTEGER,
@@ -132,7 +132,8 @@ const db = new SqliteDb<AppSchema>({
         users: { id: 'id', name: 'name', email: 'email' },
       },
     });
-  },
+
+},
 });
 
 export { db };
@@ -146,23 +147,23 @@ import type { AppSchema } from './schema';
 import { schema } from './schema';
 
 const db = new TursoDb<AppSchema>({
-  url: process.env.TURSO_DATABASE_URL!,
-  authToken: process.env.TURSO_AUTH_TOKEN!,
-  schema,
-  materializer: ({ db, schema }) =>
-    createMaterializer({
-      schema,
-      db,
-      dialect: 'sqlite',
-    tableMap: {
-      todos: 'todos',
-      users: 'users',
-    },
-    fieldMap: {
-      todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' },
-      users: { id: 'id', name: 'name', email: 'email' },
-    },
-    }),
+url: process.env.TURSO_DATABASE_URL!,
+authToken: process.env.TURSO_AUTH_TOKEN!,
+schema,
+materializer: ({ db, schema }) =>
+createMaterializer({
+schema,
+db,
+dialect: 'sqlite',
+tableMap: {
+todos: 'todos',
+users: 'users',
+},
+fieldMap: {
+todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' },
+users: { id: 'id', name: 'name', email: 'email' },
+},
+}),
 });
 
 export { db };
@@ -181,59 +182,57 @@ import { schema } from './schema';
 
 // Drizzle table definitions
 export const todosTable = sqliteTable('todos', {
-  id: text('id').primaryKey(),
-  title: text('title'),
-  done: integer('done'),
-  createdAt: text('createdAt'),
+id: text('id').primaryKey(),
+title: text('title'),
+done: integer('done'),
+createdAt: text('createdAt'),
 });
 
 const changesTable = sqliteTable('ripple_changes', {
-  seq: integer('seq').primaryKey({ autoIncrement: true }),
-  stream: text('stream').notNull(),
-  change_json: text('change_json').notNull(),
+seq: integer('seq').primaryKey({ autoIncrement: true }),
+stream: text('stream').notNull(),
+change_json: text('change_json').notNull(),
 });
 
 const idempotencyTable = sqliteTable('ripple_idempotency', {
-  stream: text('stream').notNull(),
-  idempotency_key: text('idempotency_key').notNull(),
-  last_seq: integer('last_seq').notNull(),
+stream: text('stream').notNull(),
+idempotency_key: text('idempotency_key').notNull(),
+last_seq: integer('last_seq').notNull(),
 });
 
 const tagsTable = sqliteTable('ripple_tags', {
-  entity: text('entity').notNull(),
-  id: text('id').notNull(),
-  data: text('data').notNull(),
-  tags: text('tags').notNull(),
-  deleted: integer('deleted').notNull().default(0),
-  deleted_tag: text('deleted_tag'),
+entity: text('entity').notNull(),
+id: text('id').notNull(),
+data: text('data').notNull(),
+tags: text('tags').notNull(),
+deleted: integer('deleted').notNull().default(0),
+deleted_tag: text('deleted_tag'),
 });
 
 // Initialize SQLite
 const sqlite = new Database(process.env.DB_PATH ?? './data.db');
-sqlite.exec(`
-  CREATE TABLE IF NOT EXISTS ripple_changes (...);
+sqlite.exec(`  CREATE TABLE IF NOT EXISTS ripple_changes (...);
   CREATE TABLE IF NOT EXISTS ripple_idempotency (...);
   CREATE TABLE IF NOT EXISTS ripple_tags (...);
-  CREATE TABLE IF NOT EXISTS todos (...);
-`);
+  CREATE TABLE IF NOT EXISTS todos (...);`);
 
 const drizzleDb = drizzle(sqlite);
 
 const db = new DrizzleDb<AppSchema, typeof drizzleDb>({
-  db: drizzleDb,
-  changesTable,
-  idempotencyTable,
-  getTableConfig,
-  isSync: true,
-  schema,
-  materializer: ({ schema }) =>
-    createDrizzleSyncMaterializer({
-      schema,
-    tableMap: { todos: todosTable },
-    tagsTableDef: tagsTable,
-    getTableConfig,
-    fieldMap: { todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' } },
-  }),
+db: drizzleDb,
+changesTable,
+idempotencyTable,
+getTableConfig,
+isSync: true,
+schema,
+materializer: ({ schema }) =>
+createDrizzleSyncMaterializer({
+schema,
+tableMap: { todos: todosTable },
+tagsTableDef: tagsTable,
+getTableConfig,
+fieldMap: { todos: { id: 'id', title: 'title', done: 'done', createdAt: 'createdAt' } },
+}),
 });
 
 export { db, drizzleDb, todosTable };
@@ -246,39 +245,39 @@ export { db, drizzleDb, todosTable };
 ### Create HTTP Server
 
 ```ts title="src/server.ts"
-import express from 'express';
-import { db } from './db';
+import express from "express";
+import { db } from "./db";
 
 const app = express();
 app.use(express.json());
 
 // Pull endpoint
-app.post('/pull', async (req, res) => {
+app.post("/pull", async (req, res) => {
   try {
     const { stream, cursor, limit } = req.body;
     const result = await db.pull({ stream, cursor, limit });
     res.json(result);
   } catch (error) {
-    console.error('Pull error:', error);
-    res.status(500).json({ error: 'Pull failed' });
+    console.error("Pull error:", error);
+    res.status(500).json({ error: "Pull failed" });
   }
 });
 
 // Append endpoint
-app.post('/append', async (req, res) => {
+app.post("/append", async (req, res) => {
   try {
     const { stream, idempotencyKey, changes } = req.body;
     const result = await db.append({ stream, idempotencyKey, changes });
     res.json(result);
   } catch (error) {
-    console.error('Append error:', error);
-    res.status(500).json({ error: 'Append failed' });
+    console.error("Append error:", error);
+    res.status(500).json({ error: "Append failed" });
   }
 });
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
 });
 
 const PORT = process.env.PORT ?? 3000;
@@ -286,6 +285,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 ```
+
 </Step>
 
 <Step>
@@ -294,6 +294,7 @@ app.listen(PORT, () => {
 ```bash
 npx tsx src/server.ts
 ```
+
 </Step>
 
 </Steps>
@@ -330,17 +331,17 @@ curl -X POST http://localhost:3000/pull \
 Add authentication middleware:
 
 ```ts
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
 
 app.use((req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-  
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET!);
     next();
   } catch {
-    res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ error: "Invalid token" });
   }
 });
 ```
@@ -350,14 +351,14 @@ app.use((req, res, next) => {
 Ensure users can only access their own streams:
 
 ```ts
-app.post('/pull', async (req, res) => {
+app.post("/pull", async (req, res) => {
   const { stream } = req.body;
-  
+
   // Check stream belongs to user
   if (!stream.startsWith(`user-${req.user.id}`)) {
-    return res.status(403).json({ error: 'Forbidden' });
+    return res.status(403).json({ error: "Forbidden" });
   }
-  
+
   // ... pull logic
 });
 ```
@@ -367,7 +368,7 @@ app.post('/pull', async (req, res) => {
 ```ts
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({ error: "Internal server error" });
 });
 ```
 

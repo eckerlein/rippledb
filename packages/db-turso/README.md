@@ -2,7 +2,8 @@
 
 Turso/libSQL database adapter for RippleDB.
 
-📚 **Documentation:** [rippledb.dev/docs/adapters/db-turso](https://rippledb.dev/docs/adapters/db-turso)
+📚 **Documentation:**
+[rippledb.dev/docs/adapters/db-turso](https://rippledb.dev/docs/adapters/db-turso)
 
 ## Installation
 
@@ -15,7 +16,7 @@ npm install @rippledb/db-turso @rippledb/core @rippledb/server @libsql/client
 ### Factory Pattern (Recommended)
 
 ```typescript
-import { TursoDb } from '@rippledb/db-turso';
+import { TursoDb } from "@rippledb/db-turso";
 
 const db = await TursoDb.create({
   url: process.env.TURSO_URL!,
@@ -28,7 +29,7 @@ const db = await TursoDb.create({
 ### Constructor + Init Pattern (For Top-Level Exports)
 
 ```typescript
-import { TursoDb } from '@rippledb/db-turso';
+import { TursoDb } from "@rippledb/db-turso";
 
 // Top-level export (works in all frameworks)
 export const db = new TursoDb({
@@ -41,13 +42,15 @@ await db.init();
 
 // Append changes
 await db.append({
-  stream: 'user-123',
-  changes: [/* ... */],
+  stream: "user-123",
+  changes: [
+    /* ... */
+  ],
 });
 
 // Pull changes
 const { changes, nextCursor } = await db.pull({
-  stream: 'user-123',
+  stream: "user-123",
   cursor: null,
 });
 

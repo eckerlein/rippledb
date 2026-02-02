@@ -1,6 +1,6 @@
-import type { Change, RippleSchema, EntityName, Hlc } from '@rippledb/core';
-import { compareHlc } from '@rippledb/core';
-import type { DbEvent, Store } from '@rippledb/client';
+import type { DbEvent, Store } from "@rippledb/client";
+import type { Change, EntityName, Hlc, RippleSchema } from "@rippledb/core";
+import { compareHlc } from "@rippledb/core";
 
 export type MemoryListQuery<E extends string = string> = {
   entity: E;
@@ -18,7 +18,9 @@ function isNewer(incoming: Hlc, existing: Hlc | undefined | null) {
   return compareHlc(incoming, existing) > 0;
 }
 
-export class MemoryStore<S extends RippleSchema = RippleSchema> implements Store<S, MemoryListQuery<EntityName<S>>> {
+export class MemoryStore<
+  S extends RippleSchema = RippleSchema,
+> implements Store<S, MemoryListQuery<EntityName<S>>> {
   private entities = new Map<string, Map<string, RecordState>>();
   private subscribers = new Set<(event: DbEvent<S>) => void>();
 
@@ -33,16 +35,15 @@ export class MemoryStore<S extends RippleSchema = RippleSchema> implements Store
     for (const change of changes) {
       const table = this.getTable(change.entity);
       const existing = table.get(change.entityId);
-      const rec: RecordState =
-        existing ??
-        ({
+      const rec: RecordState = existing
+        ?? ({
           values: {},
           tags: {},
           deleted: false,
           deletedTag: null,
         } satisfies RecordState);
 
-      if (change.kind === 'delete') {
+      if (change.kind === "delete") {
         if (isNewer(change.hlc, rec.deletedTag)) {
           const wasDeleted = rec.deleted;
           rec.deleted = true;
@@ -50,7 +51,7 @@ export class MemoryStore<S extends RippleSchema = RippleSchema> implements Store
           table.set(change.entityId, rec);
           events.push({
             entity: change.entity,
-            kind: wasDeleted ? 'update' : 'delete',
+            kind: wasDeleted ? "update" : "delete",
             id: change.entityId,
           });
         }
@@ -58,7 +59,11 @@ export class MemoryStore<S extends RippleSchema = RippleSchema> implements Store
       }
 
       let changed = false;
-      for (const [field, value] of Object.entries(change.patch as Record<string, unknown>)) {
+      for (
+        const [field, value] of Object.entries(
+          change.patch as Record<string, unknown>,
+        )
+      ) {
         const tag = (change.tags as Record<string, Hlc | undefined>)[field];
         if (!tag) continue;
         if (isNewer(tag, rec.tags[field])) {
@@ -73,7 +78,7 @@ export class MemoryStore<S extends RippleSchema = RippleSchema> implements Store
         table.set(change.entityId, rec);
         events.push({
           entity: change.entity,
-          kind: isInsert ? 'insert' : 'update',
+          kind: isInsert ? "insert" : "update",
           id: change.entityId,
         });
       }
@@ -85,14 +90,20 @@ export class MemoryStore<S extends RippleSchema = RippleSchema> implements Store
     }
   }
 
-  async getRow<E extends EntityName<S>>(entity: E, id: string): Promise<S[E] | null> {
+  async getRow<E extends EntityName<S>>(
+    entity: E,
+    id: string,
+  ): Promise<S[E] | null> {
     const table = this.entities.get(entity);
     const rec = table?.get(id);
     if (!rec || rec.deleted) return null;
     return { ...rec.values } as S[E];
   }
 
-  async getRows<E extends EntityName<S>>(entity: E, ids: string[]): Promise<Map<string, S[E]>> {
+  async getRows<E extends EntityName<S>>(
+    entity: E,
+    ids: string[],
+  ): Promise<Map<string, S[E]>> {
     const result = new Map<string, S[E]>();
     if (ids.length === 0) return result;
 
@@ -108,7 +119,9 @@ export class MemoryStore<S extends RippleSchema = RippleSchema> implements Store
     return result;
   }
 
-  async listRows(query: MemoryListQuery<EntityName<S>>): Promise<Array<S[EntityName<S>]>> {
+  async listRows(
+    query: MemoryListQuery<EntityName<S>>,
+  ): Promise<Array<S[EntityName<S>]>> {
     const table = this.entities.get(query.entity);
     if (!table) return [];
     const out: Array<S[EntityName<S>]> = [];
@@ -127,4 +140,3 @@ export class MemoryStore<S extends RippleSchema = RippleSchema> implements Store
     return table;
   }
 }
-

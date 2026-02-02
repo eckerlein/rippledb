@@ -36,11 +36,11 @@ type AppendRequest<S extends RippleSchema> = {
 };
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `stream` | `string` | Partition key (e.g., user ID, project ID) |
-| `idempotencyKey` | `string?` | Optional key to prevent duplicate appends |
-| `changes` | `Change<S>[]` | Array of changes to append |
+| Field            | Type          | Description                               |
+| ---------------- | ------------- | ----------------------------------------- |
+| `stream`         | `string`      | Partition key (e.g., user ID, project ID) |
+| `idempotencyKey` | `string?`     | Optional key to prevent duplicate appends |
+| `changes`        | `Change<S>[]` | Array of changes to append                |
 
 **AppendResult:**
 
@@ -51,23 +51,23 @@ type AppendResult = {
 };
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field      | Type     | Description                                                |
+| ---------- | -------- | ---------------------------------------------------------- |
 | `accepted` | `number` | Number of changes accepted (0 if idempotency key was seen) |
-| `hlc` | `Hlc?` | Optional server-assigned high watermark |
+| `hlc`      | `Hlc?`   | Optional server-assigned high watermark                    |
 
 **Example:**
 
 ```ts
 const result = await db.append({
-  stream: 'user-123',
-  idempotencyKey: 'req-abc',
+  stream: "user-123",
+  idempotencyKey: "req-abc",
   changes: [
     makeUpsert({
-      stream: 'user-123',
-      entity: 'todos',
-      entityId: 'todo-1',
-      patch: { title: 'Buy milk' },
+      stream: "user-123",
+      entity: "todos",
+      entityId: "todo-1",
+      patch: { title: "Buy milk" },
       hlc: hlc(),
     }),
   ],
@@ -90,11 +90,11 @@ type PullRequest = {
 };
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `stream` | `string` | Partition key |
+| Field    | Type             | Description                                    |
+| -------- | ---------------- | ---------------------------------------------- |
+| `stream` | `string`         | Partition key                                  |
 | `cursor` | `string \| null` | Cursor from last pull, or `null` for beginning |
-| `limit` | `number?` | Max changes to return (default: 500) |
+| `limit`  | `number?`        | Max changes to return (default: 500)           |
 
 **PullResponse:**
 
@@ -105,9 +105,9 @@ type PullResponse<S extends RippleSchema> = {
 };
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `changes` | `Change<S>[]` | Changes since cursor |
+| Field        | Type             | Description          |
+| ------------ | ---------------- | -------------------- |
+| `changes`    | `Change<S>[]`    | Changes since cursor |
 | `nextCursor` | `string \| null` | Cursor for next pull |
 
 **Example:**
@@ -115,17 +115,17 @@ type PullResponse<S extends RippleSchema> = {
 ```ts
 // First pull (from beginning)
 const { changes, nextCursor } = await db.pull({
-  stream: 'user-123',
+  stream: "user-123",
   cursor: null,
   limit: 100,
 });
 
 console.log(changes.length); // Number of changes
-console.log(nextCursor);     // e.g., "42"
+console.log(nextCursor); // e.g., "42"
 
 // Subsequent pull (incremental)
 const next = await db.pull({
-  stream: 'user-123',
+  stream: "user-123",
   cursor: nextCursor,
   limit: 100,
 });
@@ -146,8 +146,14 @@ type Cursor = string;
 ## Implementing a Custom Adapter
 
 ```ts
-import type { Db, AppendRequest, AppendResult, PullRequest, PullResponse } from '@rippledb/server';
-import type { RippleSchema } from '@rippledb/core';
+import type {
+  Db,
+  AppendRequest,
+  AppendResult,
+  PullRequest,
+  PullResponse,
+} from "@rippledb/server";
+import type { RippleSchema } from "@rippledb/core";
 
 class MyDb<S extends RippleSchema> implements Db<S> {
   async append(req: AppendRequest<S>): Promise<AppendResult> {
@@ -169,12 +175,12 @@ class MyDb<S extends RippleSchema> implements Db<S> {
 
 ## Built-in Adapters
 
-| Package | Database | Notes |
-|---------|----------|-------|
-| `@rippledb/db-sqlite` | SQLite | Uses better-sqlite3 |
-| `@rippledb/db-turso` | Turso/libSQL | Edge-ready |
-| `@rippledb/db-drizzle` | Any Drizzle DB | Database-agnostic |
-| `@rippledb/db-memory` | In-memory | Testing only |
+| Package                | Database       | Notes               |
+| ---------------------- | -------------- | ------------------- |
+| `@rippledb/db-sqlite`  | SQLite         | Uses better-sqlite3 |
+| `@rippledb/db-turso`   | Turso/libSQL   | Edge-ready          |
+| `@rippledb/db-drizzle` | Any Drizzle DB | Database-agnostic   |
+| `@rippledb/db-memory`  | In-memory      | Testing only        |
 
 ## Related
 

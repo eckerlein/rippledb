@@ -1,22 +1,34 @@
-import { describe, expect, it } from 'vitest';
-import { makeUpsert, makeDelete, createHlcState, tickHlc, defineSchema, s } from '@rippledb/core';
-import type { Change } from '@rippledb/core';
-import type { PullRequest, AppendRequest, AppendResult, PullResponse } from '@rippledb/server';
 import {
-  hlcSchema,
-  changeSchema,
-  pullRequestSchema,
+  createHlcState,
+  defineSchema,
+  makeDelete,
+  makeUpsert,
+  s,
+  tickHlc,
+} from "@rippledb/core";
+import type { Change } from "@rippledb/core";
+import type {
+  AppendRequest,
+  AppendResult,
+  PullRequest,
+  PullResponse,
+} from "@rippledb/server";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
+import {
   appendRequestSchema,
   appendResultSchema,
-  pullResponseSchema,
+  changeSchema,
   createChangeSchema,
-  withZod,
   generateZodSchemas,
-} from './index';
-import { z } from 'zod';
+  hlcSchema,
+  pullRequestSchema,
+  pullResponseSchema,
+  withZod,
+} from "./index";
 
 type TestSchema = {
-  todo: { id: string; title: string; done: boolean };
+  todo: { id: string; title: string; done: boolean; };
 };
 
 function makeHlc(nodeId: string, nowMs: number) {
@@ -24,40 +36,40 @@ function makeHlc(nodeId: string, nowMs: number) {
   return tickHlc(state, nowMs);
 }
 
-describe('@rippledb/zod', () => {
-  describe('hlcSchema', () => {
-    it('validates correct HLC format', () => {
-      const hlc = makeHlc('node1', 1000);
+describe("@rippledb/zod", () => {
+  describe("hlcSchema", () => {
+    it("validates correct HLC format", () => {
+      const hlc = makeHlc("node1", 1000);
       expect(hlcSchema.safeParse(hlc).success).toBe(true);
     });
 
-    it('rejects invalid HLC format', () => {
-      expect(hlcSchema.safeParse('invalid').success).toBe(false);
-      expect(hlcSchema.safeParse('123').success).toBe(false);
+    it("rejects invalid HLC format", () => {
+      expect(hlcSchema.safeParse("invalid").success).toBe(false);
+      expect(hlcSchema.safeParse("123").success).toBe(false);
       expect(hlcSchema.safeParse(123).success).toBe(false);
     });
   });
 
-  describe('changeSchema', () => {
-    it('validates upsert changes from @rippledb/core', () => {
+  describe("changeSchema", () => {
+    it("validates upsert changes from @rippledb/core", () => {
       const change: Change<TestSchema> = makeUpsert<TestSchema>({
-        stream: 'test',
-        entity: 'todo',
-        entityId: '1',
-        patch: { id: '1', title: 'Hello', done: false },
-        hlc: makeHlc('node1', 1000),
+        stream: "test",
+        entity: "todo",
+        entityId: "1",
+        patch: { id: "1", title: "Hello", done: false },
+        hlc: makeHlc("node1", 1000),
       });
 
       const result = changeSchema.safeParse(change);
       expect(result.success).toBe(true);
     });
 
-    it('validates delete changes from @rippledb/core', () => {
+    it("validates delete changes from @rippledb/core", () => {
       const change: Change<TestSchema> = makeDelete<TestSchema>({
-        stream: 'test',
-        entity: 'todo',
-        entityId: '1',
-        hlc: makeHlc('node1', 1000),
+        stream: "test",
+        entity: "todo",
+        entityId: "1",
+        hlc: makeHlc("node1", 1000),
       });
 
       const result = changeSchema.safeParse(change);
@@ -65,8 +77,8 @@ describe('@rippledb/zod', () => {
     });
   });
 
-  describe('createChangeSchema', () => {
-    it('validates typed changes with custom schema', () => {
+  describe("createChangeSchema", () => {
+    it("validates typed changes with custom schema", () => {
       const todoSchema = z.object({
         id: z.string(),
         title: z.string(),
@@ -75,11 +87,11 @@ describe('@rippledb/zod', () => {
       const todoChangeSchema = createChangeSchema(todoSchema);
 
       const change: Change<TestSchema> = makeUpsert<TestSchema>({
-        stream: 'test',
-        entity: 'todo',
-        entityId: '1',
-        patch: { title: 'Hello' },
-        hlc: makeHlc('node1', 1000),
+        stream: "test",
+        entity: "todo",
+        entityId: "1",
+        patch: { title: "Hello" },
+        hlc: makeHlc("node1", 1000),
       });
 
       const result = todoChangeSchema.safeParse(change);
@@ -87,10 +99,10 @@ describe('@rippledb/zod', () => {
     });
   });
 
-  describe('pullRequestSchema', () => {
-    it('validates PullRequest from @rippledb/server', () => {
+  describe("pullRequestSchema", () => {
+    it("validates PullRequest from @rippledb/server", () => {
       const req: PullRequest = {
-        stream: 'test',
+        stream: "test",
         cursor: null,
         limit: 100,
       };
@@ -99,10 +111,10 @@ describe('@rippledb/zod', () => {
       expect(result.success).toBe(true);
     });
 
-    it('validates PullRequest with cursor', () => {
+    it("validates PullRequest with cursor", () => {
       const req: PullRequest = {
-        stream: 'test',
-        cursor: 'abc123',
+        stream: "test",
+        cursor: "abc123",
       };
 
       const result = pullRequestSchema.safeParse(req);
@@ -110,19 +122,19 @@ describe('@rippledb/zod', () => {
     });
   });
 
-  describe('pullResponseSchema', () => {
-    it('validates PullResponse from @rippledb/server', () => {
+  describe("pullResponseSchema", () => {
+    it("validates PullResponse from @rippledb/server", () => {
       const change: Change<TestSchema> = makeUpsert<TestSchema>({
-        stream: 'test',
-        entity: 'todo',
-        entityId: '1',
-        patch: { id: '1', title: 'Hello', done: false },
-        hlc: makeHlc('node1', 1000),
+        stream: "test",
+        entity: "todo",
+        entityId: "1",
+        patch: { id: "1", title: "Hello", done: false },
+        hlc: makeHlc("node1", 1000),
       });
 
       const res: PullResponse<TestSchema> = {
         changes: [change],
-        nextCursor: 'cursor123',
+        nextCursor: "cursor123",
       };
 
       const result = pullResponseSchema.safeParse(res);
@@ -130,20 +142,20 @@ describe('@rippledb/zod', () => {
     });
   });
 
-  describe('appendRequestSchema', () => {
-    it('validates AppendRequest from @rippledb/server', () => {
+  describe("appendRequestSchema", () => {
+    it("validates AppendRequest from @rippledb/server", () => {
       const change: Change<TestSchema> = makeUpsert<TestSchema>({
-        stream: 'test',
-        entity: 'todo',
-        entityId: '1',
-        patch: { id: '1', title: 'Hello', done: false },
-        hlc: makeHlc('node1', 1000),
+        stream: "test",
+        entity: "todo",
+        entityId: "1",
+        patch: { id: "1", title: "Hello", done: false },
+        hlc: makeHlc("node1", 1000),
       });
 
       const req: AppendRequest<TestSchema> = {
-        stream: 'test',
+        stream: "test",
         changes: [change],
-        idempotencyKey: 'key123',
+        idempotencyKey: "key123",
       };
 
       const result = appendRequestSchema.safeParse(req);
@@ -151,18 +163,18 @@ describe('@rippledb/zod', () => {
     });
   });
 
-  describe('appendResultSchema', () => {
-    it('validates AppendResult from @rippledb/server', () => {
+  describe("appendResultSchema", () => {
+    it("validates AppendResult from @rippledb/server", () => {
       const res: AppendResult = {
         accepted: 5,
-        hlc: makeHlc('server', 2000),
+        hlc: makeHlc("server", 2000),
       };
 
       const result = appendResultSchema.safeParse(res);
       expect(result.success).toBe(true);
     });
 
-    it('validates AppendResult without hlc', () => {
+    it("validates AppendResult without hlc", () => {
       const res: AppendResult = {
         accepted: 0,
       };
@@ -172,8 +184,8 @@ describe('@rippledb/zod', () => {
     });
   });
 
-  describe('withZod', () => {
-    it('auto-generates Zod schemas from field descriptors', () => {
+  describe("withZod", () => {
+    it("auto-generates Zod schemas from field descriptors", () => {
       const schema = defineSchema({
         todos: {
           id: s.string(),
@@ -188,7 +200,7 @@ describe('@rippledb/zod', () => {
       expect(schemaWithZod.zod.todos).toBeDefined();
 
       // Test parsing valid data
-      const validTodo = { id: '1', title: 'Test', done: false };
+      const validTodo = { id: "1", title: "Test", done: false };
       const result = schemaWithZod.zod.todos.safeParse(validTodo);
       expect(result.success).toBe(true);
       if (result.success) {
@@ -196,7 +208,7 @@ describe('@rippledb/zod', () => {
       }
     });
 
-    it('rejects invalid data', () => {
+    it("rejects invalid data", () => {
       const schema = defineSchema({
         todos: {
           id: s.string(),
@@ -208,12 +220,12 @@ describe('@rippledb/zod', () => {
       const schemaWithZod = withZod(schema);
 
       // Test parsing invalid data
-      const invalidTodo = { id: 123, title: 'Test', done: 'not a boolean' };
+      const invalidTodo = { id: 123, title: "Test", done: "not a boolean" };
       const result = schemaWithZod.zod.todos.safeParse(invalidTodo);
       expect(result.success).toBe(false);
     });
 
-    it('supports number fields', () => {
+    it("supports number fields", () => {
       const schema = defineSchema({
         items: {
           id: s.string(),
@@ -224,11 +236,11 @@ describe('@rippledb/zod', () => {
 
       const schemaWithZod = withZod(schema);
 
-      const validItem = { id: '1', count: 5, price: 9.99 };
+      const validItem = { id: "1", count: 5, price: 9.99 };
       const result = schemaWithZod.zod.items.safeParse(validItem);
       expect(result.success).toBe(true);
 
-      const invalidItem = { id: '1', count: 'five', price: 9.99 };
+      const invalidItem = { id: "1", count: "five", price: 9.99 };
       const invalidResult = schemaWithZod.zod.items.safeParse(invalidItem);
       expect(invalidResult.success).toBe(false);
     });
@@ -237,26 +249,26 @@ describe('@rippledb/zod', () => {
     // Vitest runs .test-d.ts files through tsc and will fail tests if type errors
     // occur unexpectedly or if @ts-expect-error directives are unused.
 
-    it('supports enum fields', () => {
+    it("supports enum fields", () => {
       const schema = defineSchema({
         tasks: {
           id: s.string(),
-          status: s.enum(['pending', 'active', 'done'] as const),
+          status: s.enum(["pending", "active", "done"] as const),
         },
       });
 
       const schemaWithZod = withZod(schema);
 
-      const validTask = { id: '1', status: 'active' };
+      const validTask = { id: "1", status: "active" };
       const result = schemaWithZod.zod.tasks.safeParse(validTask);
       expect(result.success).toBe(true);
 
-      const invalidTask = { id: '1', status: 'invalid' };
+      const invalidTask = { id: "1", status: "invalid" };
       const invalidResult = schemaWithZod.zod.tasks.safeParse(invalidTask);
       expect(invalidResult.success).toBe(false);
     });
 
-    it('supports optional fields', () => {
+    it("supports optional fields", () => {
       const schema = defineSchema({
         todos: {
           id: s.string(),
@@ -268,19 +280,23 @@ describe('@rippledb/zod', () => {
       const schemaWithZod = withZod(schema);
 
       // With optional field present
-      const withNotes = { id: '1', title: 'Test', notes: 'Some notes' };
+      const withNotes = { id: "1", title: "Test", notes: "Some notes" };
       expect(schemaWithZod.zod.todos.safeParse(withNotes).success).toBe(true);
 
       // Without optional field
-      const withoutNotes = { id: '1', title: 'Test' };
-      expect(schemaWithZod.zod.todos.safeParse(withoutNotes).success).toBe(true);
+      const withoutNotes = { id: "1", title: "Test" };
+      expect(schemaWithZod.zod.todos.safeParse(withoutNotes).success).toBe(
+        true,
+      );
 
       // With optional field as undefined
-      const withUndefined = { id: '1', title: 'Test', notes: undefined };
-      expect(schemaWithZod.zod.todos.safeParse(withUndefined).success).toBe(true);
+      const withUndefined = { id: "1", title: "Test", notes: undefined };
+      expect(schemaWithZod.zod.todos.safeParse(withUndefined).success).toBe(
+        true,
+      );
     });
 
-    it('supports overrides for specific fields', () => {
+    it("supports overrides for specific fields", () => {
       const schema = defineSchema({
         users: {
           id: s.string(),
@@ -297,23 +313,25 @@ describe('@rippledb/zod', () => {
       });
 
       // Valid email and age
-      const validUser = { id: '1', email: 'test@example.com', age: 25 };
+      const validUser = { id: "1", email: "test@example.com", age: 25 };
       expect(schemaWithZod.zod.users.safeParse(validUser).success).toBe(true);
 
       // Invalid email
-      const invalidEmail = { id: '1', email: 'not-an-email', age: 25 };
-      expect(schemaWithZod.zod.users.safeParse(invalidEmail).success).toBe(false);
+      const invalidEmail = { id: "1", email: "not-an-email", age: 25 };
+      expect(schemaWithZod.zod.users.safeParse(invalidEmail).success).toBe(
+        false,
+      );
 
       // Invalid age (negative)
-      const invalidAge = { id: '1', email: 'test@example.com', age: -5 };
+      const invalidAge = { id: "1", email: "test@example.com", age: -5 };
       expect(schemaWithZod.zod.users.safeParse(invalidAge).success).toBe(false);
 
       // Invalid age (too high)
-      const tooOld = { id: '1', email: 'test@example.com', age: 200 };
+      const tooOld = { id: "1", email: "test@example.com", age: 200 };
       expect(schemaWithZod.zod.users.safeParse(tooOld).success).toBe(false);
     });
 
-    it('preserves schema descriptor properties', () => {
+    it("preserves schema descriptor properties", () => {
       const schema = defineSchema({
         todos: {
           id: s.string(),
@@ -328,13 +346,13 @@ describe('@rippledb/zod', () => {
       const schemaWithZod = withZod(schema);
 
       // Original properties still work
-      expect(schemaWithZod.entities).toEqual(['todos', 'users']);
-      expect(schemaWithZod.getFields('todos')).toEqual(['id', 'title']);
-      expect(schemaWithZod.hasField('users', 'name')).toBe(true);
-      expect(schemaWithZod.hasField('users', 'email')).toBe(false);
+      expect(schemaWithZod.entities).toEqual(["todos", "users"]);
+      expect(schemaWithZod.getFields("todos")).toEqual(["id", "title"]);
+      expect(schemaWithZod.hasField("users", "name")).toBe(true);
+      expect(schemaWithZod.hasField("users", "email")).toBe(false);
     });
 
-    it('stores zod schemas in extensions', () => {
+    it("stores zod schemas in extensions", () => {
       const schema = defineSchema({
         todos: {
           id: s.string(),
@@ -345,12 +363,12 @@ describe('@rippledb/zod', () => {
       const schemaWithZod = withZod(schema);
 
       // Zod schemas are stored in extensions
-      expect(schemaWithZod.extensions.has('zod')).toBe(true);
+      expect(schemaWithZod.extensions.has("zod")).toBe(true);
     });
   });
 
-  describe('generateZodSchemas', () => {
-    it('generates Zod schemas without wrapping descriptor', () => {
+  describe("generateZodSchemas", () => {
+    it("generates Zod schemas without wrapping descriptor", () => {
       const schema = defineSchema({
         todos: {
           id: s.string(),
@@ -363,12 +381,12 @@ describe('@rippledb/zod', () => {
 
       expect(zodSchemas.todos).toBeDefined();
 
-      const validTodo = { id: '1', title: 'Test', done: false };
+      const validTodo = { id: "1", title: "Test", done: false };
       const result = zodSchemas.todos.safeParse(validTodo);
       expect(result.success).toBe(true);
     });
 
-    it('supports overrides', () => {
+    it("supports overrides", () => {
       const schema = defineSchema({
         users: {
           id: s.string(),
@@ -382,10 +400,10 @@ describe('@rippledb/zod', () => {
         },
       });
 
-      const validUser = { id: '1', email: 'test@example.com' };
+      const validUser = { id: "1", email: "test@example.com" };
       expect(zodSchemas.users.safeParse(validUser).success).toBe(true);
 
-      const invalidUser = { id: '1', email: 'not-an-email' };
+      const invalidUser = { id: "1", email: "not-an-email" };
       expect(zodSchemas.users.safeParse(invalidUser).success).toBe(false);
     });
   });

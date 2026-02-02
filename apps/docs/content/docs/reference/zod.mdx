@@ -3,7 +3,7 @@ title: "@rippledb/zod"
 description: Zod schemas for runtime validation of RippleDB payloads
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Callout } from "fumadocs-ui/components/callout";
 
 # @rippledb/zod
 
@@ -18,22 +18,22 @@ This is useful for:
 
 ## Installation
 
-<InstallCommandTabs packages={['@rippledb/zod', '@rippledb/core', 'zod']} />
+<InstallCommandTabs packages={["@rippledb/zod", "@rippledb/core", "zod"]} />
 
 ## withZod() - Auto-Generated Schemas
 
 The `withZod()` function automatically generates Zod schemas from your field descriptors:
 
 ```ts
-import { defineSchema, s, InferSchema } from '@rippledb/core';
-import { withZod } from '@rippledb/zod';
+import { defineSchema, s, InferSchema } from "@rippledb/core";
+import { withZod } from "@rippledb/zod";
 
 const schema = defineSchema({
   todos: {
     id: s.string(),
     title: s.string(),
     done: s.boolean(),
-    status: s.enum(['pending', 'active', 'done']),
+    status: s.enum(["pending", "active", "done"]),
     notes: s.string().optional(),
   },
   users: {
@@ -48,10 +48,10 @@ const schemaWithZod = withZod(schema);
 
 // Validate data
 const todo = schemaWithZod.zod.todos.parse({
-  id: '1',
-  title: 'Buy milk',
+  id: "1",
+  title: "Buy milk",
   done: false,
-  status: 'pending',
+  status: "pending",
 });
 
 // Safe parsing
@@ -72,7 +72,7 @@ Override specific fields with custom Zod schemas for additional validation.
 Pass overrides directly to `withZod()` - you get full autocomplete for entity and field names:
 
 ```ts
-import { z } from 'zod';
+import { z } from "zod";
 
 const schemaWithRefinements = withZod(schema, {
   todos: {
@@ -86,9 +86,9 @@ const schemaWithRefinements = withZod(schema, {
 
 // Now email validation is enforced
 schemaWithRefinements.zod.users.parse({
-  id: '1',
-  name: 'Jo',  // Valid (length >= 2)
-  email: 'not-an-email',  // ❌ Throws ZodError
+  id: "1",
+  name: "Jo", // Valid (length >= 2)
+  email: "not-an-email", // ❌ Throws ZodError
 });
 ```
 
@@ -97,12 +97,12 @@ schemaWithRefinements.zod.users.parse({
 If you want to define overrides separately (e.g., in another file), use the `ZodOverrides` type:
 
 ```ts
-import { z } from 'zod';
-import { withZod, ZodOverrides } from '@rippledb/zod';
+import { z } from "zod";
+import { withZod, ZodOverrides } from "@rippledb/zod";
 
 // ZodOverrides expects the raw schema type, not SchemaDescriptor
 // Use schema['schema'] to access the underlying descriptor
-const myOverrides: ZodOverrides<typeof schema['schema']> = {
+const myOverrides: ZodOverrides<(typeof schema)["schema"]> = {
   todos: {
     title: z.string().min(1).max(100),
   },
@@ -116,7 +116,9 @@ const schemaWithRefinements = withZod(schema, myOverrides);
 ```
 
 <Callout type="info">
-Both patterns provide full autocomplete for valid entity and field names. Use inline for simple cases, typed external when overrides need to be shared or organized separately.
+  Both patterns provide full autocomplete for valid entity and field names. Use
+  inline for simple cases, typed external when overrides need to be shared or
+  organized separately.
 </Callout>
 
 ### generateZodSchemas()
@@ -124,7 +126,7 @@ Both patterns provide full autocomplete for valid entity and field names. Use in
 If you only need the Zod schemas without wrapping the descriptor:
 
 ```ts
-import { generateZodSchemas } from '@rippledb/zod';
+import { generateZodSchemas } from "@rippledb/zod";
 
 const zodSchemas = generateZodSchemas(schema);
 
@@ -137,23 +139,23 @@ zodSchemas.users.parse(data);
 
 Pre-built schemas for RippleDB protocol types:
 
-| Schema | Description |
-|--------|-------------|
-| `hlcSchema` | HLC timestamp format (`{wallMs}:{counter}:{nodeId}`) |
-| `changeKindSchema` | `'upsert' \| 'delete'` |
-| `changeSchema` | Generic change with unknown patch |
-| `pullRequestSchema` | Pull request body |
-| `pullResponseSchema` | Pull response body |
-| `appendRequestSchema` | Append request body |
-| `appendResultSchema` | Append result body |
+| Schema                | Description                                          |
+| --------------------- | ---------------------------------------------------- |
+| `hlcSchema`           | HLC timestamp format (`{wallMs}:{counter}:{nodeId}`) |
+| `changeKindSchema`    | `'upsert' \| 'delete'`                               |
+| `changeSchema`        | Generic change with unknown patch                    |
+| `pullRequestSchema`   | Pull request body                                    |
+| `pullResponseSchema`  | Pull response body                                   |
+| `appendRequestSchema` | Append request body                                  |
+| `appendResultSchema`  | Append result body                                   |
 
 ## Typed Change Schema
 
 For typed change validation:
 
 ```ts
-import { z } from 'zod';
-import { createChangeSchema } from '@rippledb/zod';
+import { z } from "zod";
+import { createChangeSchema } from "@rippledb/zod";
 
 const todoPatchSchema = z.object({
   id: z.string(),

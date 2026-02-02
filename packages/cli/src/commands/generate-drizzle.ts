@@ -1,12 +1,12 @@
-import { resolve, dirname } from 'node:path';
-import { writeFileSync, mkdirSync } from 'node:fs';
-import type { DrizzleCodegenConfig } from '../config.js';
-import { createRequire } from 'node:module';
-import { createConsoleLogger, type Logger } from '../logger.js';
-import { getInstallCommand } from '../utils/package-manager.js';
+import { mkdirSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
+import type { DrizzleCodegenConfig } from "../config.js";
+import { createConsoleLogger, type Logger } from "../logger.js";
+import { getInstallCommand } from "../utils/package-manager.js";
 
 const require = createRequire(import.meta.url);
-const packageJson = require('../../package.json');
+const packageJson = require("../../package.json");
 
 /**
  * Check if a string is a valid JavaScript identifier (can be used as unquoted property name)
@@ -15,14 +15,54 @@ function isValidIdentifier(name: string): boolean {
   // Must start with letter, underscore, or $, then contain only those plus digits
   // Also must not be a reserved word
   const reservedWords = new Set([
-    'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
-    'delete', 'do', 'else', 'enum', 'export', 'extends', 'false', 'finally', 'for',
-    'function', 'if', 'import', 'in', 'instanceof', 'new', 'null', 'return', 'super',
-    'switch', 'this', 'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with',
-    'yield', 'let', 'static', 'implements', 'interface', 'package', 'private',
-    'protected', 'public', 'await',
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "enum",
+    "export",
+    "extends",
+    "false",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "import",
+    "in",
+    "instanceof",
+    "new",
+    "null",
+    "return",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "true",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    "yield",
+    "let",
+    "static",
+    "implements",
+    "interface",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "await",
   ]);
-  
+
   if (reservedWords.has(name)) return false;
   return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name);
 }
@@ -45,36 +85,36 @@ function drizzleTypeToRipple(
   let base: string;
 
   switch (dataType) {
-    case 'string':
-    case 'text':
-    case 'varchar':
-    case 'char':
-    case 'uuid':
-      base = 's.string()';
+    case "string":
+    case "text":
+    case "varchar":
+    case "char":
+    case "uuid":
+      base = "s.string()";
       break;
-    case 'number':
-    case 'integer':
-    case 'smallint':
-    case 'bigint':
-    case 'real':
-    case 'double':
-    case 'float':
-    case 'decimal':
-    case 'numeric':
-      base = 's.number()';
+    case "number":
+    case "integer":
+    case "smallint":
+    case "bigint":
+    case "real":
+    case "double":
+    case "float":
+    case "decimal":
+    case "numeric":
+      base = "s.number()";
       break;
-    case 'boolean':
-      base = 's.boolean()';
+    case "boolean":
+      base = "s.boolean()";
       break;
     default:
       // Default to string for unknown types
       warn?.(`Unknown Drizzle type "${dataType}", defaulting to s.string()`);
-      base = 's.string()';
+      base = "s.string()";
   }
 
   // If nullable (not notNull), add .optional()
   if (!isNotNull) {
-    base += '.optional()';
+    base += ".optional()";
   }
 
   return base;
@@ -98,21 +138,28 @@ interface TableInfo {
 export async function generateFromDrizzle(
   config: DrizzleCodegenConfig,
   cwd: string,
-  options?: { logger?: Logger },
+  options?: { logger?: Logger; },
 ): Promise<void> {
   const entitiesPath = resolve(cwd, config.entities);
   const outputPath = resolve(cwd, config.output);
   const logger = options?.logger ?? createConsoleLogger();
 
   // Dynamically import drizzle-orm utilities
-  type DrizzleOrm = typeof import('drizzle-orm');
+  type DrizzleOrm = typeof import("drizzle-orm");
 
   let drizzleOrm: DrizzleOrm;
   try {
-    drizzleOrm = await import('drizzle-orm');
+    drizzleOrm = await import("drizzle-orm");
   } catch {
-    logger.error?.('Error: drizzle-orm is required for Drizzle codegen');
-    logger.error?.(`Install it with: ${getInstallCommand('drizzle-orm', { dev: true, cwd })}`);
+    logger.error?.("Error: drizzle-orm is required for Drizzle codegen");
+    logger.error?.(
+      `Install it with: ${
+        getInstallCommand("drizzle-orm", {
+          dev: true,
+          cwd,
+        })
+      }`,
+    );
     process.exit(1);
   }
 
@@ -122,7 +169,7 @@ export async function generateFromDrizzle(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let entityModule: Record<string, any>;
   try {
-    const { createJiti } = await import('jiti');
+    const { createJiti } = await import("jiti");
     const jiti = createJiti(cwd);
     entityModule = (await jiti.import(entitiesPath)) as Record<string, unknown>;
   } catch (err) {
@@ -142,14 +189,18 @@ export async function generateFromDrizzle(
   }
 
   if (tables.length === 0) {
-    logger.error?.('No Drizzle tables found in entities file');
+    logger.error?.("No Drizzle tables found in entities file");
     logger.error?.(`File: ${entitiesPath}`);
-    logger.error?.('Make sure you export Drizzle table definitions');
+    logger.error?.("Make sure you export Drizzle table definitions");
     process.exit(1);
   }
 
   logger.log?.(
-    `Found ${tables.length} table${tables.length === 1 ? '' : 's'}: ${tables.map((t) => t.name).join(', ')}`,
+    `Found ${tables.length} table${tables.length === 1 ? "" : "s"}: ${
+      tables
+        .map(t => t.name)
+        .join(", ")
+    }`,
   );
 
   // Build the schema definition
@@ -160,22 +211,31 @@ export async function generateFromDrizzle(
     const fieldDefinitions: string[] = [];
 
     for (const [columnName, column] of Object.entries(columns)) {
-      const fieldType = drizzleTypeToRipple(column.dataType, column.notNull, logger.warn);
-      fieldDefinitions.push(`    ${formatPropertyName(columnName)}: ${fieldType},`);
+      const fieldType = drizzleTypeToRipple(
+        column.dataType,
+        column.notNull,
+        logger.warn,
+      );
+      fieldDefinitions.push(
+        `    ${formatPropertyName(columnName)}: ${fieldType},`,
+      );
     }
 
-    entityDefinitions.push(`  ${formatPropertyName(name)}: {\n${fieldDefinitions.join('\n')}\n  },`);
+    entityDefinitions.push(
+      `  ${formatPropertyName(name)}: {\n${fieldDefinitions.join("\n")}\n  },`,
+    );
   }
 
   // Generate the output file content
-  const output = `// AUTO-GENERATED by @rippledb/cli v${packageJson.version} - DO NOT EDIT
+  const output =
+    `// AUTO-GENERATED by @rippledb/cli v${packageJson.version} - DO NOT EDIT
 // Source: ${config.entities}
 // Generated: ${new Date().toISOString()}
 
 import { defineSchema, s, type InferSchema } from '@rippledb/core';
 
 export const schema = defineSchema({
-${entityDefinitions.join('\n')}
+${entityDefinitions.join("\n")}
 });
 
 export type Schema = InferSchema<typeof schema>;
@@ -186,6 +246,6 @@ export type Schema = InferSchema<typeof schema>;
   mkdirSync(outputDir, { recursive: true });
 
   // Write the output file
-  writeFileSync(outputPath, output, 'utf-8');
+  writeFileSync(outputPath, output, "utf-8");
   logger.log?.(`Generated: ${outputPath}`);
 }

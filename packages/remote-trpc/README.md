@@ -2,7 +2,8 @@
 
 tRPC client for RippleDB sync.
 
-📚 **Documentation:** [rippledb.dev/docs/reference/remote-trpc](https://rippledb.dev/docs/reference/remote-trpc)
+📚 **Documentation:**
+[rippledb.dev/docs/reference/remote-trpc](https://rippledb.dev/docs/reference/remote-trpc)
 
 ## Installation
 
@@ -13,9 +14,9 @@ npm install @rippledb/remote-trpc @rippledb/client @rippledb/core @trpc/client
 ## Usage
 
 ```typescript
-import { createTrpcRemote } from '@rippledb/remote-trpc';
-import { createReplicator } from '@rippledb/client';
-import { trpc } from './trpc';
+import { createReplicator } from "@rippledb/client";
+import { createTrpcRemote } from "@rippledb/remote-trpc";
+import { trpc } from "./trpc";
 
 const remote = createTrpcRemote({
   pull: trpc.ripple.pull.query,
@@ -23,7 +24,7 @@ const remote = createTrpcRemote({
 });
 
 const replicator = createReplicator({
-  stream: 'user-123',
+  stream: "user-123",
   store,
   remote,
 });

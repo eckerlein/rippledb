@@ -3,42 +3,51 @@ title: bind-tanstack-query
 description: TanStack Query invalidation binding for RippleDB
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Callout } from "fumadocs-ui/components/callout";
 
 # @rippledb/bind-tanstack-query
 
 Wire RippleDB `DbEvent`s to [TanStack Query](https://tanstack.com/query) cache invalidation. Works with any TanStack Query adapter (React, Vue, Solid, Svelte).
 
 <Callout type="info">
-This package is used internally by `@rippledb/client-query` to provide a complete data fetching and caching solution. Consider using [client-query](/docs/reference/client-query) for a more integrated experience.
+  This package is used internally by `@rippledb/client-query` to provide a
+  complete data fetching and caching solution. Consider using
+  [client-query](/docs/reference/client-query) for a more integrated experience.
 </Callout>
 
 ## Installation
 
-<InstallCommandTabs packages={['@rippledb/bind-tanstack-query', '@tanstack/query-core']} />
+<InstallCommandTabs
+  packages={["@rippledb/bind-tanstack-query", "@tanstack/query-core"]}
+/>
 
 <Callout type="info">
-If you're using a framework-specific TanStack Query (e.g. `@tanstack/react-query`), you already have `@tanstack/query-core` as a dependency.
+  If you're using a framework-specific TanStack Query (e.g.
+  `@tanstack/react-query`), you already have `@tanstack/query-core` as a
+  dependency.
 </Callout>
 
 ## Basic Usage
 
 ```ts
-import { wireTanstackInvalidation, defineListRegistry } from '@rippledb/bind-tanstack-query';
-import { QueryClient } from '@tanstack/query-core';
+import {
+  wireTanstackInvalidation,
+  defineListRegistry,
+} from "@rippledb/bind-tanstack-query";
+import { QueryClient } from "@tanstack/query-core";
 
 // 1. Define which query keys depend on which entities
 const registry = defineListRegistry()
-  .list(['todos'], { deps: ['todos'] })
-  .list(['todoWithTags'], { deps: ['todos', 'tags'] })
-  .list(['dashboard'], { deps: ['todos', 'users', 'projects'] });
+  .list(["todos"], { deps: ["todos"] })
+  .list(["todoWithTags"], { deps: ["todos", "tags"] })
+  .list(["dashboard"], { deps: ["todos", "users", "projects"] });
 
 // 2. Wire it up
 const cleanup = wireTanstackInvalidation({
   queryClient,
-  store,           // Your RippleDB Store (e.g. MemoryStore)
+  store, // Your RippleDB Store (e.g. MemoryStore)
   registry,
-  debounceMs: 50,  // Coalesce rapid-fire events (default: 50ms)
+  debounceMs: 50, // Coalesce rapid-fire events (default: 50ms)
 });
 
 // 3. Later: cleanup() to unsubscribe
@@ -50,9 +59,9 @@ When your `Store` applies changes (via sync or local writes), it emits `DbEvent`
 
 ```ts
 type DbEvent = {
-  entity: string;           // e.g. 'todos'
-  kind: 'insert' | 'update' | 'delete';
-  id?: string;              // e.g. 'todo-1'
+  entity: string; // e.g. 'todos'
+  kind: "insert" | "update" | "delete";
+  id?: string; // e.g. 'todo-1'
 };
 ```
 
@@ -69,13 +78,13 @@ The registry defines which query keys depend on which entities:
 ```ts
 const registry = defineListRegistry()
   // Simple: ['todos'] depends on todos entity
-  .list(['todos'], { deps: ['todos'] })
-  
+  .list(["todos"], { deps: ["todos"] })
+
   // Complex query key with params
-  .list(['todos', { status: 'active' }], { deps: ['todos'] })
-  
+  .list(["todos", { status: "active" }], { deps: ["todos"] })
+
   // Multiple dependencies: dashboard needs data from 3 entities
-  .list(['dashboard'], { deps: ['todos', 'users', 'projects'] });
+  .list(["dashboard"], { deps: ["todos", "users", "projects"] });
 ```
 
 When a `DbEvent` fires for `todos`, all query keys whose `deps` include `'todos'` are invalidated.
@@ -116,7 +125,7 @@ Set to `0` to disable debouncing (invalidate immediately on each event).
 wireTanstackInvalidation({
   queryClient,
   store,
-  debounceMs: 0,      // No debounce
+  debounceMs: 0, // No debounce
 });
 ```
 
@@ -128,20 +137,22 @@ Whether to invalidate row queries (`[entity, id]`). Default: `true`.
 wireTanstackInvalidation({
   queryClient,
   store,
-  invalidateRows: false,  // Only invalidate entity/list queries
+  invalidateRows: false, // Only invalidate entity/list queries
 });
 ```
 
 ## React Example
 
 ```tsx
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { wireTanstackInvalidation, defineListRegistry } from '@rippledb/bind-tanstack-query';
-import { store } from './ripple';  // Your RippleDB store
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import {
+  wireTanstackInvalidation,
+  defineListRegistry,
+} from "@rippledb/bind-tanstack-query";
+import { store } from "./ripple"; // Your RippleDB store
 
-const registry = defineListRegistry()
-  .list(['todos'], { deps: ['todos'] });
+const registry = defineListRegistry().list(["todos"], { deps: ["todos"] });
 
 function App() {
   const queryClient = useQueryClient();
@@ -161,8 +172,8 @@ function App() {
 function TodoList() {
   // This query will be invalidated when todos change
   const { data: todos } = useQuery({
-    queryKey: ['todos'],
-    queryFn: () => store.listRows({ entity: 'todos' }),
+    queryKey: ["todos"],
+    queryFn: () => store.listRows({ entity: "todos" }),
   });
 
   return (

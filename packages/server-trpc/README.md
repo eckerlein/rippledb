@@ -2,7 +2,8 @@
 
 tRPC router for RippleDB sync endpoints.
 
-📚 **Documentation:** [rippledb.dev/docs/reference/server-trpc](https://rippledb.dev/docs/reference/server-trpc)
+📚 **Documentation:**
+[rippledb.dev/docs/reference/server-trpc](https://rippledb.dev/docs/reference/server-trpc)
 
 ## Installation
 
@@ -13,8 +14,8 @@ npm install @rippledb/server-trpc @rippledb/server @rippledb/core @trpc/server
 ## Usage
 
 ```typescript
-import { createRippleTrpcRouter } from '@rippledb/server-trpc';
-import { initTRPC } from '@trpc/server';
+import { createRippleTrpcRouter } from "@rippledb/server-trpc";
+import { initTRPC } from "@trpc/server";
 
 const rippleRouter = createRippleTrpcRouter({ db });
 
