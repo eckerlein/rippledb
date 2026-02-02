@@ -1,14 +1,10 @@
 #!/usr/bin/env tsx
 /**
- * Check TypeScript performance against per-package limits
- *
- * Checks:
- * 1. No package exceeds its max limit
- * 2. Fails if performance is too good (limit too high) - forces realistic limits
- * 3. Total time doesn't exceed totalMax
+ * TypeScript Performance Diagnostics and Checking
  *
  * Usage:
- *   pnpm tsx scripts/src/check-tsc-performance.ts
+ *   pnpm tsx scripts/src/tsc-performance.ts          # Run diagnostics (default)
+ *   pnpm tsx scripts/src/tsc-performance.ts --check  # Check against limits (CI mode)
  */
 
 import { execSync } from "child_process";
@@ -22,13 +18,6 @@ const ROOT = join(__dirname, "../..");
 const PACKAGES_DIR = join(ROOT, "packages");
 const LIMITS_PATH = join(ROOT, ".github/tsc-performance-limits.json");
 
-interface PerformanceLimits {
-  totalMax: number;
-  packages: Record<string, number>;
-  headroomFailThreshold: number; // Fail if current < threshold * max (e.g., 0.4 = 40%)
-  headroomWarningThreshold: number; // Warn if current < threshold * max (e.g., 0.5 = 50%)
-}
-
 interface PackageDiagnostics {
   name: string;
   files: number;
@@ -37,6 +26,14 @@ interface PackageDiagnostics {
   errors: number;
 }
 
+interface PerformanceLimits {
+  totalMax: number;
+  packages: Record<string, number>;
+  headroomFailThreshold: number;
+  headroomWarningThreshold: number;
+}
+
+// Shared functions
 function getPackages(): string[] {
   const packages: string[] = [];
   try {
@@ -112,6 +109,51 @@ function runDiagnostics(packageName: string): PackageDiagnostics | null {
   }
 }
 
+function renderSummaryTable(results: PackageDiagnostics[]): void {
+  // Sort by time (slowest first)
+  const sorted = [...results].sort((a, b) => b.time - a.time);
+
+  console.log("Slowest packages (by compilation time):\n");
+  console.log(
+    "Package".padEnd(30)
+      + "Time (ms)".padEnd(12)
+      + "Files".padEnd(8)
+      + "Lines".padEnd(10)
+      + "Errors",
+  );
+  console.log("-".repeat(80));
+
+  for (const result of sorted) {
+    const timeStr = result.time.toFixed(2);
+    const filesStr = result.files.toString();
+    const linesStr = result.lines.toLocaleString();
+    const errorsStr = result.errors > 0 ? `⚠️  ${result.errors}` : "✓";
+
+    console.log(
+      result.name.padEnd(30)
+        + timeStr.padEnd(12)
+        + filesStr.padEnd(8)
+        + linesStr.padEnd(10)
+        + errorsStr,
+    );
+  }
+
+  const totalTime = results.reduce((sum, r) => sum + r.time, 0);
+  const totalFiles = results.reduce((sum, r) => sum + r.files, 0);
+  const totalLines = results.reduce((sum, r) => sum + r.lines, 0);
+  const totalErrors = results.reduce((sum, r) => sum + r.errors, 0);
+
+  console.log("-".repeat(80));
+  console.log(
+    "TOTAL".padEnd(30)
+      + totalTime.toFixed(2).padEnd(12)
+      + totalFiles.toString().padEnd(8)
+      + totalLines.toLocaleString().padEnd(10)
+      + (totalErrors > 0 ? `⚠️  ${totalErrors}` : "✓"),
+  );
+}
+
+// Check mode functions
 function loadLimits(): PerformanceLimits {
   if (!existsSync(LIMITS_PATH)) {
     throw new Error(
@@ -120,76 +162,22 @@ function loadLimits(): PerformanceLimits {
     );
   }
   const raw = JSON.parse(readFileSync(LIMITS_PATH, "utf-8"));
-  // Set defaults for thresholds
   return {
-    headroomFailThreshold: raw.headroomFailThreshold ?? 0.4, // Default: fail if < 40% of max
-    headroomWarningThreshold: raw.headroomWarningThreshold ?? 0.5, // Default: warn if < 50% of max
+    headroomFailThreshold: raw.headroomFailThreshold ?? 0.4,
+    headroomWarningThreshold: raw.headroomWarningThreshold ?? 0.5,
     ...raw,
   };
 }
 
-function getPerformanceFromDiagnose(): {
-  totalTime: number;
-  packages: PackageDiagnostics[];
-} {
-  // Run perf:diagnose and parse its output to get consistent measurements
-  const output = execSync("pnpm perf:diagnose", {
-    cwd: ROOT,
-    encoding: "utf-8",
-    stdio: "pipe",
-  });
-
-  const packages: PackageDiagnostics[] = [];
-  let totalTime = 0;
-
-  // Parse the summary table output
-  const lines = output.split("\n");
-  let inSummary = false;
-
-  for (const line of lines) {
-    // Start parsing when we hit the summary table
-    if (line.includes("Package") && line.includes("Time (ms)")) {
-      inSummary = true;
-      continue;
-    }
-
-    // Stop at the TOTAL line
-    if (line.includes("TOTAL")) {
-      const totalMatch = line.match(/TOTAL\s+([\d.]+)/);
-      if (totalMatch) {
-        totalTime = parseFloat(totalMatch[1]);
-      }
-      break;
-    }
-
-    // Parse package lines: "package-name                   460.00      266     987       ✓"
-    if (inSummary && line.trim() && !line.includes("-".repeat(80))) {
-      const parts = line.trim().split(/\s+/);
-      if (parts.length >= 4 && !isNaN(parseFloat(parts[1]))) {
-        packages.push({
-          name: parts[0],
-          time: parseFloat(parts[1]),
-          files: parseInt(parts[2], 10),
-          lines: parseInt(parts[3].replace(/,/g, ""), 10) || 0,
-          errors: line.includes("⚠️") ? 1 : 0,
-        });
-      }
-    }
-  }
-
-  return { totalTime, packages };
-}
-
-function checkPerformance(): {
+function checkPerformance(
+  results: PackageDiagnostics[],
+  limits: PerformanceLimits,
+): {
   passed: boolean;
   errors: string[];
   warnings: string[];
 } {
-  const limits = loadLimits();
-
-  // Use perf:diagnose output for consistent measurements
-  const { totalTime, packages: results } = getPerformanceFromDiagnose();
-
+  const totalTime = results.reduce((sum, r) => sum + r.time, 0);
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -268,35 +256,101 @@ function checkPerformance(): {
 }
 
 // Main execution
-const result = checkPerformance();
+const isCheckMode = process.argv.includes("--check");
 
-console.log("🔍 TypeScript Performance Check\n");
-console.log("=".repeat(80));
+if (isCheckMode) {
+  // Check mode: run diagnostics and check against limits
+  console.log("🔍 TypeScript Performance Check\n");
+  console.log("=".repeat(80));
 
-if (result.errors.length > 0) {
-  console.error("\n❌ Performance Check Failed:\n");
-  for (const error of result.errors) {
-    console.error(`  • ${error}`);
+  const limits = loadLimits();
+  const packages = getPackages();
+  const results: PackageDiagnostics[] = [];
+
+  // Run diagnostics with live updates
+  for (const pkg of packages) {
+    process.stdout.write(`\n📦 ${pkg}... `);
+    const result = runDiagnostics(pkg);
+    if (result) {
+      results.push(result);
+      console.log(
+        `✅ ${
+          result.time.toFixed(2)
+        }ms (${result.files} files, ${result.errors} errors)`,
+      );
+    } else {
+      console.log("❌ Failed");
+    }
   }
-}
 
-if (result.warnings.length > 0) {
-  console.warn("\n⚠️  Warnings:\n");
-  for (const warning of result.warnings) {
-    console.warn(`  • ${warning}`);
+  // Show summary table
+  console.log("\n" + "=".repeat(80));
+  console.log("\n📊 Summary\n");
+  renderSummaryTable(results);
+
+  // Now check against limits
+  console.log("\n" + "=".repeat(80));
+  const checkResult = checkPerformance(results, limits);
+
+  if (checkResult.errors.length > 0) {
+    console.error("\n❌ Performance Check Failed:\n");
+    for (const error of checkResult.errors) {
+      console.error(`  • ${error}`);
+    }
   }
-}
 
-if (result.passed) {
-  console.log("\n✅ All performance checks passed!");
-  process.exit(0);
+  if (checkResult.warnings.length > 0) {
+    console.warn("\n⚠️  Warnings:\n");
+    for (const warning of checkResult.warnings) {
+      console.warn(`  • ${warning}`);
+    }
+  }
+
+  if (checkResult.passed) {
+    console.log("\n✅ All performance checks passed!");
+    process.exit(0);
+  } else {
+    console.error("\n💡 Consider:");
+    console.error("  - Review recent type changes");
+    console.error("  - Check for new dependencies");
+    console.error("  - Run 'pnpm perf:find-types' to identify slow types");
+    console.error(
+      "  - Update limits in .github/tsc-performance-limits.json if appropriate",
+    );
+    process.exit(1);
+  }
 } else {
-  console.error("\n💡 Consider:");
-  console.error("  - Review recent type changes");
-  console.error("  - Check for new dependencies");
-  console.error("  - Run 'pnpm perf:find-types' to identify slow types");
-  console.error(
-    "  - Update limits in .github/tsc-performance-limits.json if appropriate",
-  );
-  process.exit(1);
+  // Diagnose mode: run diagnostics and show summary table
+  console.log("🔍 TypeScript Extended Diagnostics for All Packages\n");
+  console.log("=".repeat(80));
+
+  const packages = getPackages();
+  const results: PackageDiagnostics[] = [];
+
+  for (const pkg of packages) {
+    process.stdout.write(`\n📦 ${pkg}... `);
+    const result = runDiagnostics(pkg);
+    if (result) {
+      results.push(result);
+      console.log(
+        `✅ ${
+          result.time.toFixed(2)
+        }ms (${result.files} files, ${result.errors} errors)`,
+      );
+    } else {
+      console.log("❌ Failed");
+    }
+  }
+
+  // Summary
+  console.log("\n" + "=".repeat(80));
+  console.log("\n📊 Summary\n");
+
+  if (results.length === 0) {
+    console.log("No results to display.");
+    process.exit(1);
+  }
+
+  renderSummaryTable(results);
+  console.log("\n💡 Focus optimization efforts on the slowest packages above.");
 }
