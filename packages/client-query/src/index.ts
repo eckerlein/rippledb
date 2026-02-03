@@ -64,6 +64,10 @@ export type QueryOptions<S extends RippleSchema = RippleSchema, T = unknown> = {
  * });
  * ```
  */
+/**
+ * Client Query API that combines controllers with TanStack Query invalidation.
+ * Optimized: single type definition instead of intersection for better performance.
+ */
 export type ClientQueryApi<
   S extends RippleSchema = RippleSchema,
   ListQuery = unknown,

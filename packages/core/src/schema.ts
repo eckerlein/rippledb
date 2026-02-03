@@ -40,12 +40,20 @@ export type EnumField<
 
 /**
  * Union of all field descriptor types.
+ *
+ * Explicitly defined as a discriminated union for better type checking performance.
+ * TypeScript can efficiently narrow types based on the `_type` discriminator.
+ * Using inline types instead of generic instantiations helps the compiler optimize.
  */
 export type FieldDescriptor =
-  | StringField<boolean>
-  | NumberField<boolean>
-  | BooleanField<boolean>
-  | EnumField<readonly string[], boolean>;
+  | { readonly _type: "string"; readonly _optional: boolean; }
+  | { readonly _type: "number"; readonly _optional: boolean; }
+  | { readonly _type: "boolean"; readonly _optional: boolean; }
+  | {
+    readonly _type: "enum";
+    readonly values: readonly string[];
+    readonly _optional: boolean;
+  };
 
 /**
  * Base field descriptor shape for type checking.
@@ -189,21 +197,21 @@ export const s = {
 
 /**
  * Infers the TypeScript type from a field descriptor.
+ *
+ * Optimized version: reduces conditional depth by checking _type first.
+ * This is faster because TypeScript can short-circuit type checks.
  */
-export type InferField<F> = F extends { _type: "string"; _optional: true; }
-  ? string | undefined
-  : F extends { _type: "string"; } ? string
-  : F extends { _type: "number"; _optional: true; } ? number | undefined
+type InferFieldBaseType<F> = F extends { _type: "string"; } ? string
   : F extends { _type: "number"; } ? number
-  : F extends { _type: "boolean"; _optional: true; } ? boolean | undefined
   : F extends { _type: "boolean"; } ? boolean
-  : F extends { _type: "enum"; values: infer V; _optional: true; }
-    ? V extends readonly string[] ? V[number] | undefined
-    : never
   : F extends { _type: "enum"; values: infer V; }
     ? V extends readonly string[] ? V[number]
     : never
   : never;
+
+export type InferField<F> = F extends { _optional: true; }
+  ? InferFieldBaseType<F> | undefined
+  : InferFieldBaseType<F>;
 
 /**
  * Infers the TypeScript type for an entity from its field descriptors.

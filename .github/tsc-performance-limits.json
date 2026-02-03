@@ -1,0 +1,28 @@
+{
+  "totalMax": 22950,
+  "headroomFailThreshold": 0.3,
+  "headroomWarningThreshold": 0.45,
+  "packages": {
+    "materialize-drizzle": 1334,
+    "db-drizzle": 1219,
+    "client-query": 1196,
+    "client-controllers": 1196,
+    "bind-tanstack-query": 1196,
+    "cli": 1173,
+    "db-sqlite": 1162,
+    "materialize-db": 1116,
+    "store-sqlite": 1058,
+    "zod": 1047,
+    "db-turso": 1024,
+    "core": 1012,
+    "materialize-core": 1001,
+    "store-memory": 989,
+    "remote-trpc": 955,
+    "server-trpc": 955,
+    "remote-http": 932,
+    "scripts-perf": 909,
+    "client": 782,
+    "db-memory": 782,
+    "server": 771
+  }
+}

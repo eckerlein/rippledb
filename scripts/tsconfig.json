@@ -4,7 +4,9 @@
     "types": ["node"],
     "moduleResolution": "Node",
     "noEmit": false,
-    "outDir": "../dist-scripts"
+    "rootDir": "./src",
+    "outDir": "./dist"
   },
-  "include": ["*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
 }

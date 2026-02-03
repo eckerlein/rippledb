@@ -145,8 +145,11 @@ export type MaterializerExecutor = {
 
 /**
  * Configuration when using a built-in dialect.
+ * Uses interface extends instead of intersection for better type checking performance.
  */
-type DialectConfig<S extends RippleSchema> = MaterializerConfigBase<S> & {
+interface DialectConfig<S extends RippleSchema>
+  extends MaterializerConfigBase<S>
+{
   /**
    * Database dialect name (e.g., 'sqlite', 'postgresql').
    */
@@ -161,60 +164,64 @@ type DialectConfig<S extends RippleSchema> = MaterializerConfigBase<S> & {
     values: unknown[],
     updates: string[],
   ) => { sql: string; params: unknown[]; };
-};
+}
 
 /**
  * Configuration when providing all custom commands.
+ * Uses interface extends instead of intersection for better type checking performance.
  */
-type CustomCommandsConfig<S extends RippleSchema> =
-  & MaterializerConfigBase<S>
-  & {
-    dialect?: never;
-    /**
-     * Custom command for loading entity state.
-     * Receives: (tagsTable) and should return command with placeholders for entity and id.
-     * The command should return columns: data, tags, deleted, deleted_tag
-     */
-    loadCommand: (tagsTable: string) => string;
+interface CustomCommandsConfig<S extends RippleSchema>
+  extends MaterializerConfigBase<S>
+{
+  dialect?: never;
+  /**
+   * Custom command for loading entity state.
+   * Receives: (tagsTable) and should return command with placeholders for entity and id.
+   * The command should return columns: data, tags, deleted, deleted_tag
+   */
+  loadCommand: (tagsTable: string) => string;
 
-    /**
-     * Custom command for saving entity state.
-     * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson.
-     * Should handle upsert.
-     */
-    saveCommand: (tagsTable: string) => string;
+  /**
+   * Custom command for saving entity state.
+   * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson.
+   * Should handle upsert.
+   */
+  saveCommand: (tagsTable: string) => string;
 
-    /**
-     * Custom command for removing (tombstoning) entity state.
-     * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson, deletedTag.
-     * Should handle upsert with deleted flag.
-     */
-    removeCommand: (tagsTable: string) => string;
+  /**
+   * Custom command for removing (tombstoning) entity state.
+   * Receives: (tagsTable) and should return command with placeholders for entity, id, dataJson, tagsJson, deletedTag.
+   * Should handle upsert with deleted flag.
+   */
+  removeCommand: (tagsTable: string) => string;
 
-    /**
-     * Custom command for saving entity values to actual table columns (when fieldMap is provided).
-     * Required if fieldMap is used, optional otherwise.
-     */
-    saveEntityCommand?: (
-      tableName: string,
-      id: string,
-      columns: string[],
-      values: unknown[],
-      updates: string[],
-    ) => { sql: string; params: unknown[]; };
-  };
+  /**
+   * Custom command for saving entity values to actual table columns (when fieldMap is provided).
+   * Required if fieldMap is used, optional otherwise.
+   */
+  saveEntityCommand?: (
+    tableName: string,
+    id: string,
+    columns: string[],
+    values: unknown[],
+    updates: string[],
+  ) => { sql: string; params: unknown[]; };
+}
 
 /**
  * Configuration when providing a custom executor.
+ * Uses interface extends instead of intersection for better type checking performance.
  */
-type ExecutorConfig<S extends RippleSchema> = MaterializerConfigBase<S> & {
+interface ExecutorConfig<S extends RippleSchema>
+  extends MaterializerConfigBase<S>
+{
   executor: MaterializerExecutor;
   dialect?: never;
   loadCommand?: never;
   saveCommand?: never;
   removeCommand?: never;
   saveEntityCommand?: never;
-};
+}
 
 /**
  * Configuration for custom materialization adapter.

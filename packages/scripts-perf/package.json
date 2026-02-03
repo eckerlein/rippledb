@@ -1,0 +1,45 @@
+{
+  "name": "@rippledb/scripts-perf",
+  "version": "0.1.0",
+  "description": "TypeScript performance diagnostics and checking tools",
+  "type": "module",
+  "bin": {
+    "tsc-performance": "./dist/entrypoint.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "dev": "tsx src/entrypoint.ts"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/entrypoint.d.ts",
+      "import": "./dist/entrypoint.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "ink": "^6.6.0",
+    "react": "^19.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.2.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3"
+  },
+  "keywords": [
+    "rippledb",
+    "typescript",
+    "performance",
+    "diagnostics"
+  ],
+  "license": "MIT",
+  "private": true,
+  "tsup": {
+    "dts": false
+  }
+}
