@@ -79,7 +79,14 @@ function getChangedPackageDirs(baseSha: string, headSha: string): string[] {
     const dirs = new Set<string>();
     for (const line of output.split("\n")) {
       const match = line.match(/^packages\/([^/]+)\//);
-      if (match) dirs.add(match[1]);
+      if (match) {
+        const packageDir = match[1];
+        const packageJsonPath = `packages/${packageDir}/package.json`;
+        // Skip private packages - they don't need changesets
+        if (!getPackageIsPrivate(packageJsonPath)) {
+          dirs.add(packageDir);
+        }
+      }
     }
 
     return Array.from(dirs).sort();
