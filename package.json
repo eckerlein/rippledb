@@ -23,7 +23,8 @@
     "perf:profile": "tsx scripts/src/profile-tsc-performance.ts",
     "perf:diagnose": "pnpm --filter @rippledb/scripts-perf build && node packages/scripts-perf/dist/entrypoint.js",
     "perf:find-types": "tsx scripts/src/find-slow-types.ts",
-    "perf:check": "pnpm --filter @rippledb/scripts-perf build && node packages/scripts-perf/dist/entrypoint.js --check"
+    "perf:check": "pnpm --filter @rippledb/scripts-perf build && node packages/scripts-perf/dist/entrypoint.js --check",
+    "perf:calibrate": "pnpm --filter @rippledb/scripts-perf build && node packages/scripts-perf/dist/entrypoint.js --calibrate"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.2",

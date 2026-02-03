@@ -3,15 +3,58 @@
  */
 
 import {
+  applyCalibrationFactor,
+  calibratePerformance,
   checkPerformance,
   type CheckResult,
   getPackages,
   loadLimits,
+  loadLocalCalibration,
+  type LocalCalibration,
   type PackageDiagnostics,
   type PerformanceLimits,
   runDiagnostics,
   runDiagnosticsMultiple,
 } from "./logic.js";
+
+export async function runCalibrationMode(): Promise<{ exitCode: number; }> {
+  console.log("🔧 TypeScript Performance Calibration");
+  console.log("=".repeat(80));
+  console.log("\nThis will run all packages 3x to establish a local baseline.");
+  console.log("Results will be saved to .tsc-performance-local.json\n");
+
+  try {
+    const calibration = await calibratePerformance(
+      (message, packageName, current, total) => {
+        if (packageName && current && total) {
+          console.log(`  [${current}/${total}] ${message}`);
+        } else {
+          console.log(`\n${message}`);
+        }
+      },
+    );
+
+    console.log("\n" + "=".repeat(80));
+    console.log("✅ Calibration complete!\n");
+    console.log(
+      `  Calibration factor: ${calibration.calibrationFactor.toFixed(3)}x`,
+    );
+    console.log(
+      `  Local baseline: ${calibration.baselineTotalTime.toFixed(0)}ms`,
+    );
+    console.log(`  CI baseline: ${calibration.ciTotalMax}ms`);
+    console.log(`  Saved to: .tsc-performance-local.json`);
+    console.log(
+      "\nYou can now run 'pnpm perf:check' to validate local performance.\n",
+    );
+
+    return { exitCode: 0 };
+  } catch (error) {
+    console.error("\n❌ Calibration failed:");
+    console.error(error instanceof Error ? error.message : String(error));
+    return { exitCode: 1 };
+  }
+}
 
 export async function runConsoleMode(
   isCheckMode: boolean,
@@ -19,10 +62,22 @@ export async function runConsoleMode(
   const packages = getPackages();
   let results: PackageDiagnostics[] = [];
   let limits: PerformanceLimits | null = null;
+  let localCalibration: LocalCalibration | null = null;
 
   if (isCheckMode) {
     try {
       limits = loadLimits();
+
+      // In CI, never use local calibration
+      if (!process.env.CI) {
+        localCalibration = loadLocalCalibration();
+        if (localCalibration) {
+          limits = applyCalibrationFactor(
+            limits,
+            localCalibration.calibrationFactor,
+          );
+        }
+      }
     } catch (error) {
       console.error(
         `Error: ${
@@ -40,6 +95,20 @@ export async function runConsoleMode(
       : "🔍 TypeScript Extended Diagnostics for All Packages",
   );
   console.log("=".repeat(80));
+
+  if (isCheckMode && localCalibration && !process.env.CI) {
+    console.log(
+      `\nℹ️  Using local calibration (factor: ${
+        localCalibration.calibrationFactor.toFixed(3)
+      }x, calibrated: ${
+        new Date(localCalibration.calibratedAt).toLocaleString()
+      })\n`,
+    );
+  } else if (isCheckMode && !localCalibration && !process.env.CI) {
+    console.log(
+      "\n⚠️  No local calibration found. Run 'pnpm perf:calibrate' for accurate local checks.\n",
+    );
+  }
 
   // Initial pass
   console.log("\n📦 Running diagnostics for all packages...\n");

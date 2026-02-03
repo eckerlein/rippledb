@@ -5,11 +5,15 @@
 import { Box, render, Text } from "ink";
 import React, { useEffect, useState } from "react";
 import {
+  applyCalibrationFactor,
+  calibratePerformance,
   checkPerformance,
   type CheckResult,
   getPackages,
   getPackageStatus,
   loadLimits,
+  loadLocalCalibration,
+  type LocalCalibration,
   type PackageDiagnostics,
   type PerformanceLimits,
   runDiagnostics,
@@ -100,9 +104,99 @@ function PerformanceTable({
   );
 }
 
+export function CalibrationApp() {
+  const [status, setStatus] = useState<string>("Initializing...");
+  const [progress, setProgress] = useState<string>("");
+  const [completed, setCompleted] = useState(false);
+  const [calibration, setCalibration] = useState<LocalCalibration | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const runCalibration = async () => {
+      try {
+        setStatus("Running calibration...");
+        const result = await calibratePerformance(
+          (message, packageName, current, total) => {
+            if (isCancelled) return;
+
+            if (packageName && current && total) {
+              setProgress(`[${current}/${total}] ${packageName}`);
+            } else {
+              setStatus(message);
+            }
+          },
+        );
+
+        if (!isCancelled) {
+          setCalibration(result);
+          setCompleted(true);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      }
+    };
+
+    runCalibration();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  if (error) {
+    return (
+      <Box flexDirection="column">
+        <Text color="red">❌ Calibration failed:</Text>
+        <Text color="red">{error}</Text>
+      </Box>
+    );
+  }
+
+  if (completed && calibration) {
+    return (
+      <Box flexDirection="column">
+        <Text>🔧 TypeScript Performance Calibration</Text>
+        <Text>{"=".repeat(80)}</Text>
+        <Text></Text>
+        <Text color="green">✅ Calibration complete!</Text>
+        <Text></Text>
+        <Text>
+          Calibration factor: {calibration.calibrationFactor.toFixed(3)}x
+        </Text>
+        <Text>
+          Local baseline: {calibration.baselineTotalTime.toFixed(0)}ms
+        </Text>
+        <Text>CI baseline: {calibration.ciTotalMax}ms</Text>
+        <Text>Saved to: .tsc-performance-local.json</Text>
+        <Text></Text>
+        <Text>
+          You can now run 'pnpm perf:check' to validate local performance.
+        </Text>
+      </Box>
+    );
+  }
+
+  return (
+    <Box flexDirection="column">
+      <Text>🔧 TypeScript Performance Calibration</Text>
+      <Text>{"=".repeat(80)}</Text>
+      <Text></Text>
+      <Text>{status}</Text>
+      {progress && <Text>{progress}</Text>}
+    </Box>
+  );
+}
+
 export function App({ isCheckMode }: { isCheckMode: boolean; }) {
   const [results, setResults] = useState<PackageDiagnostics[]>([]);
   const [limits, setLimits] = useState<PerformanceLimits | null>(null);
+  const [localCalibration, setLocalCalibration] = useState<
+    LocalCalibration | null
+  >(null);
   const [limitsLoadError, setLimitsLoadError] = useState<string | null>(null);
   const [rerunningPackages, setRerunningPackages] = useState<Set<string>>(
     new Set(),
@@ -113,7 +207,18 @@ export function App({ isCheckMode }: { isCheckMode: boolean; }) {
   useEffect(() => {
     if (isCheckMode) {
       try {
-        setLimits(loadLimits());
+        let ciLimits = loadLimits();
+        const calibration = loadLocalCalibration();
+
+        if (calibration) {
+          setLocalCalibration(calibration);
+          ciLimits = applyCalibrationFactor(
+            ciLimits,
+            calibration.calibrationFactor,
+          );
+        }
+
+        setLimits(ciLimits);
         setLimitsLoadError(null);
       } catch (error) {
         setLimitsLoadError(
@@ -273,6 +378,25 @@ export function App({ isCheckMode }: { isCheckMode: boolean; }) {
       </Text>
       <Text></Text>
       <Text>{"=".repeat(80)}</Text>
+      {isCheckMode && localCalibration && (
+        <>
+          <Text></Text>
+          <Text>
+            ℹ️ Using local calibration (factor:{" "}
+            {localCalibration.calibrationFactor.toFixed(3)}x, calibrated:{" "}
+            {new Date(localCalibration.calibratedAt).toLocaleString()})
+          </Text>
+        </>
+      )}
+      {isCheckMode && !localCalibration && (
+        <>
+          <Text></Text>
+          <Text color="yellow">
+            ⚠️ No local calibration found. Run 'pnpm perf:calibrate' for accurate
+            local checks.
+          </Text>
+        </>
+      )}
       <Text></Text>
       <Text>📊 Summary (updating live)</Text>
       <Text></Text>
@@ -333,10 +457,15 @@ export function App({ isCheckMode }: { isCheckMode: boolean; }) {
   );
 }
 
-export function runInkMode(isCheckMode: boolean): Promise<void> {
+export function runInkMode(
+  isCheckMode: boolean,
+  isCalibrate: boolean,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const instance = render(
-      React.createElement(App, { isCheckMode }),
+      isCalibrate
+        ? React.createElement(CalibrationApp)
+        : React.createElement(App, { isCheckMode }),
     );
 
     // Handle Ctrl+C properly

@@ -3,7 +3,13 @@
  */
 
 import { execSync } from "child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "fs";
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
@@ -14,6 +20,7 @@ const __dirname = dirname(__filename);
 export const ROOT = join(__dirname, "../../..");
 export const PACKAGES_DIR = join(ROOT, "packages");
 export const LIMITS_PATH = join(ROOT, ".github/tsc-performance-limits.json");
+export const LOCAL_CALIBRATION_PATH = join(ROOT, ".tsc-performance-local.json");
 
 export interface PackageDiagnostics {
   name: string;
@@ -43,6 +50,13 @@ export interface AveragedDiagnostics extends PackageDiagnostics {
   minTime: number;
   maxTime: number;
   runs: number;
+}
+
+export interface LocalCalibration {
+  calibrationFactor: number;
+  calibratedAt: string;
+  baselineTotalTime: number;
+  ciTotalMax: number;
 }
 
 export function getPackages(): string[] {
@@ -182,6 +196,83 @@ export function getPackageStatus(
   if (result.time > max) return "❌";
   if (result.time < max * limits.headroomWarningThreshold) return "⚠️";
   return "✅";
+}
+
+export function loadLocalCalibration(): LocalCalibration | null {
+  if (!existsSync(LOCAL_CALIBRATION_PATH)) {
+    return null;
+  }
+  try {
+    return JSON.parse(readFileSync(LOCAL_CALIBRATION_PATH, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+export function saveLocalCalibration(calibration: LocalCalibration): void {
+  writeFileSync(
+    LOCAL_CALIBRATION_PATH,
+    JSON.stringify(calibration, null, 2) + "\n",
+    "utf-8",
+  );
+}
+
+export function applyCalibrationFactor(
+  limits: PerformanceLimits,
+  factor: number,
+): PerformanceLimits {
+  return {
+    ...limits,
+    totalMax: Math.ceil(limits.totalMax * factor),
+    packages: Object.fromEntries(
+      Object.entries(limits.packages).map(([name, max]) => [
+        name,
+        Math.ceil(max * factor),
+      ]),
+    ),
+  };
+}
+
+export async function calibratePerformance(
+  onProgress?: (
+    message: string,
+    packageName?: string,
+    current?: number,
+    total?: number,
+  ) => void,
+): Promise<LocalCalibration> {
+  const packages = getPackages();
+  const ciLimits = loadLimits();
+  const results: PackageDiagnostics[] = [];
+
+  onProgress?.("Running calibration (3x average for all packages)...");
+
+  for (let i = 0; i < packages.length; i++) {
+    const pkg = packages[i];
+    onProgress?.(`Calibrating ${pkg}...`, pkg, i + 1, packages.length);
+
+    const averaged = await runDiagnosticsMultiple(pkg, 3);
+    if (averaged) {
+      results.push(averaged);
+    }
+  }
+
+  const totalTime = results.reduce((sum, r) => sum + r.time, 0);
+  // Add 20% safety margin to account for measurement variance
+  const rawFactor = totalTime / ciLimits.totalMax;
+  const calibrationFactor = rawFactor * 1.2;
+
+  const calibration: LocalCalibration = {
+    calibrationFactor,
+    calibratedAt: new Date().toISOString(),
+    baselineTotalTime: totalTime,
+    ciTotalMax: ciLimits.totalMax,
+  };
+
+  saveLocalCalibration(calibration);
+  onProgress?.("Calibration complete!");
+
+  return calibration;
 }
 
 export function checkPerformance(
