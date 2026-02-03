@@ -9,7 +9,7 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
-    "check:packages": "node scripts/src/verify-packages.mjs",
+    "check:packages": "tsx scripts/src/verify-packages.ts",
     "clean": "turbo clean",
     "format": "dprint fmt",
     "format:check": "dprint check",

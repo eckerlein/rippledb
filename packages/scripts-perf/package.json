@@ -38,5 +38,8 @@
     "diagnostics"
   ],
   "license": "MIT",
-  "private": true
+  "private": true,
+  "tsup": {
+    "dts": false
+  }
 }
