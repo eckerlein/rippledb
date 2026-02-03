@@ -144,6 +144,16 @@ function getPackageVersion(file: string): string | null {
   }
 }
 
+function getPackageIsPrivate(file: string): boolean {
+  try {
+    const content = readFileSync(file, "utf-8");
+    const packageJson = JSON.parse(content);
+    return packageJson.private || false;
+  } catch {
+    return false;
+  }
+}
+
 function isValidInitialVersion(version: string): boolean {
   // New packages should start with 0.1.0
   return version === "0.1.0";
@@ -187,6 +197,12 @@ function main(): void {
   const invalidNewPackages: string[] = [];
 
   for (const file of added) {
+    const isPrivate = getPackageIsPrivate(file);
+    if (isPrivate) {
+      console.log(`✓ New package ${file} is private, skipping version check`);
+      continue;
+    }
+
     const version = getPackageVersion(file);
     if (!version) {
       console.error(`❌ New package ${file} is missing a version field`);
