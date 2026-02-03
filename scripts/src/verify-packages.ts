@@ -11,6 +11,7 @@ const packagesDir = join(repoRoot, "packages");
 
 interface PackageJson {
   name?: string;
+  bin?: string | Record<string, string>;
   scripts?: {
     build?: string;
     [key: string]: string | undefined;
@@ -110,14 +111,18 @@ async function main() {
         );
       }
       const co = tscb.compilerOptions;
-      if (co?.emitDeclarationOnly !== true) {
+
+      // Only require emitDeclarationOnly for library packages (without bin)
+      const isCLI = pkgJson.bin !== undefined;
+      if (!isCLI && co?.emitDeclarationOnly !== true) {
         errors.push(
           fail(
             name,
-            "tsconfig.build.json should set emitDeclarationOnly: true",
+            "tsconfig.build.json should set emitDeclarationOnly: true (library packages)",
           ),
         );
       }
+
       if (co?.declarationMap !== true) {
         errors.push(
           fail(name, "tsconfig.build.json should set declarationMap: true"),
