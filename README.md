@@ -24,30 +24,32 @@ To run locally: `pnpm dev` (from `apps/docs`)
 ## Install
 
 ```bash
-pnpm add @rippledb/core @rippledb/server @rippledb/db-sqlite
+pnpm add @rippledb/core @rippledb/db-sqlite @rippledb/materialize-db
 ```
 
 ## Quick Example
 
 ```typescript
-import { makeUpsert } from "@rippledb/core";
+import { defineSchema, makeUpsert, s } from "@rippledb/core";
 import { createHlcState, tickHlc } from "@rippledb/core";
 import { SqliteDb } from "@rippledb/db-sqlite";
-import { createSyncSqlExecutor } from "@rippledb/materialize-db";
+import { createSyncMaterializer } from "@rippledb/materialize-db";
+
+const schema = defineSchema({
+  todos: { id: s.string(), title: s.string(), done: s.boolean() },
+});
 
 const db = new SqliteDb({
   filename: "./data.db",
-  materializer: ({ db }) => {
-    const sqlConfig = {
+  schema,
+  materializer: ({ db, schema }) =>
+    createSyncMaterializer({
+      schema,
+      db,
       dialect: "sqlite",
       tableMap: { todos: "todos" },
       fieldMap: { todos: { id: "id", title: "title", done: "done" } },
-    } as const;
-    return {
-      ...sqlConfig,
-      executor: createSyncSqlExecutor(db, sqlConfig),
-    };
-  },
+    }),
 });
 
 // Append a change
@@ -82,21 +84,56 @@ const { changes, nextCursor } = await db.pull({
 | `@rippledb/server` | Db interface, append/pull contracts |
 | `@rippledb/client` | Store interface, sync orchestration |
 
-**Database Adapters**:
+**Database Adapters** (server-side persistence):
 
-| Package                | Description                    |
-| ---------------------- | ------------------------------ |
-| `@rippledb/db-sqlite`  | SQLite via better-sqlite3      |
-| `@rippledb/db-turso`   | Turso (libSQL) with batching   |
-| `@rippledb/db-drizzle` | Any Drizzle-supported database |
-| `@rippledb/db-memory`  | In-memory (for testing)        |
+| Package                | Best For                           |
+| ---------------------- | ---------------------------------- |
+| `@rippledb/db-sqlite`  | Local servers, Electron, tests     |
+| `@rippledb/db-turso`   | Edge deployments, serverless       |
+| `@rippledb/db-drizzle` | Existing Drizzle projects (any DB) |
+| `@rippledb/db-memory`  | Unit tests, prototyping            |
 
-**Materializers**:
+**Materializers** (project changes → queryable tables):
 
-| Package                         | Description                  |
+| Package                         | Best For                     |
 | ------------------------------- | ---------------------------- |
-| `@rippledb/materialize-db`      | SQL-based state projection   |
-| `@rippledb/materialize-drizzle` | Drizzle ORM state projection |
+| `@rippledb/materialize-db`      | Raw SQL projects             |
+| `@rippledb/materialize-drizzle` | Drizzle projects (type-safe) |
+
+**Stores** (client-side local truth):
+
+| Package                  | Best For                |
+| ------------------------ | ----------------------- |
+| `@rippledb/store-memory` | Unit tests, prototyping |
+| `@rippledb/store-sqlite` | Production client apps  |
+
+**Bindings** (UI cache invalidation):
+
+| Package                         | Framework                 |
+| ------------------------------- | ------------------------- |
+| `@rippledb/bind-tanstack-query` | React, Vue, Solid, Svelte |
+
+**Client Extensions**:
+
+| Package                        | Description                     |
+| ------------------------------ | ------------------------------- |
+| `@rippledb/client-query`       | Reactive queries with selectors |
+| `@rippledb/client-controllers` | Client-side write helpers       |
+
+**Remote & Server**:
+
+| Package                 | Description             |
+| ----------------------- | ----------------------- |
+| `@rippledb/remote-http` | HTTP remote sync client |
+| `@rippledb/remote-trpc` | tRPC remote sync client |
+| `@rippledb/server-trpc` | tRPC server adapter     |
+
+**Utilities**:
+
+| Package         | Description               |
+| --------------- | ------------------------- |
+| `@rippledb/zod` | Zod schema <-> RippleDB   |
+| `@rippledb/cli` | Code generation & tooling |
 
 ## Development
 
@@ -125,8 +162,7 @@ manual action required.
 
 #### VS Code Extension (Optional)
 
-For real-time formatting in VS Code, install the Dprint extension
-(`dprint.dprint`) AND dprint globally:
+For real-time formatting in VS Code, install dprint globally:
 
 ```bash
 # Using homebrew (recommended for macOS)
@@ -134,20 +170,19 @@ brew install dprint
 
 # OR using the official installer
 curl -fsSL https://dprint.dev/install.sh | sh
-
-# OR using cargo (if you have Rust installed)
-cargo install dprint
 ```
 
-Verify installation and reload VS Code:
+Then:
 
-```bash
-which dprint
-dprint --version
-```
+1. Install the Dprint extension (`dprint.dprint`) from the VS Code marketplace
+2. Reload your editor (`Cmd+Shift+P` → "Reload Window")
 
-Then reload your editor (`Cmd+Shift+P` → "Reload Window") to enable the Dprint
-extension.
+**Alternative: Use Local dprint (No Global Install)**
+
+The workspace settings already point to the local `node_modules` dprint. To use
+it instead of a global install, just install the extension and click "Allow"
+when prompted. This approach requires clicking through a security prompt and can
+be harder to debug if something goes wrong.
 
 ### Available Scripts
 
