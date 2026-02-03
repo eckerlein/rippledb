@@ -10,6 +10,7 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "check:packages": "tsx scripts/src/verify-packages.ts",
+    "check:packages:version": "tsx scripts/src/verify-packages-version.ts",
     "clean": "turbo clean",
     "format": "dprint fmt",
     "format:check": "dprint check",
