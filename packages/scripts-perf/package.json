@@ -4,18 +4,18 @@
   "description": "TypeScript performance diagnostics and checking tools",
   "type": "module",
   "bin": {
-    "tsc-performance": "./dist/tsc-performance.js"
+    "tsc-performance": "./dist/entrypoint.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "dev": "tsx src/tsc-performance.tsx"
+    "dev": "tsx src/entrypoint.ts"
   },
   "exports": {
     ".": {
-      "types": "./dist/tsc-performance.d.ts",
-      "import": "./dist/tsc-performance.js"
+      "types": "./dist/entrypoint.d.ts",
+      "import": "./dist/entrypoint.js"
     }
   },
   "files": [
