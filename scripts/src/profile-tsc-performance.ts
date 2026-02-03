@@ -38,7 +38,7 @@ try {
     cwd: ROOT,
     stdio: "inherit",
   });
-} catch (error) {
+} catch {
   // Errors are expected, we just want the diagnostics
 }
 
