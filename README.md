@@ -100,11 +100,62 @@ const { changes, nextCursor } = await db.pull({
 
 ## Development
 
+### Setup
+
 ```bash
 pnpm install
 pnpm build
-pnpm test
-pnpm dev        # Start docs site
+```
+
+### Code Formatting
+
+This project uses [dprint](https://dprint.dev/) for code formatting.
+
+#### CLI
+
+```bash
+pnpm format        # Format all files
+pnpm format:check  # Check formatting without changing files
+```
+
+#### Git Commit Hook (Automatic)
+
+Code is automatically formatted on commit via `husky` and `lint-staged`. No
+manual action required.
+
+#### VS Code Extension (Optional)
+
+For real-time formatting in VS Code, install the Dprint extension
+(`dprint.dprint`) AND dprint globally:
+
+```bash
+# Using homebrew (recommended for macOS)
+brew install dprint
+
+# OR using the official installer
+curl -fsSL https://dprint.dev/install.sh | sh
+
+# OR using cargo (if you have Rust installed)
+cargo install dprint
+```
+
+Verify installation and reload VS Code:
+
+```bash
+which dprint
+dprint --version
+```
+
+Then reload your editor (`Cmd+Shift+P` → "Reload Window") to enable the Dprint
+extension.
+
+### Available Scripts
+
+```bash
+pnpm test          # Run tests
+pnpm test:watch    # Run tests in watch mode
+pnpm dev           # Start docs site
+pnpm lint          # Run linter
 ```
 
 ## License
