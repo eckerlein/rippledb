@@ -1,5 +1,40 @@
 # @rippledb/core
 
+## 0.3.0
+
+### Minor Changes
+
+- [#34](https://github.com/eckerlein/rippledb/pull/34)
+  [`65520ef`](https://github.com/eckerlein/rippledb/commit/65520ef17bf55ecfb0a79da4212976d68b74f15b)
+  Thanks [@Jan-Eckerlein](https://github.com/Jan-Eckerlein)! - Refactor
+  materializer adapters to stateless API
+  - MaterializerFactory now receives `{ db, schema }` and returns
+    MaterializerAdapter directly
+  - Adapters and executors are stateless (db passed per call instead of bound at
+    creation)
+  - Add schema-driven helpers: `createMaterializer`, `createSyncMaterializer`,
+    `createDrizzleMaterializer`, `createDrizzleSyncMaterializer`
+  - Add `MaterializerDb` interface in `@rippledb/core` for database contract
+  - Adapters are cached in DB constructors for performance
+  - Update all DB adapters to use new factory pattern
+
+  BREAKING CHANGE: MaterializerFactory signature changed. Materializer adapters
+  now receive `db` as first parameter in all methods.
+
+### Patch Changes
+
+- [#44](https://github.com/eckerlein/rippledb/pull/44)
+  [`fdfabe9`](https://github.com/eckerlein/rippledb/commit/fdfabe9365356ed777d0407a0b92a4c75037c3f1)
+  Thanks [@Jan-Eckerlein](https://github.com/Jan-Eckerlein)! - Optimize
+  TypeScript type checking performance
+  - Restructure `FieldDescriptor` union for faster type narrowing
+  - Simplify `InferField` type to reduce conditional depth
+  - Add helper types to `zod` package for better type inference
+  - Reduce TypeScript compilation time across the monorepo
+
+  These changes are internal type optimizations that maintain full backwards
+  compatibility.
+
 ## 0.2.0
 
 ### Minor Changes

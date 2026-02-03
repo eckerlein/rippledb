@@ -1,5 +1,26 @@
 # @rippledb/zod
 
+## 0.2.1
+
+### Patch Changes
+
+- [#44](https://github.com/eckerlein/rippledb/pull/44)
+  [`fdfabe9`](https://github.com/eckerlein/rippledb/commit/fdfabe9365356ed777d0407a0b92a4c75037c3f1)
+  Thanks [@Jan-Eckerlein](https://github.com/Jan-Eckerlein)! - Optimize
+  TypeScript type checking performance
+  - Restructure `FieldDescriptor` union for faster type narrowing
+  - Simplify `InferField` type to reduce conditional depth
+  - Add helper types to `zod` package for better type inference
+  - Reduce TypeScript compilation time across the monorepo
+
+  These changes are internal type optimizations that maintain full backwards
+  compatibility.
+
+- Updated dependencies
+  [[`fdfabe9`](https://github.com/eckerlein/rippledb/commit/fdfabe9365356ed777d0407a0b92a4c75037c3f1),
+  [`65520ef`](https://github.com/eckerlein/rippledb/commit/65520ef17bf55ecfb0a79da4212976d68b74f15b)]:
+  - @rippledb/core@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes
