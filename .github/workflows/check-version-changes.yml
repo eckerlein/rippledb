@@ -33,7 +33,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check for version field changes
-        run: pnpm tsx scripts/check-version-changes.ts
+        run: pnpm tsx scripts/src/check-version-changes.ts
         env:
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_EVENT_PATH: ${{ github.event_path }}
